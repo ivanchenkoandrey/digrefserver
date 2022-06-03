@@ -1,5 +1,3 @@
-from profile import Profile
-
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from rest_framework import serializers, status, authentication
@@ -9,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
+
+from .models import Profile
 
 User = get_user_model()
 
@@ -34,7 +34,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = ProfileSerializer
+    profile = ProfileSerializer()
 
     class Meta:
         model = User
@@ -92,5 +92,6 @@ class ProfileView(APIView):
 
     @classmethod
     def get(cls, request, *args, **kwargs):
-        profile_serializer = UserSerializer(request.user)
+        user = User.objects.get(username=request.user.username)
+        profile_serializer = UserSerializer(user)
         return Response(profile_serializer.data)
