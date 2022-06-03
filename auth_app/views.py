@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from telebot import TeleBot
+from telebot.apihelper import ApiTelegramException
 
 User = get_user_model()
 
@@ -48,7 +49,10 @@ class AuthView(APIView):
         serializer = TelegramIDSerializer(data=request.data)
         if serializer.is_valid():
             tg_id = serializer.data.get('tg_id')
-            bot.send_message(tg_id, f'Your register code is {code}')
+            try:
+                bot.send_message(tg_id, f'Your register code is {code}')
+            except ApiTelegramException:
+                return Response(data={"error": "Chat id is invalid"}, status=status.HTTP_400_BAD_REQUEST)
             request.session['tg_id'] = tg_id
             return redirect('verify')
         return Response(status=status.HTTP_400_BAD_REQUEST)
