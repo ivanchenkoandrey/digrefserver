@@ -83,7 +83,9 @@ class VerifyCodeView(APIView):
                 token = Token.objects.get(user=user).key
                 data = {'type': 'authresult', "is_success": True, "token": token}
                 return Response(data)
-        return Response(data={'type': 'authresult', "is_success": False})
+        return Response(
+            data={'type': 'authresult', "is_success": False},
+            status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfileView(APIView):
