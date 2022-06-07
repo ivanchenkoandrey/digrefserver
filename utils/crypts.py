@@ -4,8 +4,6 @@ from cryptography.fernet import Fernet
 
 
 def get_key():
-    path = os.path.dirname(os.path.realpath(__file__))
-    print(path)
     return open(os.path.dirname(os.path.realpath(__file__)) + '/secret.key').read()
 
 
