@@ -1,13 +1,15 @@
 import os
-from dotenv import load_dotenv
+import environ
 
 from pathlib import Path
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get('SECRET_KEY')
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
+
+env = environ.Env()
+environ.Env.read_env()
+
+SECRET_KEY = env('SECRET_KEY')
+BOT_TOKEN = env('BOT_TOKEN')
 DEBUG = True
 ALLOWED_HOSTS = ['176.99.6.251', 'localhost', '127.0.0.1']
 
@@ -55,14 +57,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'digrefserver.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.environ.get('POSTGRES_NAME'),
-        'USER': os.environ.get('POSTGRES_USER'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('HOST'),
-        'PORT': 5432,
-    }
+    'default': env.db('DATABASE_URL')
 }
 
 AUTH_PASSWORD_VALIDATORS = [
