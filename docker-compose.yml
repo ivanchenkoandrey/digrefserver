@@ -1,0 +1,38 @@
+version: '3.7'
+
+services:
+  db:
+    image: postgres
+    container_name: tfdb
+    env_file:
+      - ./digrefserver/.env
+    volumes:
+      - tf:/var/lib/postgresql/data
+    networks:
+      - tfnetwork
+    restart: always
+
+  app:
+    build: .
+    container_name: tfapp
+    command: python manage.py runserver 0.0.0.0:8888
+    ports:
+      - "8888:8888"
+    networks:
+      - tfnetwork
+    volumes:
+      - .:/usr/bin/tfapp
+    env_file:
+      - ./digrefserver/.env
+    restart: always
+    depends_on:
+      - db
+    links:
+      - "db:db"
+
+networks:
+  tfnetwork:
+    driver: bridge
+
+volumes:
+  tf:

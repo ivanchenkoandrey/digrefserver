@@ -32,9 +32,12 @@ class VerifyCodeSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    organization = serializers.CharField(source="organization.name")
+    department = serializers.CharField(source="department.name")
+
     class Meta:
         model = Profile
-        fields = ['tg_id']
+        exclude = ['user']
 
 
 class UserSerializer(serializers.ModelSerializer):
