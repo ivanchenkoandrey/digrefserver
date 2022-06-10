@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
+from django.db.models import Q, F
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
@@ -95,11 +96,40 @@ class Transaction(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incomes', verbose_name='Получатель')
     transaction_class = models.CharField(max_length=1, choices=TransactionClass.choices, verbose_name='Вид транзакции')
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
-    created_at = models.DateTimeField(verbose_name='Время создания')
-    updated_at = models.DateTimeField(verbose_name='Время обновления состояния', null=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления состояния', null=True)
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование')
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        account = Account.objects.filter(owner=self.recipient, account_type='I').first()
+        if account is not None:
+            if self.status == 'W':
+                account.frozen += self.amount
+            elif self.status == 'A':
+                account.frozen -= self.amount
+                account.amount += self.amount
+            elif self.status == 'D':
+                account.frozen -= self.amount
+            account.save()
+        else:
+            Account.objects.create(
+                owner=self.recipient,
+                account_type='I',
+                organization=self.recipient.profile.department,
+                amount=0,
+                frozen=self.amount,
+                transaction=self
+            )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name='check_sender_is_not_recipient',
+                check=~Q(sender=F('recipient'))
+            )
+        ]
 
 # наверно нужен указатель на запись на итоговый TransactionState. но пока можно считать, что запись в states будет только одна - либо подтв., либо отказ
 
@@ -129,7 +159,7 @@ class Account(models.Model):
                                      verbose_name='Подразделение', null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     frozen = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Ожидает подтверждения')
-    updated_at = models.DateTimeField(verbose_name='Время обновления')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
 
 
