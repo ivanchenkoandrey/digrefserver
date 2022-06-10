@@ -29,7 +29,8 @@ class Organization(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profileorganization', null=True,
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profileorganization',
+                                     null=True,
                                      verbose_name='Юр.лицо')
     department = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profiledepartment', null=True,
                                    verbose_name='Подразделение')
@@ -43,7 +44,7 @@ class Profile(models.Model):
     nickname = CITextField(blank=True, null=True, verbose_name='Псевдоним')
 
     def __str__(self):
-        return self.user.username
+        return str(self.user)
 
 
 class Contact(models.Model):
@@ -101,17 +102,27 @@ class Transaction(models.Model):
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование')
 
+    def __str__(self):
+        date = self.updated_at.strftime('%d-%m-%Y %H:%M:%S')
+        return f"to: {self.recipient} class: {self.transaction_class} status: {self.status} updated: {date}"
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         account = Account.objects.filter(owner=self.recipient, account_type='I').first()
+        states = self.states.all()
         if account is not None:
             if self.status == 'W':
                 account.frozen += self.amount
-            elif self.status == 'A':
+            elif self.status == 'A' and len(states) == 1:
                 account.frozen -= self.amount
                 account.amount += self.amount
-            elif self.status == 'D':
+            elif self.status == 'A' and len(states) > 1:
+                account.amount += self.amount
+            elif self.status == 'D' and len(states) == 1:
                 account.frozen -= self.amount
+            elif self.status == 'D' and len(states) > 1:
+                account.amount -= self.amount
+            account.transaction = self
             account.save()
         else:
             Account.objects.create(
@@ -131,15 +142,22 @@ class Transaction(models.Model):
             )
         ]
 
+
 # наверно нужен указатель на запись на итоговый TransactionState. но пока можно считать, что запись в states будет только одна - либо подтв., либо отказ
 
 class TransactionState(models.Model):
     transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='states',
                                     verbose_name='Транзакция')
-    created_at = models.DateTimeField(verbose_name='Время создания')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
     controller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='revised', verbose_name='Контролер')
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование (отклонения)', null=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        transaction = self.transaction
+        transaction.status = self.status
+        transaction.save()
 
 
 class AccountTypes(models.TextChoices):
@@ -161,6 +179,9 @@ class Account(models.Model):
     frozen = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Ожидает подтверждения')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return str(self.owner)
 
 
 class Period(models.Model):
