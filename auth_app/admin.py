@@ -17,12 +17,14 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['account_type', 'owner', 'organization', 'amount', 'frozen']
+    list_select_related = ['owner', 'organization']
 
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['profile', 'contact_type', 'contact_id', 'confirmed']
+    list_select_related = ['profile']
 
 
 @admin.register(Transaction)
@@ -33,9 +35,10 @@ class TransactionAdmin(admin.ModelAdmin):
 
 @admin.register(UserStat)
 class UserStatAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['user', 'period', 'bonus', 'income_at_start', 'income_at_end']
+    list_select_related = ['user', 'period']
 
 
 @admin.register(Period)
 class PeriodAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['start_date', 'end_date', 'name']
