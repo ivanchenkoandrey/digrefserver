@@ -4,14 +4,16 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers, status, authentication
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
 
+from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
-from .models import Profile
+from .models import Profile, Account
 
 User = get_user_model()
 
@@ -46,6 +48,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'profile']
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = '__all__'
 
 
 class AuthView(APIView):
@@ -106,3 +114,29 @@ class ProfileView(APIView):
         user = User.objects.get(username=request.user.username)
         profile_serializer = UserSerializer(user)
         return Response(profile_serializer.data)
+
+
+class UserBalanceView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.TokenAuthentication]
+
+    @classmethod
+    def get(cls, request, *args, **kwargs):
+        user = request.user
+        queryset = Account.objects.filter(account_type__in=['I', 'D'], owner=user)
+        data = processing_accounts_data(queryset)
+        return Response(data)
+
+
+@api_view(http_method_names=['GET'])
+@authentication_classes([authentication.TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_user_stat_by_period(request, period_id):
+    user = request.user
+    queryset = Account.objects.filter(account_type__in=['I', 'D'], owner=user)
+    data = processing_accounts_data(queryset)
+    data["income"]["used_for_bonus"] = 200
+    data["income"]["received"] += 200
+    data["distr"]["burnt"] = 0
+    data["bonus"] = 0
+    return Response(data)
