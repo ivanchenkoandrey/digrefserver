@@ -2,6 +2,7 @@ from random import randint
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from rest_framework import serializers, status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -25,7 +26,7 @@ bot = TeleBot(token=BOT_TOKEN)
 
 class TelegramIDSerializer(serializers.Serializer):
     type = serializers.CharField(max_length=20)
-    tg_id = serializers.CharField(max_length=20)
+    login = serializers.CharField(max_length=20)
 
 
 class VerifyCodeSerializer(serializers.Serializer):
@@ -62,7 +63,11 @@ class AuthView(APIView):
         code = ''.join([str(randint(1, 9)) for _ in range(4)])
         serializer = TelegramIDSerializer(data=request.data)
         if serializer.is_valid():
-            tg_id = serializer.data.get('tg_id')
+            login = serializer.data.get('login')
+            user_profile = Profile.objects.filter(Q(tg_name=login) | Q(tg_id=login)).first()
+            if user_profile is None:
+                return Response(data={"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
+            tg_id = user_profile.tg_id
             try:
                 bot.send_message(tg_id, f'Your register code is {code}')
             except ApiTelegramException:
@@ -75,7 +80,7 @@ class AuthView(APIView):
 
     @classmethod
     def get(cls, request, *args, **kwargs):
-        data = {'type': 'authorize', 'tg_id': None}
+        data = {'type': 'authorize', 'login': None}
         serializer = TelegramIDSerializer(data)
         return Response(serializer.data)
 
