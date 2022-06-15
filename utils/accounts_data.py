@@ -10,22 +10,22 @@ def processing_accounts_data(queryset: QuerySet):
     user_accounts_data = {
         "income": {
             "amount": 0,
-            "frozen": 0,
-            "sended": 0,
+            "frozen": 100,
+            "sended": 200,
             "received": 0,
-            "cancelled": 0,
+            "cancelled": 300,
         },
         "distr": {
-            "amount": 0,
+            "amount": 100,
             "expire_date": expire_date,
-            "frozen": 0,
-            "sended": 0,
-            "received": 0,
-            "cancelled": 0,
+            "frozen": 100,
+            "sended": 200,
+            "received": 100,
+            "cancelled": 300,
         }}
     if len(queryset):
         for item in queryset:
             user_accounts_data[accounts_types[item.account_type]]["amount"] = item.amount
-            user_accounts_data[accounts_types[item.account_type]]["received"] = item.amount
+            user_accounts_data[accounts_types[item.account_type]]["received"] += item.amount
             user_accounts_data[accounts_types[item.account_type]]["frozen"] = item.frozen
     return user_accounts_data

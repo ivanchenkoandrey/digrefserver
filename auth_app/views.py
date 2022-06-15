@@ -136,7 +136,6 @@ def get_user_stat_by_period(request, period_id):
     queryset = Account.objects.filter(account_type__in=['I', 'D'], owner=user)
     data = processing_accounts_data(queryset)
     data["income"]["used_for_bonus"] = 200
-    data["income"]["received"] += 200
     data["distr"]["burnt"] = 0
     data["bonus"] = 0
     return Response(data)
