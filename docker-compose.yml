@@ -9,7 +9,8 @@ services:
     volumes:
       - tf:/var/lib/postgresql/data
     networks:
-      - tfnetwork
+      network:
+        ipv4_address: 172.16.0.2
     restart: always
 
   app:
@@ -19,7 +20,8 @@ services:
     ports:
       - "8888:8888"
     networks:
-      - tfnetwork
+      network:
+        ipv4_address: 172.16.0.3
     volumes:
       - .:/usr/bin/tfapp
     env_file:
@@ -30,9 +32,28 @@ services:
     links:
       - "db:db"
 
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    env_file:
+      - ./digrefserver/.env
+    restart: always
+    networks:
+      network:
+        ipv4_address: 172.16.0.4
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+
 networks:
-  tfnetwork:
-    driver: bridge
+  network:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.0.0/24"
+          gateway: "172.16.0.1"
 
 volumes:
   tf:
+  pgadmin-data:
