@@ -1,7 +1,7 @@
 from random import randint
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login
 from django.db.models import Q
 from rest_framework import serializers, status, authentication
 from rest_framework.authtoken.models import Token
@@ -63,8 +63,8 @@ class AuthView(APIView):
         code = ''.join([str(randint(1, 9)) for _ in range(4)])
         serializer = TelegramIDSerializer(data=request.data)
         if serializer.is_valid():
-            login = serializer.data.get('login')
-            user_profile = Profile.objects.filter(Q(tg_name=login) | Q(tg_id=login)).first()
+            _login = serializer.data.get('login')
+            user_profile = Profile.objects.filter(Q(tg_name=_login) | Q(tg_id=_login)).first()
             if user_profile is None:
                 return Response(data={"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
             tg_id = user_profile.tg_id
@@ -73,8 +73,8 @@ class AuthView(APIView):
             except ApiTelegramException:
                 return Response(data={"error": "Chat id is invalid"}, status=status.HTTP_400_BAD_REQUEST)
             response = Response({'type': "authorize", "status": "ready to verify"})
-            response['X-ID'] = encrypt_message(tg_id)
-            response['X-Code'] = encrypt_message(code)
+            response['X-ID'] = request.session['x-id'] = encrypt_message(tg_id)
+            response['X-Code'] = request.session['x-code'] = encrypt_message(code)
             return response
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -95,14 +95,17 @@ class VerifyCodeView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        tg_id = decrypt_message(request.headers.get('X-ID'))
-        code_from_headers = decrypt_message(request.headers.get('X-Code'))
+        encrypted_id = request.headers.get('X-ID') or request.session.get('x-id')
+        encrypted_code = request.headers.get('X-Code') or request.session.get('x-code')
+        tg_id = decrypt_message(encrypted_id)
+        decrypted_code = decrypt_message(encrypted_code)
         serializer = VerifyCodeSerializer(data=request.data)
         if serializer.is_valid():
             code = serializer.data.get('code')
-            if code == code_from_headers:
+            if code == decrypted_code:
                 user = User.objects.get(profile__tg_id=tg_id)
                 token = Token.objects.get(user=user).key
+                login(request, user)
                 data = {'type': 'authresult', "is_success": True, "token": token}
                 return Response(data)
         return Response(
@@ -112,7 +115,8 @@ class VerifyCodeView(APIView):
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    authentication_classes = [authentication.TokenAuthentication]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
 
     @classmethod
     def get(cls, request, *args, **kwargs):
@@ -123,7 +127,8 @@ class ProfileView(APIView):
 
 class UserBalanceView(APIView):
     permission_classes = [IsAuthenticated]
-    authentication_classes = [authentication.TokenAuthentication]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
 
     @classmethod
     def get(cls, request, *args, **kwargs):
@@ -134,7 +139,8 @@ class UserBalanceView(APIView):
 
 
 @api_view(http_method_names=['GET'])
-@authentication_classes([authentication.TokenAuthentication])
+@authentication_classes([authentication.SessionAuthentication,
+                         authentication.TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_user_stat_by_period(request, period_id):
     user = request.user
