@@ -16,7 +16,6 @@ services:
   app:
     build: .
     container_name: tfapp
-    command: python manage.py runserver 0.0.0.0:8888
     ports:
       - "8888:8888"
     networks:

@@ -8,3 +8,4 @@ WORKDIR /usr/bin/tfapp
 COPY requirements.txt /usr/bin/tfapp
 RUN pip install -r requirements.txt --upgrade pip
 COPY . .
+CMD ["gunicorn", "--bind", ":8888", "--workers", "4", "digrefserver.wsgi:application"]
