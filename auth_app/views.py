@@ -95,8 +95,8 @@ class VerifyCodeView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        encrypted_id = request.headers.get('X-ID') or request.session.get('x-id')
-        encrypted_code = request.headers.get('X-Code') or request.session.get('x-code')
+        encrypted_id = request.headers.get('X-ID', '') or request.session.get('x-id', '')
+        encrypted_code = request.headers.get('X-Code', '') or request.session.get('x-code', '')
         tg_id = decrypt_message(encrypted_id)
         decrypted_code = decrypt_message(encrypted_code)
         serializer = VerifyCodeSerializer(data=request.data)
