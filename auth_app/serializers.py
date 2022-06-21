@@ -71,3 +71,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         else:
             raise ValidationError('Нельзя перевести больше половины '
                                   'имеющейся под распределение суммы')
+
+
+class TransactionFullSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = '__all__'

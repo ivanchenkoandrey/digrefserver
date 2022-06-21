@@ -6,7 +6,7 @@ from django.db.models import Q
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,7 +18,8 @@ from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
 from .models import Profile, Account, Transaction
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
-                          UserSerializer, TransactionSerializer)
+                          UserSerializer, TransactionSerializer,
+                          TransactionFullSerializer)
 
 User = get_user_model()
 
@@ -141,3 +142,18 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+
+class TransactionsByUserView(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    serializer_class = TransactionFullSerializer
+
+    def get_queryset(self):
+        current_user = self.request.user
+        queryset = Transaction.objects.filter(
+            Q(sender=current_user) | Q(recipient=current_user)
+        )
+        return queryset
