@@ -3,9 +3,11 @@ from random import randint
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.db.models import Q
-from rest_framework import serializers, status, authentication
+from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,7 +16,9 @@ from telebot.apihelper import ApiTelegramException
 
 from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
-from .models import Profile, Account
+from .models import Profile, Account, Transaction
+from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
+                          UserSerializer, TransactionSerializer)
 
 User = get_user_model()
 
@@ -22,39 +26,6 @@ BOT_TOKEN = settings.BOT_TOKEN
 SECRET_KEY = settings.SECRET_KEY
 
 bot = TeleBot(token=BOT_TOKEN)
-
-
-class TelegramIDSerializer(serializers.Serializer):
-    type = serializers.CharField(max_length=20)
-    login = serializers.CharField(max_length=20)
-
-
-class VerifyCodeSerializer(serializers.Serializer):
-    type = serializers.CharField(max_length=20)
-    code = serializers.CharField(max_length=8)
-
-
-class ProfileSerializer(serializers.ModelSerializer):
-    organization = serializers.CharField(source="organization.name")
-    department = serializers.CharField(source="department.name")
-
-    class Meta:
-        model = Profile
-        exclude = ['user']
-
-
-class UserSerializer(serializers.ModelSerializer):
-    profile = ProfileSerializer()
-
-    class Meta:
-        model = User
-        fields = ['username', 'profile']
-
-
-class AccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Account
-        fields = '__all__'
 
 
 class AuthView(APIView):
@@ -150,3 +121,23 @@ def get_user_stat_by_period(request, period_id):
     data["distr"]["burnt"] = 0
     data["bonus"] = 0
     return Response(data)
+
+
+class SendCoinView(CreateModelMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionSerializer
+
+    def get(self, request, *args, **kwargs):
+        users = User.objects.exclude(pk=request.user.pk).values(
+            'id',
+            'profile__tg_name',
+            'profile__first_name',
+            'profile__surname')
+        return Response(users)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
