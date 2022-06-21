@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction
+from auth_app.models import Profile, Account, Transaction, TransactionStatus, TransactionClass
 
 User = get_user_model()
 
@@ -74,6 +74,17 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 
 class TransactionFullSerializer(serializers.ModelSerializer):
+    sender = serializers.CharField(source="sender.profile.tg_name")
+    recipient = serializers.CharField(source="recipient.profile.tg_name")
+    status = serializers.SerializerMethodField()
+    transaction_class = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return obj.get_status_display()
+
+    def get_transaction_class(self, obj):
+        return obj.get_transaction_class_display()
+
     class Meta:
         model = Transaction
         fields = '__all__'
