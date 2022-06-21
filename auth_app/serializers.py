@@ -52,6 +52,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         sender_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_account.amount
+        if amount >= current_account_amount:
+            raise ValidationError("Перевести можно до 50% имеющейся "
+                                  "суммы на счету распределения")
         if amount <= current_account_amount // 2:
             with transaction.atomic():
                 sender_account.amount -= amount
