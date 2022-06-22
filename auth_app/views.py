@@ -3,11 +3,12 @@ from random import randint
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.db.models import Q
+from django.http import JsonResponse
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin
+from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -27,6 +28,13 @@ BOT_TOKEN = settings.BOT_TOKEN
 SECRET_KEY = settings.SECRET_KEY
 
 bot = TeleBot(token=BOT_TOKEN)
+
+
+@api_view(http_method_names=['GET'])
+def get_session_id(request):
+    if not request.session.session_key:
+        request.session.create()
+    return JsonResponse({'sessionid': request.session.session_key})
 
 
 class AuthView(APIView):
