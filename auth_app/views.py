@@ -193,8 +193,9 @@ class SearchUserView(APIView):
                  Q(profile__surname__istartswith=data)) &
                 ~Q(profile__tg_name=request.user.profile.tg_name)
             ).annotate(
+                user_id=F('id'),
                 tg_name=F('profile__tg_name'),
                 name=F('profile__first_name'),
-                surname=F('profile__surname')).values('tg_name', 'name', 'surname')
+                surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')
             return Response(users_data)
         return Response(status=status.HTTP_400_BAD_REQUEST)
