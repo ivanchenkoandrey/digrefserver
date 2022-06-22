@@ -86,7 +86,10 @@ class VerifyCodeView(APIView):
                 user = User.objects.get(profile__tg_id=tg_id)
                 token = Token.objects.get(user=user).key
                 login(request, user)
-                data = {'type': 'authresult', "is_success": True, "token": token}
+                data = {'type': 'authresult',
+                        "is_success": True,
+                        "token": token,
+                        "sessionid": request.session.session_key}
                 return Response(data)
         return Response(
             data={'type': 'authresult', "is_success": False},
