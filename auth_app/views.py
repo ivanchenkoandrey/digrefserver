@@ -2,7 +2,7 @@ from random import randint
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
-from django.db.models import Q
+from django.db.models import Q, F
 from django.http import JsonResponse
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
@@ -188,9 +188,13 @@ class SearchUserView(APIView):
         if serializer.is_valid():
             data = serializer.data.get('data')
             users_data = User.objects.filter(
-                Q(profile__tg_name__istartswith=data) |
-                Q(profile__first_name__istartswith=data) |
-                Q(profile__surname__istartswith=data)
-            ).values('profile__tg_name', 'profile__first_name', 'profile__surname')
+                (Q(profile__tg_name__istartswith=data) |
+                 Q(profile__first_name__istartswith=data) |
+                 Q(profile__surname__istartswith=data)) &
+                ~Q(profile__tg_name=request.user.profile.tg_name)
+            ).annotate(
+                tg_name=F('profile__tg_name'),
+                name=F('profile__first_name'),
+                surname=F('profile__surname')).values('tg_name', 'name', 'surname')
             return Response(users_data)
         return Response(status=status.HTTP_400_BAD_REQUEST)
