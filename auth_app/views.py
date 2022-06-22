@@ -19,7 +19,7 @@ from utils.crypts import encrypt_message, decrypt_message
 from .models import Profile, Account, Transaction
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           UserSerializer, TransactionSerializer,
-                          TransactionFullSerializer)
+                          TransactionFullSerializer, SearchUserSerializer)
 
 User = get_user_model()
 
@@ -164,3 +164,22 @@ class SingleTransactionByUserView(RetrieveAPIView):
 
     def get_queryset(self):
         return Transaction.objects.filter_by_user(self.request.user)
+
+
+class SearchUserView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        serializer = SearchUserSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.data.get('data')
+            users_data = User.objects.filter(
+                Q(profile__tg_name__istartswith=data) |
+                Q(profile__first_name__istartswith=data) |
+                Q(profile__surname__istartswith=data)
+            ).values('profile__tg_name', 'profile__first_name', 'profile__surname')
+            return Response(users_data)
+        return Response(status=status.HTTP_400_BAD_REQUEST)

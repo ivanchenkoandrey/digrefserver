@@ -11,5 +11,6 @@ urlpatterns = [
     path('send-coins/', views.SendCoinView.as_view(), name='send_coins'),
     path('user/transactions/', views.TransactionsByUserView.as_view(), name='transactions_by_user'),
     path('user/transactions/<int:pk>/', views.SingleTransactionByUserView.as_view(), name='single_user_transaction'),
+    path('search-user/', views.SearchUserView.as_view(), name='search_user'),
     path('logout/', LogoutView.as_view(), name='logout'),
 ]

@@ -18,6 +18,10 @@ class VerifyCodeSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=8)
 
 
+class SearchUserSerializer(serializers.Serializer):
+    data = serializers.CharField(max_length=50)
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     organization = serializers.CharField(source="organization.name")
     department = serializers.CharField(source="department.name")
