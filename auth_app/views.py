@@ -6,8 +6,8 @@ from django.db.models import Q
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.generics import GenericAPIView, ListAPIView
-from rest_framework.mixins import CreateModelMixin
+from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -152,8 +152,15 @@ class TransactionsByUserView(ListAPIView):
     serializer_class = TransactionFullSerializer
 
     def get_queryset(self):
-        current_user = self.request.user
-        queryset = Transaction.objects.filter(
-            Q(sender=current_user) | Q(recipient=current_user)
-        )
-        return queryset
+        return Transaction.objects.filter_by_user(self.request.user)
+
+
+class SingleTransactionByUserView(RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    serializer_class = TransactionFullSerializer
+
+    def get_queryset(self):
+        return Transaction.objects.filter_by_user(self.request.user)

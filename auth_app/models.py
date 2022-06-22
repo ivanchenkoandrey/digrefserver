@@ -92,7 +92,15 @@ class TransactionClass(models.TextChoices):
     # возможно потом добавятся BONUS, REDIST, PURCHASE
 
 
+class TransactionByUserQueryset(models.QuerySet):
+    def filter_by_user(self, current_user):
+        return self.filter(Q(sender=current_user) | Q(recipient=current_user))
+
+
 class Transaction(models.Model):
+
+    objects = TransactionByUserQueryset.as_manager()
+
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outcomes', verbose_name='Отправитель')
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incomes', verbose_name='Получатель')
     transaction_class = models.CharField(max_length=1, choices=TransactionClass.choices, verbose_name='Вид транзакции')
