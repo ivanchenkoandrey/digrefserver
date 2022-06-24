@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   db:
-    image: postgres
+    image: postgres:14.2-alpine
     container_name: tfdb
     env_file:
       - ./digrefserver/.env
@@ -33,7 +33,7 @@ services:
 
   pgadmin:
     container_name: pgadmin
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:6.10
     env_file:
       - ./digrefserver/.env
     restart: always

@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction, TransactionStatus, TransactionClass
+from auth_app.models import Profile, Account, Transaction
 
 User = get_user_model()
 
