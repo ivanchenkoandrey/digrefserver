@@ -190,7 +190,8 @@ class SearchUserView(APIView):
             users_data = User.objects.filter(
                 (Q(profile__tg_name__istartswith=data) |
                  Q(profile__first_name__istartswith=data) |
-                 Q(profile__surname__istartswith=data)) &
+                 Q(profile__surname__istartswith=data) |
+                 Q(profile__contacts__contact_id__istartswith=data)) &
                 ~Q(profile__tg_name=request.user.profile.tg_name)
             ).annotate(
                 user_id=F('id'),

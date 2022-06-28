@@ -21,7 +21,7 @@ class Organization(models.Model):
     organization_type = CICharField(max_length=1, choices=OrganizationTypes.choices, verbose_name='Вид контакта')
     top_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='pride', verbose_name='Юр.лицо')
     parent_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='children', null=True,
-                                  verbose_name='Входит в')
+                                  verbose_name='Входит в', blank=True)
 
     def __str__(self):
         return self.name
@@ -31,9 +31,9 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profileorganization',
                                      null=True,
-                                     verbose_name='Юр.лицо')
+                                     verbose_name='Юр.лицо', blank=True)
     department = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profiledepartment', null=True,
-                                   verbose_name='Подразделение')
+                                   verbose_name='Подразделение', blank=True)
     tg_id = CICharField(max_length=20, verbose_name='Идентификатор пользователя Telegram')
     tg_name = CICharField(max_length=20, blank=True, null=True, verbose_name='Имя пользователя Telegram')
     photo = models.ImageField(blank=True, null=True, upload_to='users_photo/', verbose_name='Фотография')
@@ -68,7 +68,7 @@ class UserRole(models.Model):
     role = models.CharField(max_length=1, choices=Roles.choices, verbose_name='Роль')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='privileged', verbose_name='Пользователь')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='privileged', null=True,
-                                     verbose_name='Подразделение')
+                                     verbose_name='Подразделение', blank=True)
 
 
 class TransactionStatus(models.TextChoices):
@@ -106,7 +106,7 @@ class Transaction(models.Model):
     transaction_class = models.CharField(max_length=1, choices=TransactionClass.choices, verbose_name='Вид транзакции')
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления состояния', null=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления состояния', null=True, blank=True)
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование')
 
@@ -159,7 +159,7 @@ class TransactionState(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
     controller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='revised', verbose_name='Контролер')
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
-    reason = CITextField(verbose_name='Обоснование (отклонения)', null=True)
+    reason = CITextField(verbose_name='Обоснование (отклонения)', null=True, blank=True)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -182,11 +182,11 @@ class Account(models.Model):
     account_type = models.CharField(max_length=1, choices=AccountTypes.choices, verbose_name='Тип счета')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts', verbose_name='Владелец')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='accounts',
-                                     verbose_name='Подразделение', null=True)
+                                     verbose_name='Подразделение', null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     frozen = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Ожидает подтверждения')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
-    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
+    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return str(self.owner)
