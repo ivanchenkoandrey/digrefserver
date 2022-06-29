@@ -58,20 +58,8 @@ class AuthView(APIView):
             return response
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    @classmethod
-    def get(cls, request, *args, **kwargs):
-        data = {'type': 'authorize', 'login': None}
-        serializer = TelegramIDSerializer(data)
-        return Response(serializer.data)
-
 
 class VerifyCodeView(APIView):
-
-    @classmethod
-    def get(cls, request, *args, **kwargs):
-        data = {'type': 'authcode', 'code': None}
-        serializer = VerifyCodeSerializer(data)
-        return Response(serializer.data)
 
     @classmethod
     def post(cls, request, *args, **kwargs):

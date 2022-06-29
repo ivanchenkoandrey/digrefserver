@@ -98,7 +98,6 @@ class TransactionByUserQueryset(models.QuerySet):
 
 
 class Transaction(models.Model):
-
     objects = TransactionByUserQueryset.as_manager()
 
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outcomes', verbose_name='Отправитель')
@@ -146,7 +145,7 @@ class Transaction(models.Model):
         constraints = [
             models.CheckConstraint(
                 name='check_sender_is_not_recipient',
-                check=~Q(sender=F('recipient'))
+                check=(~Q(sender=F('recipient')) | ~(Q(transaction_class='T') | Q(transaction_class='R')))
             )
         ]
 
