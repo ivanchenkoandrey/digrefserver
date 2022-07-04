@@ -131,14 +131,6 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
 
-    def get(self, request, *args, **kwargs):
-        users = User.objects.exclude(pk=request.user.pk).values(
-            'id',
-            'profile__tg_name',
-            'profile__first_name',
-            'profile__surname')
-        return Response(users)
-
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
