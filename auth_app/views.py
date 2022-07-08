@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -19,8 +19,9 @@ from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
 from .models import Profile, Account, Transaction
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
-                          UserSerializer, TransactionSerializer,
-                          TransactionFullSerializer, SearchUserSerializer)
+                          UserSerializer, TransactionPartialSerializer,
+                          TransactionFullSerializer, SearchUserSerializer,
+                          TransactionCancelSerializer)
 
 User = get_user_model()
 
@@ -129,10 +130,26 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
                               authentication.TokenAuthentication]
 
     queryset = Transaction.objects.all()
-    serializer_class = TransactionSerializer
+    serializer_class = TransactionPartialSerializer
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+
+class CancelTransactionView(UpdateAPIView):
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionCancelSerializer
+    lookup_field = 'pk'
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.serializer_class(instance, data=request.data, partial=True)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data)
 
 
 class TransactionsByUserView(ListAPIView):

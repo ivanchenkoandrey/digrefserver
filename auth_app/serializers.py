@@ -45,7 +45,7 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class TransactionSerializer(serializers.ModelSerializer):
+class TransactionPartialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['recipient', 'amount', 'reason']
@@ -92,3 +92,9 @@ class TransactionFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
+
+
+class TransactionCancelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['status']
