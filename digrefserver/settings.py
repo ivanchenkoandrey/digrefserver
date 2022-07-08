@@ -11,7 +11,7 @@ environ.Env.read_env()
 SECRET_KEY = env('SECRET_KEY')
 BOT_TOKEN = env('BOT_TOKEN')
 DEBUG = True
-ALLOWED_HOSTS = ['176.99.6.251', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = env('ALLOWED_HOSTS').split()
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -99,3 +99,32 @@ MEDIA_ROOT = os.path.join(
 )
 
 CORS_ORIGIN_ALLOW_ALL = True
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '{levelname} || {asctime} || {message}',
+            'style': '{',
+            'datefmt': '%d.%m.%Y %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'thanks.log'),
+            'maxBytes': 1024 * 10,
+            'backupCount': 10,
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'auth_app': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}

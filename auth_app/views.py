@@ -1,3 +1,4 @@
+import logging
 from random import randint
 
 from django.conf import settings
@@ -25,6 +26,8 @@ from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
 
 User = get_user_model()
 
+logger = logging.getLogger(__name__)
+
 BOT_TOKEN = settings.BOT_TOKEN
 SECRET_KEY = settings.SECRET_KEY
 
@@ -47,16 +50,25 @@ class AuthView(APIView):
             _login = serializer.data.get('login')
             user_profile = Profile.objects.filter(Q(tg_name=_login) | Q(tg_id=_login)).first()
             if user_profile is None:
+                logger.info(f"Не найден пользователь с telegram_id или username {_login}, "
+                            f"IP: {request.META.get('REMOTE_ADDR')}")
                 return Response(data={"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
             tg_id = user_profile.tg_id
             try:
                 bot.send_message(tg_id, f'Your register code is {code}')
             except ApiTelegramException:
+                logger.error(f"Передан неизвестный боту telegram_id: {tg_id}, "
+                             f"IP: {request.META.get('REMOTE_ADDR')}")
                 return Response(data={"error": "Chat id is invalid"}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info(f"Пользователю {user_profile.tg_name} отправлен код {code}, "
+                        f"IP: {request.META.get('REMOTE_ADDR')}")
             response = Response({'type': "authorize", "status": "ready to verify"})
             response['X-ID'] = request.session['x-id'] = encrypt_message(tg_id)
             response['X-Code'] = request.session['x-code'] = encrypt_message(code)
             return response
+        logger.info(f"Ошибочный запрос аутентификации "
+                    f"с IP адреса {request.META.get('REMOTE_ADDR')}, "
+                    f"запрос: {request.data}")
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -68,6 +80,9 @@ class VerifyCodeView(APIView):
         encrypted_code = request.headers.get('X-Code', '') or request.session.get('x-code', '')
         tg_id = decrypt_message(encrypted_id)
         decrypted_code = decrypt_message(encrypted_code)
+        logger.info(f"Для пользователя с telegram_id {tg_id} к"
+                    f"од подтверждения: {decrypted_code}, "
+                    f"IP: {request.META.get('REMOTE_ADDR')}")
         serializer = VerifyCodeSerializer(data=request.data)
         if serializer.is_valid():
             code = serializer.data.get('code')
@@ -79,7 +94,10 @@ class VerifyCodeView(APIView):
                         "is_success": True,
                         "token": token,
                         "sessionid": request.session.session_key}
+                logger.info(f"Пользователь c telegram_id {tg_id} успешно аутентифицирован.")
                 return Response(data)
+            logger.info(f"Введён неправильный код подтверждения: {code}, "
+                        f"IP: {request.META.get('REMOTE_ADDR')}")
         return Response(
             data={'type': 'authresult', "is_success": False},
             status=status.HTTP_400_BAD_REQUEST)
@@ -94,6 +112,7 @@ class ProfileView(APIView):
     def get(cls, request, *args, **kwargs):
         user = User.objects.get(username=request.user.username)
         profile_serializer = UserSerializer(user)
+        logger.info(f"Пользователь {request.user} зашёл на страницу профиля")
         return Response(profile_serializer.data)
 
 
@@ -107,6 +126,7 @@ class UserBalanceView(APIView):
         user = request.user
         queryset = Account.objects.filter(account_type__in=['I', 'D'], owner=user)
         data = processing_accounts_data(queryset)
+        logger.info(f"Пользователь {request.user} зашёл на страницу баланса")
         return Response(data)
 
 
@@ -133,6 +153,8 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
     serializer_class = TransactionPartialSerializer
 
     def post(self, request, *args, **kwargs):
+        logger.info(f"Пользователь {request.user} отправил "
+                    f"следующие данные для совершения транзакции: {request.data}")
         return self.create(request, *args, **kwargs)
 
 
@@ -145,6 +167,8 @@ class CancelTransactionView(UpdateAPIView):
                               authentication.TokenAuthentication]
 
     def update(self, request, *args, **kwargs):
+        logger.info(f"Пользователь {request.user} отправил "
+                    f"следующие данные для отмены транзакции: {request.data}")
         instance = self.get_object()
         serializer = self.serializer_class(instance, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
@@ -160,6 +184,7 @@ class TransactionsByUserView(ListAPIView):
     serializer_class = TransactionFullSerializer
 
     def get_queryset(self):
+        logger.info(f"Пользователь {self.request.user} смотрит список транзакций")
         return Transaction.objects.filter_by_user(self.request.user)
 
 
@@ -171,6 +196,7 @@ class SingleTransactionByUserView(RetrieveAPIView):
     serializer_class = TransactionFullSerializer
 
     def get_queryset(self):
+        logger.info(f"Пользователь {self.request.user} смотрит конкретную транзакцию")
         return Transaction.objects.filter_by_user(self.request.user)
 
 
@@ -184,6 +210,8 @@ class SearchUserView(APIView):
         serializer = SearchUserSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.data.get('data')
+            logger.info(f"Пользователь {request.user} ищет пользователя, используя "
+                        f"следующие данные: {data}")
             users_data = User.objects.filter(
                 (Q(profile__tg_name__istartswith=data) |
                  Q(profile__first_name__istartswith=data) |
@@ -196,4 +224,5 @@ class SearchUserView(APIView):
                 name=F('profile__first_name'),
                 surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')
             return Response(users_data)
+        logger.info(f"Неверный запрос на поиск пользователей: {request.data}")
         return Response(status=status.HTTP_400_BAD_REQUEST)

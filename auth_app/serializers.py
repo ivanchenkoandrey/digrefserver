@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
@@ -6,6 +8,8 @@ from rest_framework.exceptions import ValidationError
 from auth_app.models import Profile, Account, Transaction
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramIDSerializer(serializers.Serializer):
@@ -57,6 +61,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             owner=sender, account_type='D').first()
         current_account_amount = sender_account.amount
         if amount >= current_account_amount:
+            logger.info(f"Попытка {sender} перевести сумму, большую либо равную "
+                        f"имеющейся сумме на счету распределения")
             raise ValidationError("Перевести можно до 50% имеющейся "
                                   "суммы на счету распределения")
         if amount <= current_account_amount // 2:
@@ -73,6 +79,9 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 )
             return transaction_instance
         else:
+            logger.info(f"Попытка {sender} перевести сумму, "
+                        f"меньшую чем полная сумма на счету распределения, "
+                        f"но большую чем её половина")
             raise ValidationError('Нельзя перевести больше половины '
                                   'имеющейся под распределение суммы')
 
