@@ -18,7 +18,7 @@ from telebot.apihelper import ApiTelegramException
 
 from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
-from .models import Profile, Account, Transaction
+from .models import Profile, Transaction
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           UserSerializer, TransactionPartialSerializer,
                           TransactionFullSerializer, SearchUserSerializer,

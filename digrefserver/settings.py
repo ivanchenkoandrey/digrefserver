@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
+import auth_app.tasks
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -100,6 +102,9 @@ MEDIA_ROOT = os.path.join(
 
 CORS_ORIGIN_ALLOW_ALL = True
 
+CELERY_BROKER_URL = env('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
+
 LOGGING = {
               'version': 1,
               'disable_existing_loggers': False,
@@ -133,3 +138,10 @@ LOGGING = {
                   },
               }
           }
+
+CELERY_BEAT_SCHEDULE = {
+    "sample_task": {
+        "task": "auth_app.tasks.make_log_message",
+        "schedule": crontab(minute="*/45"),
+    },
+}
