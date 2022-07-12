@@ -259,13 +259,14 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
 @receiver(post_save, sender=Period)
 def create_user_stats(instance: Period, created: bool, **kwargs):
     if created:
-        users = User.objects.all()
+        users = User.objects.filter(accounts__account_type='I')
+        accounts = Account.objects.filter(account_type='I')
         user_stats = [
             UserStat(
                 user=user,
                 period=instance,
                 bonus=0,
-                income_at_start=Account.objects.filter(owner=user, account_type='I').first().amount,
+                income_at_start=accounts.filter(owner=user).first().amount,
                 income_at_end=0,
                 income_exp=0,
                 income_thanks=0,
