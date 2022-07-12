@@ -57,9 +57,11 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         sender = self.context['request'].user
         amount = self.validated_data['amount']
-        sender_account = Account.objects.filter(
+        sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
-        current_account_amount = sender_account.amount
+        sender_frozen_account = Account.objects.filter(
+            owner=sender, account_type='F').first()
+        current_account_amount = sender_distr_account.amount
         if amount >= current_account_amount:
             logger.info(f"Попытка {sender} перевести сумму, большую либо равную "
                         f"имеющейся сумме на счету распределения")
@@ -67,8 +69,10 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                                   "суммы на счету распределения")
         if amount <= current_account_amount // 2:
             with transaction.atomic():
-                sender_account.amount -= amount
-                sender_account.save()
+                sender_distr_account.amount -= amount
+                sender_frozen_account.amount += amount
+                sender_distr_account.save()
+                sender_frozen_account.save()
                 transaction_instance = Transaction.objects.create(
                     sender=self.context['request'].user,
                     recipient=self.validated_data['recipient'],

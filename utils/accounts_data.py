@@ -1,31 +1,52 @@
+import logging
+import os.path
 from datetime import timedelta
 
-from django.db.models import QuerySet
+import yaml
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from auth_app.models import Account, UserStat
+from utils.current_period import get_current_period
 
-def processing_accounts_data(queryset: QuerySet):
+User = get_user_model()
+
+logger = logging.getLogger(__name__)
+
+
+def processing_accounts_data(user: User):
+    queryset = Account.objects.filter(account_type__in=['I', 'D', 'F'], owner=user)
+    period = get_current_period()
+    user_stat = UserStat.objects.filter(user=user, period=period).first()
     expire_date = (timezone.now() + timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0)
-    accounts_types = {"I": "income", "D": "distr"}
     user_accounts_data = {
         "income": {
-            "amount": 0,
-            "frozen": 100,
-            "sended": 200,
-            "received": 0,
-            "cancelled": 300,
-        },
-        "distr": {
-            "amount": 100,
-            "expire_date": expire_date,
-            "frozen": 100,
-            "sended": 200,
-            "received": 100,
-            "cancelled": 300,
-        }}
-    if len(queryset):
-        for item in queryset:
-            user_accounts_data[accounts_types[item.account_type]]["amount"] = item.amount
-            user_accounts_data[accounts_types[item.account_type]]["received"] += item.amount
-            user_accounts_data[accounts_types[item.account_type]]["frozen"] = item.frozen
+            "amount": queryset.filter(account_type='I').first().amount,
+            "frozen": queryset.filter(account_type='F').first().amount,
+            "sent": user_stat.income_used_for_thanks,
+            "received": user_stat.income_thanks,
+            "cancelled": user_stat.income_declined,
+        }
+    }
+    distr_account = queryset.filter(account_type='D').first()
+    if distr_account is not None:
+        distr_data = {
+            "distr": {
+                "amount": distr_account.amount,
+                "frozen": queryset.filter(account_type='F').first().amount,
+                "sent": user_stat.distr_redist,
+                "received": user_stat.distr_initial,
+                "cancelled": user_stat.distr_declined,
+                "expire_date": period.end_date
+            }
+        }
+        user_accounts_data.update(distr_data)
+    else:
+        with open(os.path.join(settings.BASE_DIR, 'utils', 'distr_data.yml'), "r") as stream:
+            try:
+                default_distr_info = yaml.safe_load(stream)
+                user_accounts_data.update(default_distr_info)
+            except yaml.YAMLError:
+                logger.error(f'Ошибка чтения файла настроек баланса по умолчанию')
     return user_accounts_data

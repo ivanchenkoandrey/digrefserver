@@ -123,9 +123,7 @@ class UserBalanceView(APIView):
 
     @classmethod
     def get(cls, request, *args, **kwargs):
-        user = request.user
-        queryset = Account.objects.filter(account_type__in=['I', 'D'], owner=user)
-        data = processing_accounts_data(queryset)
+        data = processing_accounts_data(request.user)
         logger.info(f"Пользователь {request.user} зашёл на страницу баланса")
         return Response(data)
 
@@ -135,12 +133,9 @@ class UserBalanceView(APIView):
                          authentication.TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_user_stat_by_period(request, period_id):
-    user = request.user
-    queryset = Account.objects.filter(account_type__in=['I', 'D'], owner=user)
-    data = processing_accounts_data(queryset)
-    data["income"]["used_for_bonus"] = 200
-    data["distr"]["burnt"] = 0
-    data["bonus"] = 0
+    data = processing_accounts_data(request.user)
+    logger.info(f"Пользователь {request.user} зашёл на "
+                f"страницу отдельного периода с id {period_id}")
     return Response(data)
 
 
@@ -183,8 +178,11 @@ class TransactionsByUserView(ListAPIView):
 
     serializer_class = TransactionFullSerializer
 
-    def get_queryset(self):
+    def get(self, request, *args, **kwargs):
         logger.info(f"Пользователь {self.request.user} смотрит список транзакций")
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
         return Transaction.objects.filter_by_user(self.request.user)
 
 
@@ -195,8 +193,13 @@ class SingleTransactionByUserView(RetrieveAPIView):
 
     serializer_class = TransactionFullSerializer
 
+    def get(self, request, *args, **kwargs):
+        transaction = self.get_object()
+        logger.info(f"Пользователь {self.request.user} смотрит "
+                    f"транзакцию c id {transaction.pk}")
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
-        logger.info(f"Пользователь {self.request.user} смотрит конкретную транзакцию")
         return Transaction.objects.filter_by_user(self.request.user)
 
 
@@ -209,20 +212,25 @@ class SearchUserView(APIView):
     def post(cls, request, *args, **kwargs):
         serializer = SearchUserSerializer(data=request.data)
         if serializer.is_valid():
-            data = serializer.data.get('data')
-            logger.info(f"Пользователь {request.user} ищет пользователя, используя "
-                        f"следующие данные: {data}")
-            users_data = User.objects.filter(
-                (Q(profile__tg_name__istartswith=data) |
-                 Q(profile__first_name__istartswith=data) |
-                 Q(profile__surname__istartswith=data) |
-                 Q(profile__contacts__contact_id__istartswith=data)) &
-                ~Q(profile__tg_name=request.user.profile.tg_name)
-            ).annotate(
-                user_id=F('id'),
-                tg_name=F('profile__tg_name'),
-                name=F('profile__first_name'),
-                surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')
+            users_data = cls.get_search_data(request, serializer)
             return Response(users_data)
         logger.info(f"Неверный запрос на поиск пользователей: {request.data}")
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_search_data(cls, request, serializer):
+        data = serializer.data.get('data')
+        logger.info(f"Пользователь {request.user} ищет пользователя, используя "
+                    f"следующие данные: {data}")
+        users_data = User.objects.filter(
+            (Q(profile__tg_name__istartswith=data) |
+             Q(profile__first_name__istartswith=data) |
+             Q(profile__surname__istartswith=data) |
+             Q(profile__contacts__contact_id__istartswith=data)) &
+            ~Q(profile__tg_name=request.user.profile.tg_name)
+        ).annotate(
+            user_id=F('id'),
+            tg_name=F('profile__tg_name'),
+            name=F('profile__first_name'),
+            surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')
+        return users_data

@@ -17,7 +17,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ['account_type', 'owner', 'organization', 'amount', 'frozen']
+    list_display = ['account_type', 'owner', 'organization', 'amount']
     list_select_related = ['owner', 'organization']
 
 

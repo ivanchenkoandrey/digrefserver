@@ -15,6 +15,7 @@ psycopg2-binary==2.9.3
 pycparser==2.21
 pyTelegramBotAPI==4.5.1
 pytz==2022.1
+PyYAML==6.0
 requests==2.27.1
 sqlparse==0.4.2
 urllib3==1.26.9

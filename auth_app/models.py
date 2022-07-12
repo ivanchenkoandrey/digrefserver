@@ -92,13 +92,13 @@ class TransactionClass(models.TextChoices):
     # возможно потом добавятся BONUS, REDIST, PURCHASE
 
 
-class TransactionByUserQueryset(models.QuerySet):
+class CustomTransactionQueryset(models.QuerySet):
     def filter_by_user(self, current_user):
         return self.filter(Q(sender=current_user) | Q(recipient=current_user))
 
 
 class Transaction(models.Model):
-    objects = TransactionByUserQueryset.as_manager()
+    objects = CustomTransactionQueryset.as_manager()
 
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outcomes', verbose_name='Отправитель')
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incomes', verbose_name='Получатель')
@@ -111,35 +111,10 @@ class Transaction(models.Model):
 
     def __str__(self):
         date = self.updated_at.strftime('%d-%m-%Y %H:%M:%S')
-        return f"to: {self.recipient} class: {self.transaction_class} status: {self.status} updated: {date}"
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        account = Account.objects.filter(owner=self.recipient, account_type='I').first()
-        states = self.states.all()
-        if account is not None:
-            if self.status == 'W':
-                account.frozen += self.amount
-            elif self.status == 'A' and len(states) == 1:
-                account.frozen -= self.amount
-                account.amount += self.amount
-            elif self.status == 'A' and len(states) > 1:
-                account.amount += self.amount
-            elif self.status == 'D' and len(states) == 1:
-                account.frozen -= self.amount
-            elif self.status == 'D' and len(states) > 1:
-                account.amount -= self.amount
-            account.transaction = self
-            account.save()
-        else:
-            Account.objects.create(
-                owner=self.recipient,
-                account_type='I',
-                organization=self.recipient.profile.department,
-                amount=0,
-                frozen=self.amount,
-                transaction=self
-            )
+        return (f"to: {self.recipient} "
+                f"class: {self.transaction_class} "
+                f"status: {self.status} "
+                f"updated: {date}")
 
     class Meta:
         constraints = [
@@ -162,14 +137,15 @@ class TransactionState(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        transaction = self.transaction
-        transaction.status = self.status
-        transaction.save()
+        t = self.transaction
+        t.status = self.status
+        t.save()
 
 
 class AccountTypes(models.TextChoices):
     INCOME = 'I', 'Заработанные'
     DISTR = 'D', 'Для раздачи'
+    FROZEN = 'F', 'Ожидает подтверждения'
     SYSTEM = 'S', 'Системный'  # системный, один, для organization [ROOT] и владелец администратор
     BURNT = 'B', 'Сгоревшие'  # системный, один, для organization [ROOT] и владелец администратор
     BONUS = 'O', 'Для расчета премий'  # для organization [ROOT|TOP], user - контролер для этой organization или вышестоящей
@@ -183,7 +159,6 @@ class Account(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='accounts',
                                      verbose_name='Подразделение', null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
-    frozen = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Ожидает подтверждения')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
 
@@ -254,6 +229,54 @@ class UserStat(models.Model):
 # - только для прошлых периодов : остаток баллов на конец периода income_at_end
 
 @receiver(post_save, sender=User)
-def create_auth_token(instance, created, **kwargs):
+def create_auth_token(instance: User, created: bool, **kwargs):
     if created:
         Token.objects.create(user=instance)
+
+
+@receiver(post_save, sender=Profile)
+def create_income_account(instance: Profile, created: bool, **kwargs):
+    if created:
+        Account.objects.create(
+            owner=instance.user,
+            account_type='I',
+            organization=instance.department,
+            amount=0
+        )
+
+
+@receiver(post_save, sender=Profile)
+def create_frozen_account(instance: Profile, created: bool, **kwargs):
+    if created:
+        Account.objects.create(
+            owner=instance.user,
+            account_type='F',
+            organization=instance.department,
+            amount=0
+        )
+
+
+@receiver(post_save, sender=Period)
+def create_user_stats(instance: Period, created: bool, **kwargs):
+    if created:
+        users = User.objects.all()
+        user_stats = [
+            UserStat(
+                user=user,
+                period=instance,
+                bonus=0,
+                income_at_start=Account.objects.filter(owner=user, account_type='I').first().amount,
+                income_at_end=0,
+                income_exp=0,
+                income_thanks=0,
+                income_used_for_bonus=0,
+                income_used_for_thanks=0,
+                income_declined=0,
+                distr_initial=0,
+                distr_redist=0,
+                distr_burnt=0,
+                distr_thanks=0,
+                distr_declined=0
+            ) for user in users
+        ]
+        UserStat.objects.bulk_create(user_stats)

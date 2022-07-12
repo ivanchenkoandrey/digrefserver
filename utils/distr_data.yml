@@ -1,0 +1,7 @@
+distr:
+  amount: 0
+  frozen: 0
+  sent: 0
+  received: 0
+  cancelled: 0
+  expire_date:
