@@ -140,8 +140,8 @@ LOGGING = {
           }
 
 CELERY_BEAT_SCHEDULE = {
-    "sample_task": {
+    "make_log_message": {
         "task": "auth_app.tasks.make_log_message",
-        "schedule": crontab(minute="*/45"),
+        "schedule": crontab(minute="*/15", hour="9-18", day_of_week="mon,tue,wed,thu,fri"),
     },
 }
