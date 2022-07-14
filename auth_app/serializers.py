@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction
+from auth_app.models import Profile, Account, Transaction, UserStat
 
 User = get_user_model()
 
@@ -56,31 +56,36 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         sender = self.context['request'].user
+        recipient = self.validated_data['recipient']
         amount = self.validated_data['amount']
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
-        sender_frozen_account = Account.objects.filter(
-            owner=sender, account_type='F').first()
         current_account_amount = sender_distr_account.amount
         if amount >= current_account_amount:
             logger.info(f"Попытка {sender} перевести сумму, большую либо равную "
                         f"имеющейся сумме на счету распределения")
             raise ValidationError("Перевести можно до 50% имеющейся "
                                   "суммы на счету распределения")
+        sender_frozen_account = Account.objects.filter(
+            owner=sender, account_type='F').first()
+        sender_user_stat = UserStat.objects.get(user=sender)
         if amount <= current_account_amount // 2:
             with transaction.atomic():
                 sender_distr_account.amount -= amount
                 sender_frozen_account.amount += amount
+                sender_user_stat.distr_redist += amount
                 sender_distr_account.save()
                 sender_frozen_account.save()
+                sender_user_stat.save()
                 transaction_instance = Transaction.objects.create(
                     sender=self.context['request'].user,
-                    recipient=self.validated_data['recipient'],
+                    recipient=recipient,
                     transaction_class='T',
                     amount=self.validated_data['amount'],
                     status='W',
                     reason=self.validated_data['reason']
                 )
+                logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
             return transaction_instance
         else:
             logger.info(f"Попытка {sender} перевести сумму, "

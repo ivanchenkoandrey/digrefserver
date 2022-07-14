@@ -3,6 +3,7 @@ from random import randint
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
+from django.db import transaction
 from django.db.models import Q, F
 from django.http import JsonResponse
 from rest_framework import status, authentication
@@ -18,7 +19,8 @@ from telebot.apihelper import ApiTelegramException
 
 from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
-from .models import Profile, Transaction
+from utils.custom_permissions import IsController
+from .models import Profile, Transaction, TransactionState
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           UserSerializer, TransactionPartialSerializer,
                           TransactionFullSerializer, SearchUserSerializer,
@@ -133,7 +135,7 @@ class UserBalanceView(APIView):
                          authentication.TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_user_stat_by_period(request, period_id):
-    data = processing_accounts_data(request.user)
+    data = processing_accounts_data(request.user, period_id)
     logger.info(f"Пользователь {request.user} зашёл на "
                 f"страницу отдельного периода с id {period_id}")
     return Response(data)
@@ -153,7 +155,7 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
         return self.create(request, *args, **kwargs)
 
 
-class CancelTransactionView(UpdateAPIView):
+class CancelTransactionByUserView(UpdateAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionCancelSerializer
     lookup_field = 'pk'
@@ -167,8 +169,61 @@ class CancelTransactionView(UpdateAPIView):
         instance = self.get_object()
         serializer = self.serializer_class(instance, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            with transaction.atomic():
+                sender_accounts = instance.sender.accounts.all()
+                sender_distr_account = sender_accounts.filter(account_type='D').first()
+                sender_frozen_account = sender_accounts.filter(account_type='F').first()
+                sender_distr_account.amount += instance.amount
+                sender_frozen_account.amount -= instance.amount
+                sender_distr_account.save()
+                sender_frozen_account.save()
+                serializer.save()
             return Response(serializer.data)
+
+
+class VerifyOrCancelTransactionByControllerView(APIView):
+    permission_classes = [IsController]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    @classmethod
+    def get(cls, request, *args, **kwargs):
+        queryset = Transaction.objects.filter(status='W')
+        serializer = TransactionFullSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @classmethod
+    def put(cls, request, *args, **kwargs):
+        data = request.data
+        response = {}
+        for transaction_pk, transaction_status in data:
+            with transaction.atomic():
+                transaction_instance = Transaction.objects.get(pk=transaction_pk)
+                TransactionState.objects.create(
+                    transaction=transaction_instance,
+                    controller=request.user,
+                    status=transaction_status,
+                    reason='ok'
+                )
+                transaction_instance.status = transaction_status
+                transaction_instance.save()
+                sender_accounts = transaction_instance.sender.accounts.all()
+                recipient_accounts = transaction_instance.recipient.accounts.all()
+                if transaction_status == 'A':
+                    recipient_income_account = recipient_accounts.filter(account_type='I').first()
+                    recipient_income_account.amount += transaction_instance.amount
+                    recipient_income_account.transaction = transaction_instance
+                    recipient_income_account.save()
+                if transaction_status in ['A', 'D']:
+                    sender_frozen_account = sender_accounts.filter(account_type='F').first()
+                    sender_distr_account = sender_accounts.filter(account_type='D').first()
+                    sender_frozen_account.amount -= transaction_instance.amount
+                    sender_distr_account.amount += transaction_instance.amount
+                    sender_frozen_account.transaction = transaction_instance
+                    sender_frozen_account.save()
+                    sender_distr_account.save()
+        response["status"] = "OK"
+        return Response(response)
 
 
 class TransactionsByUserView(ListAPIView):
@@ -194,9 +249,9 @@ class SingleTransactionByUserView(RetrieveAPIView):
     serializer_class = TransactionFullSerializer
 
     def get(self, request, *args, **kwargs):
-        transaction = self.get_object()
+        _transaction = self.get_object()
         logger.info(f"Пользователь {self.request.user} смотрит "
-                    f"транзакцию c id {transaction.pk}")
+                    f"транзакцию c id {_transaction.pk}")
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):

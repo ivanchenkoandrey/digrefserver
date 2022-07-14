@@ -1,13 +1,12 @@
 import logging
 import os.path
-from datetime import timedelta
 
 import yaml
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.shortcuts import get_object_or_404
 
-from auth_app.models import Account, UserStat
+from auth_app.models import Account, UserStat, Period
 from utils.current_period import get_current_period
 
 User = get_user_model()
@@ -15,11 +14,13 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-def processing_accounts_data(user: User):
+def processing_accounts_data(user: User, period_id=None):
+    if period_id is not None:
+        period = get_object_or_404(Period, pk=period_id)
+    else:
+        period = get_current_period()
     queryset = Account.objects.filter(account_type__in=['I', 'D', 'F'], owner=user)
-    period = get_current_period()
     user_stat = UserStat.objects.filter(user=user, period=period).first()
-    expire_date = (timezone.now() + timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0)
     user_accounts_data = {
         "income": {
             "amount": queryset.filter(account_type='I').first().amount,
@@ -42,6 +43,9 @@ def processing_accounts_data(user: User):
             }
         }
         user_accounts_data.update(distr_data)
+        if period_id is not None:
+            distr_data.get("distr").update({"burnt": user_stat.distr_burnt})
+            user_accounts_data.update({"bonus": user_stat.bonus})
     else:
         with open(os.path.join(settings.BASE_DIR, 'utils', 'distr_data.yml'), "r") as stream:
             try:

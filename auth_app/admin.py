@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .models import (Profile, Organization, Account,
                      Contact, Transaction, UserStat,
-                     Period, TransactionState)
+                     Period, TransactionState, UserRole)
 
 
 @admin.register(Profile)
@@ -48,3 +48,9 @@ class PeriodAdmin(admin.ModelAdmin):
 class TransactionStateAdmin(admin.ModelAdmin):
     list_display = ['transaction', 'created_at', 'controller', 'status', 'reason']
     list_select_related = ['transaction', 'controller']
+
+
+@admin.register(UserRole)
+class UserRoleAdmin(admin.ModelAdmin):
+    list_display = ['user', 'role']
+    list_select_related = ['user', 'organization']

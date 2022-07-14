@@ -62,13 +62,16 @@ class Contact(models.Model):
 class UserRole(models.Model):
     class Roles(models.TextChoices):
         ADMIN = 'A', 'Администратор'
-        CONTROLLER = 'С', 'Контролер'
+        CONTROLLER = 'C', 'Контролер'
         MANAGER = 'M', 'Распорядитель'
 
     role = models.CharField(max_length=1, choices=Roles.choices, verbose_name='Роль')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='privileged', verbose_name='Пользователь')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='privileged', null=True,
                                      verbose_name='Подразделение', blank=True)
+
+    def __str__(self):
+        return str(self.user)
 
 
 class TransactionStatus(models.TextChoices):
@@ -134,12 +137,6 @@ class TransactionState(models.Model):
     controller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='revised', verbose_name='Контролер')
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование (отклонения)', null=True, blank=True)
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        t = self.transaction
-        t.status = self.status
-        t.save()
 
 
 class AccountTypes(models.TextChoices):
