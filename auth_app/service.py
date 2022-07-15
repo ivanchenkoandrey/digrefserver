@@ -1,14 +1,20 @@
+from typing import Dict, List
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q, F
+from django.http import HttpRequest
 
 from auth_app.models import Transaction, TransactionState, UserStat
+from auth_app.serializers import TransactionCancelSerializer
 
 User = get_user_model()
 
 
-def update_transactions_by_controller(data, request):
-    response = {}
+def update_transactions_by_controller(data: Dict,
+                                      request: HttpRequest) -> List[Dict]:
+    """Обновление контроллером статусов транзакций, счетов пользователей и их статистики"""
+    response = []
     with transaction.atomic():
         for transaction_pk, transaction_status, reason in data:
             transaction_instance = Transaction.objects.get(pk=transaction_pk)
@@ -33,7 +39,6 @@ def update_transactions_by_controller(data, request):
                 recipient_user_stat.income_thanks += amount
             if transaction_status == 'D':
                 sender_distr_account.amount += amount
-                sender_user_stat.distr_redist += amount
                 sender_user_stat.distr_thanks -= amount
                 sender_user_stat.distr_declined += amount
             sender_frozen_account.amount -= amount
@@ -44,11 +49,13 @@ def update_transactions_by_controller(data, request):
             sender_distr_account.save()
             sender_user_stat.save()
             recipient_user_stat.save()
-            response.update({"transaction": transaction_pk, "status": transaction_status, "reason": reason})
+            response.append({"transaction": transaction_pk, "status": transaction_status, "reason": reason})
     return response
 
 
-def get_search_user_data(data, request):
+def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
+    """Поиск пользователя по совпадению с началом запрошенной строки
+    с именем, фамилией, никнеймом или адресом электронной почты"""
     users_data = User.objects.filter(
         (Q(profile__tg_name__istartswith=data) |
          Q(profile__first_name__istartswith=data) |
@@ -63,7 +70,13 @@ def get_search_user_data(data, request):
     return users_data
 
 
-def update_transaction_by_user(instance, request, serializer):
+def cancel_transaction_by_user(instance: Transaction,
+                               request: HttpRequest,
+                               serializer: TransactionCancelSerializer) -> None:
+    """
+    Обновление статуса транзакции отправителем на Отменена,
+    обновление данных счёта и статистики в рамках одной транзакции в БД
+    """
     with transaction.atomic():
         sender_accounts = instance.sender.accounts.all()
         amount = instance.amount
@@ -72,8 +85,9 @@ def update_transaction_by_user(instance, request, serializer):
         sender_frozen_account = sender_accounts.filter(account_type='F').first()
         sender_distr_account.amount += amount
         sender_frozen_account.amount -= amount
-        sender_user_stat.distr_redist += amount
         sender_user_stat.distr_thanks -= amount
+        sender_user_stat.distr_declined += amount
         sender_distr_account.save()
         sender_frozen_account.save()
+        sender_user_stat.save()
         serializer.save()

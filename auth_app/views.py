@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils import timezone
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -26,7 +27,9 @@ from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           TransactionCancelSerializer)
 from .service import (update_transactions_by_controller,
                       get_search_user_data,
-                      update_transaction_by_user)
+                      cancel_transaction_by_user)
+
+from django.conf import settings
 
 User = get_user_model()
 
@@ -168,10 +171,18 @@ class CancelTransactionByUserView(UpdateAPIView):
     def update(self, request, *args, **kwargs):
         logger.info(f"Пользователь {request.user} отправил "
                     f"следующие данные для отмены транзакции: {request.data}")
-        instance = self.get_object()
+        instance: Transaction = self.get_object()
+        if instance.status == 'D':
+            logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
+            return Response(f"Транзакция уже отменена", status=status.HTTP_400_BAD_REQUEST)
+        timedelta = timezone.now() - instance.created_at
+        if timedelta.seconds > settings.GRACE_PERIOD:
+            logger.info(f"Попытка отменить транзакцию с id {instance.pk} пользователем {request.user} "
+                        f"по истечении grace периода (превышение {timedelta.seconds - settings.GRACE_PERIOD} секунд)")
+            return Response(f"Время возможности отмены транзакции истекло", status=status.HTTP_400_BAD_REQUEST)
         serializer = self.serializer_class(instance, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            update_transaction_by_user(instance, request, serializer)
+            cancel_transaction_by_user(instance, request, serializer)
             return Response(serializer.data)
 
 

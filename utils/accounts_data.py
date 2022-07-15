@@ -36,7 +36,7 @@ def processing_accounts_data(user: User, period_id=None):
             "distr": {
                 "amount": distr_account.amount,
                 "frozen": queryset.filter(account_type='F').first().amount,
-                "sent": user_stat.distr_redist,
+                "sent": user_stat.distr_initial - distr_account.amount,
                 "received": user_stat.distr_initial,
                 "cancelled": user_stat.distr_declined,
                 "expire_date": period.end_date

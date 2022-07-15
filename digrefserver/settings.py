@@ -145,3 +145,5 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/15", hour="9-18", day_of_week="mon,tue,wed,thu,fri"),
     },
 }
+
+GRACE_PERIOD = 60 * 2  # 2 МИНУТЫ
