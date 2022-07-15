@@ -73,7 +73,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             with transaction.atomic():
                 sender_distr_account.amount -= amount
                 sender_frozen_account.amount += amount
-                sender_user_stat.distr_redist += amount
+                sender_user_stat.distr_redist -= amount
+                sender_user_stat.distr_thanks += amount
                 sender_distr_account.save()
                 sender_frozen_account.save()
                 sender_user_stat.save()

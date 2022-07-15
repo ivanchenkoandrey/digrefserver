@@ -3,8 +3,7 @@ from random import randint
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
-from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Q
 from django.http import JsonResponse
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
@@ -20,11 +19,14 @@ from telebot.apihelper import ApiTelegramException
 from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
 from utils.custom_permissions import IsController
-from .models import Profile, Transaction, TransactionState
+from .models import Profile, Transaction
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           UserSerializer, TransactionPartialSerializer,
                           TransactionFullSerializer, SearchUserSerializer,
                           TransactionCancelSerializer)
+from .service import (update_transactions_by_controller,
+                      get_search_user_data,
+                      update_transaction_by_user)
 
 User = get_user_model()
 
@@ -169,15 +171,7 @@ class CancelTransactionByUserView(UpdateAPIView):
         instance = self.get_object()
         serializer = self.serializer_class(instance, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            with transaction.atomic():
-                sender_accounts = instance.sender.accounts.all()
-                sender_distr_account = sender_accounts.filter(account_type='D').first()
-                sender_frozen_account = sender_accounts.filter(account_type='F').first()
-                sender_distr_account.amount += instance.amount
-                sender_frozen_account.amount -= instance.amount
-                sender_distr_account.save()
-                sender_frozen_account.save()
-                serializer.save()
+            update_transaction_by_user(instance, request, serializer)
             return Response(serializer.data)
 
 
@@ -195,34 +189,7 @@ class VerifyOrCancelTransactionByControllerView(APIView):
     @classmethod
     def put(cls, request, *args, **kwargs):
         data = request.data
-        response = {}
-        for transaction_pk, transaction_status in data:
-            with transaction.atomic():
-                transaction_instance = Transaction.objects.get(pk=transaction_pk)
-                TransactionState.objects.create(
-                    transaction=transaction_instance,
-                    controller=request.user,
-                    status=transaction_status,
-                    reason='ok'
-                )
-                transaction_instance.status = transaction_status
-                transaction_instance.save()
-                sender_accounts = transaction_instance.sender.accounts.all()
-                recipient_accounts = transaction_instance.recipient.accounts.all()
-                if transaction_status == 'A':
-                    recipient_income_account = recipient_accounts.filter(account_type='I').first()
-                    recipient_income_account.amount += transaction_instance.amount
-                    recipient_income_account.transaction = transaction_instance
-                    recipient_income_account.save()
-                if transaction_status in ['A', 'D']:
-                    sender_frozen_account = sender_accounts.filter(account_type='F').first()
-                    sender_distr_account = sender_accounts.filter(account_type='D').first()
-                    sender_frozen_account.amount -= transaction_instance.amount
-                    sender_distr_account.amount += transaction_instance.amount
-                    sender_frozen_account.transaction = transaction_instance
-                    sender_frozen_account.save()
-                    sender_distr_account.save()
-        response["status"] = "OK"
+        response = update_transactions_by_controller(data, request)
         return Response(response)
 
 
@@ -277,15 +244,5 @@ class SearchUserView(APIView):
         data = serializer.data.get('data')
         logger.info(f"Пользователь {request.user} ищет пользователя, используя "
                     f"следующие данные: {data}")
-        users_data = User.objects.filter(
-            (Q(profile__tg_name__istartswith=data) |
-             Q(profile__first_name__istartswith=data) |
-             Q(profile__surname__istartswith=data) |
-             Q(profile__contacts__contact_id__istartswith=data)) &
-            ~Q(profile__tg_name=request.user.profile.tg_name)
-        ).annotate(
-            user_id=F('id'),
-            tg_name=F('profile__tg_name'),
-            name=F('profile__first_name'),
-            surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')
+        users_data = get_search_user_data(data, request)
         return users_data
