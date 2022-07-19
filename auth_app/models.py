@@ -43,6 +43,9 @@ class Profile(models.Model):
     middle_name = CITextField(blank=True, null=True, verbose_name='Отчество')
     nickname = CITextField(blank=True, null=True, verbose_name='Псевдоним')
 
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
     def __str__(self):
         return str(self.user)
 
@@ -97,7 +100,15 @@ class TransactionClass(models.TextChoices):
 
 class CustomTransactionQueryset(models.QuerySet):
     def filter_by_user(self, current_user):
-        return self.filter(Q(sender=current_user) | Q(recipient=current_user))
+        return (self
+                .select_related('sender__profile', 'recipient__profile')
+                .filter(Q(sender=current_user) | Q(recipient=current_user)))
+
+    @staticmethod
+    def filter_to_use_by_controller():
+        return (Transaction.objects
+                .select_related('sender__profile', 'recipient__profile')
+                .filter(status='W'))
 
 
 class Transaction(models.Model):
@@ -111,6 +122,9 @@ class Transaction(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления состояния', null=True, blank=True)
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование')
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
     def __str__(self):
         date = self.updated_at.strftime('%d-%m-%Y %H:%M:%S')
@@ -158,6 +172,9 @@ class Account(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
     def __str__(self):
         return str(self.owner)
@@ -208,7 +225,11 @@ class UserStat(models.Model):
     # account [DISTR] -> transaction [THANKS]
     distr_declined = models.DecimalField(max_digits=10, decimal_places=0,
                                          verbose_name='Сгоревшие (отклоненные транзакции из распределяемых)')
+
     # account [DISTR] -> transaction [THANKS][DECLINED]
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
 
 # /user/<id>/balance :

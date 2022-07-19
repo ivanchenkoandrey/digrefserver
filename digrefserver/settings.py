@@ -124,6 +124,14 @@ LOGGING = {
                       'backupCount': 10,
                       'formatter': 'simple',
                   },
+                  'db_file': {
+                      'level': 'DEBUG',
+                      'class': 'logging.handlers.RotatingFileHandler',
+                      'filename': os.path.join(BASE_DIR, 'db_queries.log'),
+                      'maxBytes': 1024 * 10,
+                      'backupCount': 10,
+                      'formatter': 'simple',
+                  },
               },
               'loggers': {
                   'auth_app': {
@@ -136,6 +144,11 @@ LOGGING = {
                       'level': 'INFO',
                       'propagate': True,
                   },
+                  'django.db.backends': {
+                      'handlers': ['db_file'],
+                      'level': 'DEBUG',
+                      'propagate': True,
+                  }
               }
           }
 

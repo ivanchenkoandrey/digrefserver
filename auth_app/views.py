@@ -26,10 +26,8 @@ from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           TransactionFullSerializer, SearchUserSerializer,
                           TransactionCancelSerializer)
 from .service import (update_transactions_by_controller,
-                      get_search_user_data,
+                      get_search_user_data, is_controller_data_is_valid,
                       cancel_transaction_by_user)
-
-from django.conf import settings
 
 User = get_user_model()
 
@@ -193,15 +191,17 @@ class VerifyOrCancelTransactionByControllerView(APIView):
 
     @classmethod
     def get(cls, request, *args, **kwargs):
-        queryset = Transaction.objects.filter(status='W')
+        queryset = Transaction.objects.filter_to_use_by_controller()
         serializer = TransactionFullSerializer(queryset, many=True)
         return Response(serializer.data)
 
     @classmethod
     def put(cls, request, *args, **kwargs):
         data = request.data
-        response = update_transactions_by_controller(data, request)
-        return Response(response)
+        if is_controller_data_is_valid(data):
+            response = update_transactions_by_controller(data, request)
+            return Response(response)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class TransactionsByUserView(ListAPIView):

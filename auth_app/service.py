@@ -1,4 +1,6 @@
-from typing import Dict, List
+import logging
+from dataclasses import dataclass
+from typing import Dict, List, Union
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -9,6 +11,43 @@ from auth_app.models import Transaction, TransactionState, UserStat
 from auth_app.serializers import TransactionCancelSerializer
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
+
+
+class VerifyTransactionItemError(Exception):
+    pass
+
+
+@dataclass
+class VerifyTransactionItem:
+    """Объект для быстрой проверки валидности входных данных
+    по запросу верификации транзакций контролёром"""
+    transaction_id: int
+    transaction_status: str
+    reason: str
+
+    def __post_init__(self):
+        if not isinstance(self.transaction_id, int):
+            raise VerifyTransactionItemError("Первичный ключ транзакции должен быть числом!")
+        if self.transaction_status not in ["A", "D"]:
+            raise VerifyTransactionItemError("Статус должен быть либо A (одобрено), либо D (отклонено)")
+
+
+def is_controller_data_is_valid(data: List[List[Union[int, str]]]) -> bool:
+    """Проверка валидности запроса и формата данных,
+    переданных в запросе на верификацию транзакций контроллером"""
+    try:
+        for item in data:
+            _id, status, reason = item
+            VerifyTransactionItem(_id, status, reason)
+        return True
+    except (TypeError, ValueError):
+        logger.info(f"Неправильный запрос верификации транзакций контроллером: {data}")
+        return False
+    except VerifyTransactionItemError:
+        logger.info(f"Неправильный формат данных, переданный запросом на верификацию транзакций контроллером: {data}")
+        return False
 
 
 def update_transactions_by_controller(data: Dict,
