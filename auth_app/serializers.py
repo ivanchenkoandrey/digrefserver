@@ -74,9 +74,9 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 sender_distr_account.amount -= amount
                 sender_frozen_account.amount += amount
                 sender_user_stat.distr_thanks += amount
-                sender_distr_account.save()
-                sender_frozen_account.save()
-                sender_user_stat.save()
+                sender_distr_account.save(update_fields=['amount'])
+                sender_frozen_account.save(update_fields=['amount'])
+                sender_user_stat.save(update_fields=['distr_thanks'])
                 transaction_instance = Transaction.objects.create(
                     sender=self.context['request'].user,
                     recipient=recipient,

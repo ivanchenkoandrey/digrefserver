@@ -4,7 +4,6 @@ from random import randint
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.db.models import Q
-from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
@@ -37,13 +36,6 @@ BOT_TOKEN = settings.BOT_TOKEN
 SECRET_KEY = settings.SECRET_KEY
 
 bot = TeleBot(token=BOT_TOKEN)
-
-
-@api_view(http_method_names=['GET'])
-def get_session_id(request):
-    if not request.session.session_key:
-        request.session.create()
-    return JsonResponse({'sessionid': request.session.session_key})
 
 
 class AuthView(APIView):
@@ -191,8 +183,9 @@ class VerifyOrCancelTransactionByControllerView(APIView):
 
     @classmethod
     def get(cls, request, *args, **kwargs):
-        queryset = Transaction.objects.filter_to_use_by_controller()
+        queryset = Transaction.objects.filter_to_use_by_controller().order_by('-created_at')
         serializer = TransactionFullSerializer(queryset, many=True)
+        logger.info(f"Контроллер {request.user} смотрит список транзакций для подтверждения / отклонения")
         return Response(serializer.data)
 
     @classmethod
@@ -200,6 +193,7 @@ class VerifyOrCancelTransactionByControllerView(APIView):
         data = request.data
         if is_controller_data_is_valid(data):
             response = update_transactions_by_controller(data, request)
+            logger.info(f"Контроллер {request.user} выполнил подтверждение / отклонение транзакций")
             return Response(response)
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -216,7 +210,7 @@ class TransactionsByUserView(ListAPIView):
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
-        return Transaction.objects.filter_by_user(self.request.user)
+        return Transaction.objects.filter_by_user(self.request.user).order_by('-updated_at')
 
 
 class SingleTransactionByUserView(RetrieveAPIView):
