@@ -18,7 +18,7 @@ from telebot.apihelper import ApiTelegramException
 
 from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
-from utils.custom_permissions import IsController
+from utils.custom_permissions import IsController, IsAnonymous
 from .models import Profile, Transaction
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           UserSerializer, TransactionPartialSerializer,
@@ -39,6 +39,11 @@ bot = TeleBot(token=BOT_TOKEN)
 
 
 class AuthView(APIView):
+
+    permission_classes = [IsAnonymous]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
     @classmethod
     def post(cls, request, *args, **kwargs):
         code = ''.join([str(randint(1, 9)) for _ in range(4)])
@@ -70,6 +75,10 @@ class AuthView(APIView):
 
 
 class VerifyCodeView(APIView):
+
+    permission_classes = [IsAnonymous]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
 
     @classmethod
     def post(cls, request, *args, **kwargs):
