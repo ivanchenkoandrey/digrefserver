@@ -75,7 +75,9 @@ services:
     command: celery -A digrefserver worker -l INFO
     restart: always
     depends_on:
+      - db
       - redis
+      - app
 
   celery-beat:
     container_name: tfcelery-beat
@@ -90,7 +92,9 @@ services:
     command: celery -A digrefserver beat -l INFO
     restart: always
     depends_on:
+      - db
       - redis
+      - app
 
 
 networks:

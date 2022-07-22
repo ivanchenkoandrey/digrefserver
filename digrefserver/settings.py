@@ -25,7 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'auth_app',
+    'auth_app.apps.AuthAppConfig',
     'corsheaders'
 ]
 
@@ -119,16 +119,16 @@ LOGGING = {
                   'file': {
                       'level': 'INFO',
                       'class': 'logging.handlers.RotatingFileHandler',
-                      'filename': os.path.join(BASE_DIR, 'thanks.log'),
-                      'maxBytes': 1024 * 10,
+                      'filename': os.path.join(BASE_DIR, 'app_logs/thanks.log'),
+                      'maxBytes': 1024 * 50,
                       'backupCount': 10,
                       'formatter': 'simple',
                   },
                   'db_file': {
                       'level': 'DEBUG',
                       'class': 'logging.handlers.RotatingFileHandler',
-                      'filename': os.path.join(BASE_DIR, 'db_queries.log'),
-                      'maxBytes': 1024 * 10,
+                      'filename': os.path.join(BASE_DIR, 'db_logs/db_queries.log'),
+                      'maxBytes': 1024 * 50,
                       'backupCount': 10,
                       'formatter': 'simple',
                   },
