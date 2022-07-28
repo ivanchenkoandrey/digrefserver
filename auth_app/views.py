@@ -54,7 +54,7 @@ class AuthView(APIView):
             if user_profile is None:
                 logger.info(f"Не найден пользователь с telegram_id или username {_login}, "
                             f"IP: {request.META.get('REMOTE_ADDR')}")
-                return Response(data={"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(data={"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
             tg_id = user_profile.tg_id
             try:
                 bot.send_message(tg_id, f'Your register code is {code}')

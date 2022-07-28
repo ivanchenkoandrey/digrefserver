@@ -58,6 +58,9 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
         amount = self.validated_data['amount']
+        if amount <= 0:
+            logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
+            raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_distr_account.amount
