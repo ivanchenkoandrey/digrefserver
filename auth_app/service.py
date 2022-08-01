@@ -9,6 +9,7 @@ from django.http import HttpRequest
 
 from auth_app.models import Transaction, TransactionState, UserStat
 from auth_app.serializers import TransactionCancelSerializer
+from utils.current_period import get_current_period
 
 User = get_user_model()
 
@@ -41,6 +42,7 @@ def is_controller_data_is_valid(data: List[List[Union[int, str]]]) -> bool:
     переданных в запросе на верификацию транзакций контроллером"""
     try:
         for item in data:
+            logger.info(item)
             _id, status, reason = item
             VerifyTransactionItem(_id, status, reason)
         return True
@@ -57,6 +59,7 @@ def update_transactions_by_controller(data: Dict,
                                       request: HttpRequest) -> List[Dict]:
     """Обновление контроллером статусов транзакций, счетов пользователей и их статистики"""
     response = []
+    period = get_current_period()
     with transaction.atomic():
         for transaction_pk, transaction_status, reason in data:
             transaction_instance = Transaction.objects.get(pk=transaction_pk)
@@ -70,8 +73,8 @@ def update_transactions_by_controller(data: Dict,
             transaction_instance.save(update_fields=['status'])
             sender_accounts = transaction_instance.sender.accounts.all()
             recipient_accounts = transaction_instance.recipient.accounts.all()
-            sender_user_stat = UserStat.objects.get(user=transaction_instance.sender)
-            recipient_user_stat = UserStat.objects.get(user=transaction_instance.recipient)
+            sender_user_stat = UserStat.objects.get(user=transaction_instance.sender, period=period)
+            recipient_user_stat = UserStat.objects.get(user=transaction_instance.recipient, period=period)
             recipient_income_account = recipient_accounts.filter(account_type='I').first()
             sender_frozen_account = sender_accounts.filter(account_type='F').first()
             sender_distr_account = sender_accounts.filter(account_type='D').first()

@@ -29,6 +29,7 @@ def processing_accounts_data(user: User, period_id=None):
             "sent": user_stat.income_used_for_thanks,
             "received": user_stat.income_thanks,
             "cancelled": user_stat.income_declined,
+            "user_stat": period.end_date
         }
     }
     distr_account = accounts_data.get('D')
