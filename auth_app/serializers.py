@@ -7,6 +7,8 @@ from rest_framework.exceptions import ValidationError
 
 from auth_app.models import Profile, Account, Transaction, UserStat
 
+from utils.current_period import get_current_period
+
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
@@ -71,7 +73,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                                   "суммы на счету распределения")
         sender_frozen_account = Account.objects.filter(
             owner=sender, account_type='F').first()
-        sender_user_stat = UserStat.objects.get(user=sender)
+        sender_user_stat = UserStat.objects.get(user=sender, period=get_current_period())
         if amount <= current_account_amount // 2:
             with transaction.atomic():
                 sender_distr_account.amount -= amount
