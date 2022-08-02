@@ -116,7 +116,10 @@ class CustomTransactionQueryset(models.QuerySet):
     def filter_to_use_by_controller():
         return (Transaction.objects
                 .select_related('sender__profile', 'recipient__profile')
-                .filter(status='W'))
+                .filter(status='W')
+                .annotate(expire_to_cancel=ExpressionWrapper(
+                    F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
+        )
 
 
 class Transaction(models.Model):

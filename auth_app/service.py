@@ -124,9 +124,10 @@ def cancel_transaction_by_user(instance: Transaction,
     обновление данных счёта и статистики в рамках одной транзакции в БД
     """
     with transaction.atomic():
+        period = get_current_period()
         sender_accounts = instance.sender.accounts.all()
         amount = instance.amount
-        sender_user_stat = UserStat.objects.get(user=request.user)
+        sender_user_stat = UserStat.objects.get(user=request.user, period=period)
         sender_distr_account = sender_accounts.filter(account_type='D').first()
         sender_frozen_account = sender_accounts.filter(account_type='F').first()
         sender_distr_account.amount += amount
@@ -137,3 +138,9 @@ def cancel_transaction_by_user(instance: Transaction,
         sender_frozen_account.save(update_fields=['amount'])
         sender_user_stat.save(update_fields=['distr_thanks', 'distr_declined'])
         serializer.save()
+
+
+def is_cancel_transaction_request_is_valid(request_data: Dict):
+    if request_data.get('status') == 'D' and len(request_data) == 1:
+        return True
+    return False

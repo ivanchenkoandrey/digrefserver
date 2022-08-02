@@ -26,7 +26,7 @@ from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           TransactionCancelSerializer)
 from .service import (update_transactions_by_controller,
                       get_search_user_data, is_controller_data_is_valid,
-                      cancel_transaction_by_user)
+                      cancel_transaction_by_user, is_cancel_transaction_request_is_valid)
 
 User = get_user_model()
 
@@ -168,6 +168,9 @@ class CancelTransactionByUserView(UpdateAPIView):
                               authentication.TokenAuthentication]
 
     def update(self, request, *args, **kwargs):
+        if not is_cancel_transaction_request_is_valid(request.data):
+            logger.info(f'Неправильный запрос на отмену транзакции: {request.data}')
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         logger.info(f"Пользователь {request.user} отправил "
                     f"следующие данные для отмены транзакции: {request.data}")
         instance: Transaction = self.get_object()
