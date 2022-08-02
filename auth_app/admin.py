@@ -19,24 +19,28 @@ class OrganizationAdmin(admin.ModelAdmin):
 class AccountAdmin(admin.ModelAdmin):
     list_display = ['account_type', 'owner', 'organization', 'amount']
     list_select_related = ['owner', 'organization']
+    list_filter = ['account_type', 'owner']
 
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
     list_display = ['profile', 'contact_type', 'contact_id', 'confirmed']
     list_select_related = ['profile']
+    list_filter = ['contact_type']
 
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ['sender', 'recipient', 'created_at', 'updated_at', 'status']
     list_select_related = ['sender', 'recipient']
+    list_filter = ['status']
 
 
 @admin.register(UserStat)
 class UserStatAdmin(admin.ModelAdmin):
     list_display = ['user', 'period', 'bonus', 'income_at_start', 'income_at_end']
     list_select_related = ['user', 'period']
+    list_filter = ['user', 'period']
 
 
 @admin.register(Period)
@@ -48,9 +52,11 @@ class PeriodAdmin(admin.ModelAdmin):
 class TransactionStateAdmin(admin.ModelAdmin):
     list_display = ['transaction', 'created_at', 'controller', 'status', 'reason']
     list_select_related = ['transaction', 'controller']
+    list_filter = ['status']
 
 
 @admin.register(UserRole)
 class UserRoleAdmin(admin.ModelAdmin):
     list_display = ['user', 'role']
     list_select_related = ['user', 'organization']
+    list_filter = ['role']

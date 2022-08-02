@@ -70,7 +70,7 @@ def update_transactions_by_controller(data: Dict,
                 reason=reason
             )
             transaction_instance.status = transaction_status
-            transaction_instance.save(update_fields=['status'])
+            transaction_instance.save(update_fields=['status', 'updated_at'])
             sender_accounts = transaction_instance.sender.accounts.all()
             recipient_accounts = transaction_instance.recipient.accounts.all()
             sender_user_stat = UserStat.objects.get(user=transaction_instance.sender, period=period)
