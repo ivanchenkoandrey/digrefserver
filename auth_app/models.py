@@ -1,10 +1,15 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
-from django.db.models import Q, F
+from django.db.models import Q, F, ExpressionWrapper
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
+from django.db.models.fields import DateTimeField
+
+from django.conf import settings
 
 User = get_user_model()
 
@@ -102,7 +107,10 @@ class CustomTransactionQueryset(models.QuerySet):
     def filter_by_user(self, current_user):
         return (self
                 .select_related('sender__profile', 'recipient__profile')
-                .filter(Q(sender=current_user) | Q(recipient=current_user)))
+                .filter(Q(sender=current_user) | Q(recipient=current_user))
+                .annotate(expire_to_cancel=ExpressionWrapper(
+                    F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
+        )
 
     @staticmethod
     def filter_to_use_by_controller():

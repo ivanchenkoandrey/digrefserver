@@ -159,4 +159,4 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-GRACE_PERIOD = 60 * 2  # 2 МИНУТЫ
+GRACE_PERIOD = 60 * 5  # 5 МИНУТ

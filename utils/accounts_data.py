@@ -28,8 +28,7 @@ def processing_accounts_data(user: User, period_id=None):
             "frozen": accounts_data.get('F').get('amount'),
             "sent": user_stat.income_used_for_thanks,
             "received": user_stat.income_thanks,
-            "cancelled": user_stat.income_declined,
-            "user_stat": period.end_date
+            "cancelled": user_stat.income_declined
         }
     }
     distr_account = accounts_data.get('D')

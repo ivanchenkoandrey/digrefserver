@@ -107,6 +107,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
     recipient = serializers.CharField(source="recipient.profile.tg_name")
     status = serializers.SerializerMethodField()
     transaction_class = serializers.SerializerMethodField()
+    expire_to_cancel = serializers.DateTimeField()
 
     def get_status(self, obj):
         return obj.get_status_display()
