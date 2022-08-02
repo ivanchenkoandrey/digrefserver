@@ -59,6 +59,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
+        if recipient.accounts.filter(account_type__in='S').exists():
+            raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
         amount = self.validated_data['amount']
         if amount <= 0:
             logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
