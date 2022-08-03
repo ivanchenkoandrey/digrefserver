@@ -273,7 +273,5 @@ class SearchUserView(APIView):
 def get_user_transaction_list_by_period(request, period_id):
     period = get_object_or_404(Period, pk=period_id)
     transactions_queryset = Transaction.objects.filter_by_period(request.user, period)
-    formatted_transactions_list = sorted(
-        [transaction.to_json() for transaction in transactions_queryset],
-        key=lambda transaction: transaction['updated_at'], reverse=True)
-    return Response(formatted_transactions_list)
+    serializer = TransactionFullSerializer(transactions_queryset, many=True)
+    return Response(serializer.data)

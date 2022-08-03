@@ -113,32 +113,41 @@ class CustomTransactionQueryset(models.QuerySet):
         """
         Возвращает список транзакций пользователя
         """
-        return (self
-                .select_related('sender__profile', 'recipient__profile')
-                .filter(Q(sender=current_user) | Q(recipient=current_user))
-                .annotate(expire_to_cancel=ExpressionWrapper(
-                    F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
+        queryset = (self
+                    .select_related('sender__profile', 'recipient__profile')
+                    .filter(Q(sender=current_user) | Q(recipient=current_user))
         )
+        return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def filter_to_use_by_controller(self):
         """
         Возвращает список транзакций со статусом 'Ожидает подтверждения'
         """
-        return (self
-                .select_related('sender__profile', 'recipient__profile')
-                .filter(status='W')
-                .annotate(expire_to_cancel=ExpressionWrapper(
-                    F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
-        )
+        queryset = (self
+                    .select_related('sender__profile', 'recipient__profile')
+                    .filter(status='W'))
+        return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
 
     def filter_by_period(self, current_user, period):
         """
         Возвращает список транзакций пользователя, совершенных в рамках конкретного периода
         """
-        return (self.filter(
-            (Q(sender=current_user) | Q(recipient=current_user)) &
-            Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
+
+        queryset = (self
+                    .select_related('sender__profile', 'recipient__profile')
+                    .filter((Q(sender=current_user) | Q(recipient=current_user)) &
+                    Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
         ))
+        return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
+
+    @staticmethod
+    def add_expire_to_cancel_field(queryset):
+        """
+        Возвращает список транзакций, к которому добавлено поле формата даты, где указывается,
+        когда истекает возможность отменить транзакцию со стороны пользователя
+        """
+        return queryset.annotate(expire_to_cancel=ExpressionWrapper(
+                    F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
 
 
 class Transaction(models.Model):
