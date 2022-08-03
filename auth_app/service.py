@@ -140,7 +140,10 @@ def cancel_transaction_by_user(instance: Transaction,
         serializer.save()
 
 
-def is_cancel_transaction_request_is_valid(request_data: Dict):
+def is_cancel_transaction_request_is_valid(request_data: Dict) -> bool:
+    """
+    Валидация пришедших в запрос данных для отмены транзакции со стороны пользователя
+    """
     if request_data.get('status') == 'D' and len(request_data) == 1:
         return True
     return False

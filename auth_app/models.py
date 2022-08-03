@@ -104,7 +104,15 @@ class TransactionClass(models.TextChoices):
 
 
 class CustomTransactionQueryset(models.QuerySet):
+    """
+    Объект, инкапсулирующий в себе логику кастомных запросов к БД
+    в рамках менеджера objects в инстансах модели Transaction
+    """
+
     def filter_by_user(self, current_user):
+        """
+        Возвращает список транзакций пользователя
+        """
         return (self
                 .select_related('sender__profile', 'recipient__profile')
                 .filter(Q(sender=current_user) | Q(recipient=current_user))
@@ -112,14 +120,25 @@ class CustomTransactionQueryset(models.QuerySet):
                     F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
         )
 
-    @staticmethod
-    def filter_to_use_by_controller():
-        return (Transaction.objects
+    def filter_to_use_by_controller(self):
+        """
+        Возвращает список транзакций со статусом 'Ожидает подтверждения'
+        """
+        return (self
                 .select_related('sender__profile', 'recipient__profile')
                 .filter(status='W')
                 .annotate(expire_to_cancel=ExpressionWrapper(
                     F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
         )
+
+    def filter_by_period(self, current_user, period):
+        """
+        Возвращает список транзакций пользователя, совершенных в рамках конкретного периода
+        """
+        return (self.filter(
+            (Q(sender=current_user) | Q(recipient=current_user)) &
+            Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
+        ))
 
 
 class Transaction(models.Model):
@@ -295,7 +314,7 @@ def create_user_stats(instance: Period, created: bool, **kwargs):
                 user=user,
                 period=instance,
                 bonus=0,
-                income_at_start=accounts.filter(owner=user).first().amount,
+                income_at_start=accounts.filter(owner=user, account_type='I').first().amount,
                 income_at_end=0,
                 income_exp=0,
                 income_thanks=0,

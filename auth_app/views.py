@@ -4,6 +4,7 @@ from random import randint
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, authentication
 from rest_framework.authtoken.models import Token
@@ -19,7 +20,7 @@ from telebot.apihelper import ApiTelegramException
 from utils.accounts_data import processing_accounts_data
 from utils.crypts import encrypt_message, decrypt_message
 from utils.custom_permissions import IsController, IsAnonymous
-from .models import Profile, Transaction
+from .models import Profile, Transaction, Period
 from .serializers import (TelegramIDSerializer, VerifyCodeSerializer,
                           UserSerializer, TransactionPartialSerializer,
                           TransactionFullSerializer, SearchUserSerializer,
@@ -54,14 +55,14 @@ class AuthView(APIView):
             if user_profile is None:
                 logger.info(f"Не найден пользователь с telegram_id или username {_login}, "
                             f"IP: {request.META.get('REMOTE_ADDR')}")
-                return Response(data={"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(data={"error": "Пользователь не найден"}, status=status.HTTP_404_NOT_FOUND)
             tg_id = user_profile.tg_id
             try:
-                bot.send_message(tg_id, f'Your register code is {code}')
+                bot.send_message(tg_id, f'Код подтверждения в системе Цифровое Спасибо: {code}')
             except ApiTelegramException:
                 logger.error(f"Передан неизвестный боту telegram_id: {tg_id}, "
                              f"IP: {request.META.get('REMOTE_ADDR')}")
-                return Response(data={"error": "Chat id is invalid"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(data={"error": "Похоже, бот вас не знает"}, status=status.HTTP_400_BAD_REQUEST)
             logger.info(f"Пользователю {user_profile.tg_name} отправлен код {code}, "
                         f"IP: {request.META.get('REMOTE_ADDR')}")
             response = Response({'type': "authorize", "status": "ready to verify"})
@@ -263,3 +264,16 @@ class SearchUserView(APIView):
                     f"следующие данные: {data}")
         users_data = get_search_user_data(data, request)
         return users_data
+
+
+@api_view(http_method_names=['GET'])
+@authentication_classes([authentication.SessionAuthentication,
+                         authentication.TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_user_transaction_list_by_period(request, period_id):
+    period = get_object_or_404(Period, pk=period_id)
+    transactions_queryset = Transaction.objects.filter_by_period(request.user, period)
+    formatted_transactions_list = sorted(
+        [transaction.to_json() for transaction in transactions_queryset],
+        key=lambda transaction: transaction['updated_at'], reverse=True)
+    return Response(formatted_transactions_list)

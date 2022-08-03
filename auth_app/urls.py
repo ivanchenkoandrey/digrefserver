@@ -14,6 +14,8 @@ urlpatterns = [
          name='check-transaction-by-controller'),
     path('user/transactions/', views.TransactionsByUserView.as_view(), name='transactions_by_user'),
     path('user/transactions/<int:pk>/', views.SingleTransactionByUserView.as_view(), name='single_user_transaction'),
+    path('user/transactions-by-period/<int:period_id>/', views.get_user_transaction_list_by_period,
+         name='user_transactions_by_period'),
     path('search-user/', views.SearchUserView.as_view(), name='search_user'),
     path('logout/', LogoutView.as_view(), name='logout'),
 ]
