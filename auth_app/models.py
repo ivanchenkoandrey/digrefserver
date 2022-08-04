@@ -31,6 +31,9 @@ class Organization(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        db_table = 'organizations'
+
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -54,6 +57,9 @@ class Profile(models.Model):
     def __str__(self):
         return str(self.user)
 
+    class Meta:
+        db_table = 'profiles'
+
 
 class Contact(models.Model):
     class ContactTypes(models.TextChoices):
@@ -65,6 +71,9 @@ class Contact(models.Model):
     contact_type = models.CharField(max_length=1, choices=ContactTypes.choices, verbose_name='Вид контакта')
     contact_id = CITextField(verbose_name='Адрес или номер')
     confirmed = models.BooleanField(verbose_name='Подтверждено')
+
+    class Meta:
+        db_table = 'contacts'
 
 
 class UserRole(models.Model):
@@ -80,6 +89,9 @@ class UserRole(models.Model):
 
     def __str__(self):
         return str(self.user)
+
+    class Meta:
+        db_table = 'user_roles'
 
 
 class TransactionStatus(models.TextChoices):
@@ -173,6 +185,7 @@ class Transaction(models.Model):
                 f"updated: {date}")
 
     class Meta:
+        db_table = 'transactions'
         constraints = [
             models.CheckConstraint(
                 name='check_sender_is_not_recipient',
@@ -190,6 +203,9 @@ class TransactionState(models.Model):
     controller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='revised', verbose_name='Контролер')
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование (отклонения)', null=True, blank=True)
+
+    class Meta:
+        db_table = 'transaction_states'
 
 
 class AccountTypes(models.TextChoices):
@@ -218,6 +234,9 @@ class Account(models.Model):
     def __str__(self):
         return str(self.owner)
 
+    class Meta:
+        db_table = 'accounts'
+
 
 class Period(models.Model):
     start_date = models.DateField(verbose_name='С')
@@ -226,6 +245,9 @@ class Period(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        db_table = 'periods'
 
 
 class UserStat(models.Model):
@@ -270,9 +292,12 @@ class UserStat(models.Model):
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
+    class Meta:
+        db_table = 'user_stats'
+
 
 class Setting(models.Model):
-    name = models.CharField(max_length=50, verbose_name='Название')
+    name = models.CharField(max_length=50, verbose_name='Название', unique=True)
     value = models.CharField(max_length=25, verbose_name='Значение')
 
     def __str__(self):

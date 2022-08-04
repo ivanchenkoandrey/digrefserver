@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction, UserStat
+from auth_app.models import Profile, Account, Transaction, UserStat, Setting
 
 from utils.current_period import get_current_period
 
@@ -118,7 +118,8 @@ class TransactionFullSerializer(serializers.ModelSerializer):
         return obj.get_transaction_class_display()
 
     def get_sender(self, obj):
-        if settings.ANONYMOUS_MODE:
+        setting = Setting.objects.get(name='anonymous_mode')
+        if setting.value == 'on':
             return "anonymous"
         return obj.sender.profile.tg_name
 
