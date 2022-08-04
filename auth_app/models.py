@@ -271,6 +271,18 @@ class UserStat(models.Model):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
 
+class Setting(models.Model):
+    name = models.CharField(max_length=50, verbose_name='Название')
+    value = models.CharField(max_length=25, verbose_name='Значение')
+
+    def __str__(self):
+        return f"{self.name}: {self.value}"
+
+    class Meta:
+        db_table = 'custom_settings'
+        verbose_name = 'Настройки администратора'
+
+
 # /user/<id>/balance :
 # /user/<id>/stat/<period_id> :
 # - account.amount - только для текущего периода, для прошлых - всего получено баллов :
@@ -284,6 +296,7 @@ class UserStat(models.Model):
 #       и количество использованных для расчета премий для левого income_used_for_bonus
 # - только для прошлых периодов : сумма премии bonus
 # - только для прошлых периодов : остаток баллов на конец периода income_at_end
+
 
 @receiver(post_save, sender=User)
 def create_auth_token(instance: User, created: bool, **kwargs):
@@ -323,7 +336,7 @@ def create_user_stats(instance: Period, created: bool, **kwargs):
                 user=user,
                 period=instance,
                 bonus=0,
-                income_at_start=accounts.filter(owner=user, account_type='I').first().amount,
+                income_at_start=0,
                 income_at_end=0,
                 income_exp=0,
                 income_thanks=0,

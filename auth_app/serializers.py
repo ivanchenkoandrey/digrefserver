@@ -9,6 +9,8 @@ from auth_app.models import Profile, Account, Transaction, UserStat
 
 from utils.current_period import get_current_period
 
+from django.conf import settings
+
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
@@ -103,7 +105,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
 
 
 class TransactionFullSerializer(serializers.ModelSerializer):
-    sender = serializers.CharField(source="sender.profile.tg_name")
+    sender = serializers.SerializerMethodField()
     recipient = serializers.CharField(source="recipient.profile.tg_name")
     status = serializers.SerializerMethodField()
     transaction_class = serializers.SerializerMethodField()
@@ -114,6 +116,11 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_transaction_class(self, obj):
         return obj.get_transaction_class_display()
+
+    def get_sender(self, obj):
+        if settings.ANONYMOUS_MODE:
+            return "anonymous"
+        return obj.sender.profile.tg_name
 
     class Meta:
         model = Transaction
