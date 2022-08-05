@@ -3,12 +3,15 @@ import logging
 from django.contrib.auth import get_user_model
 from rest_framework import status, authentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
-from .serializers import (UserSerializer, SearchUserSerializer)
+from .models import Period
+from .serializers import (UserSerializer, SearchUserSerializer,
+                          PeriodSerializer)
 from .service import (get_search_user_data)
 
 User = get_user_model()
@@ -52,7 +55,9 @@ class UserBalanceView(APIView):
                          authentication.TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_user_stat_by_period(request, period_id):
-    """Выводит информацию для пользователя в зависимости от периода"""
+    """
+    Выводит информацию для пользователя в зависимости от периода
+    """
     data = processing_accounts_data(request.user, period_id)
     logger.info(f"Пользователь {request.user} зашёл на "
                 f"страницу отдельного периода с id {period_id}")
@@ -60,8 +65,10 @@ def get_user_stat_by_period(request, period_id):
 
 
 class SearchUserView(APIView):
-    """Поиск пользователя по вхождению искомой строки
-    (никнейм в Telegram, имя, фамилия или электронная почта)"""
+    """
+    Поиск пользователя по вхождению искомой строки
+    (никнейм в Telegram, имя, фамилия или электронная почта)
+    """
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
@@ -82,3 +89,14 @@ class SearchUserView(APIView):
                     f"следующие данные: {data}")
         users_data = get_search_user_data(data, request)
         return users_data
+
+
+class PeriodListView(ListAPIView):
+    """
+    Возвращает список периодов, в которые осуществлялась раздача спасибок
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    serializer_class = PeriodSerializer
+    queryset = Period.objects.all()

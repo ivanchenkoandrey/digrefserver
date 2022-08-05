@@ -25,6 +25,8 @@ urlpatterns = [
          name='single_user_transaction'),
     path('user/transactions-by-period/<int:period_id>/', transaction_views.get_user_transaction_list_by_period,
          name='user_transactions_by_period'),
+    # periods
+    path('periods/', views.PeriodListView.as_view(), name='periods'),
     # for admin
     path('set-anonymous-mode/', admin_views.set_anonymous_mode, name='set_anonymous_mode'),
     path('logout/', LogoutView.as_view(), name='logout'),
