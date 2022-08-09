@@ -11,6 +11,8 @@ services:
     networks:
       network:
         ipv4_address: 172.16.0.2
+    ports:
+      - "5432:5432"
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d tfdb"]

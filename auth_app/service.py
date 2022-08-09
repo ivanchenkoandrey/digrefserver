@@ -112,7 +112,7 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
         user_id=F('id'),
         tg_name=F('profile__tg_name'),
         name=F('profile__first_name'),
-        surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')
+        surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')[:10]
     return users_data
 
 

@@ -6,19 +6,16 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from auth_app.models import Profile, Account, Transaction, UserStat, Setting, Period
-
 from utils.current_period import get_current_period
-
-from django.conf import settings
 
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
 
-class TelegramIDSerializer(serializers.Serializer):
+class FindUserSerializer(serializers.Serializer):
     type = serializers.CharField(max_length=20)
-    login = serializers.CharField(max_length=20)
+    login = serializers.CharField(max_length=50)
 
 
 class VerifyCodeSerializer(serializers.Serializer):
@@ -106,26 +103,50 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
 
 class TransactionFullSerializer(serializers.ModelSerializer):
     sender = serializers.SerializerMethodField()
-    recipient = serializers.CharField(source="recipient.profile.tg_name")
-    status = serializers.SerializerMethodField()
+    sender_id = serializers.SerializerMethodField()
+    recipient = serializers.SerializerMethodField()
+    recipient_id = serializers.SerializerMethodField()
+    transaction_status = serializers.SerializerMethodField()
     transaction_class = serializers.SerializerMethodField()
     expire_to_cancel = serializers.DateTimeField()
 
-    def get_status(self, obj):
-        return obj.get_status_display()
+    def get_transaction_status(self, obj):
+        return {
+            'id': obj.status,
+            'name': obj.get_status_display()
+        }
 
     def get_transaction_class(self, obj):
-        return obj.get_transaction_class_display()
+        return {
+            'id': obj.transaction_class,
+            'name': obj.get_transaction_class_display()
+        }
 
     def get_sender(self, obj):
-        setting = Setting.objects.get(name='anonymous_mode')
-        if setting.value == 'on':
-            return "anonymous"
-        return obj.sender.profile.tg_name
+        return {
+            'sender_id': obj.sender.id,
+            'sender_tg_name': obj.sender.profile.tg_name,
+            'sender_first_name': obj.sender.profile.first_name,
+            'sender_surname': obj.sender.profile.surname
+        }
+
+    def get_sender_id(self, obj):
+        return obj.sender.id
+
+    def get_recipient(self, obj):
+        return {
+            'recipient_id': obj.recipient.id,
+            'recipient_tg_name': obj.recipient.profile. tg_name,
+            'recipient_first_name': obj.recipient.profile.first_name,
+            'recipient_surname': obj.recipient.profile.surname
+        }
+
+    def get_recipient_id(self, obj):
+        return obj.recipient.id
 
     class Meta:
         model = Transaction
-        fields = '__all__'
+        exclude = ['status']
 
 
 class TransactionCancelSerializer(serializers.ModelSerializer):
