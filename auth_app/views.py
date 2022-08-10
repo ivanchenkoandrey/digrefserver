@@ -13,6 +13,7 @@ from .models import Period
 from .serializers import (UserSerializer, SearchUserSerializer,
                           PeriodSerializer)
 from .service import (get_search_user_data)
+from django.db.models import F
 
 User = get_user_model()
 
@@ -100,3 +101,20 @@ class PeriodListView(ListAPIView):
                               authentication.TokenAuthentication]
     serializer_class = PeriodSerializer
     queryset = Period.objects.all()
+
+
+class UsersList(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        if request.data.get('get_users') is not None:
+            users_list = User.objects.order_by('profile__surname').annotate(
+                user_id=F('id'),
+                tg_name=F('profile__tg_name'),
+                name=F('profile__first_name'),
+                surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')[:10]
+            return Response(users_list)
+        return Response(status=status.HTTP_400_BAD_REQUEST)

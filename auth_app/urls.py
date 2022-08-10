@@ -14,6 +14,7 @@ urlpatterns = [
     path('user/balance/', views.UserBalanceView.as_view(), name='balance'),
     path('user/stat/<int:period_id>/', views.get_user_stat_by_period, name='user_stat_by_period'),
     path('search-user/', views.SearchUserView.as_view(), name='search_user'),
+    path('users-list/', views.UsersList.as_view(), name='users-list'),
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view(), name='send_coins'),
     path('cancel-transaction/<int:pk>/', transaction_views.CancelTransactionByUserView.as_view(),
