@@ -104,6 +104,9 @@ class PeriodListView(ListAPIView):
 
 
 class UsersList(APIView):
+    """
+    Возвращает список пользователей по умолчанию
+    """
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
@@ -111,10 +114,12 @@ class UsersList(APIView):
     @classmethod
     def post(cls, request, *args, **kwargs):
         if request.data.get('get_users') is not None:
+            logger.info(f'Запрос на показ пользователей по умолчанию от {request.user}')
             users_list = User.objects.order_by('profile__surname').annotate(
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),
                 name=F('profile__first_name'),
                 surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')[:10]
             return Response(users_list)
+        logger.info(f'Неправильный запрос на показ пользователей по умолчанию от {request.user}: {request.data}')
         return Response(status=status.HTTP_400_BAD_REQUEST)

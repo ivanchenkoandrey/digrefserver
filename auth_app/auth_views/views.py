@@ -41,7 +41,8 @@ class AuthView(APIView):
                 if profile:
                     email_contact = Contact.objects.filter(profile=profile, contact_type='@').first()
                     email = email_contact.contact_id
-                    send.delay(email_contact.contact_id, code)
+                    send.delay(email, code)
+                    logger.info(f'На почту {email} отправлен код {code}')
                     response.data = {'status': 'Код отправлен на указанную электронную почту'}
                     response['X-Email'] = request.session['x-email'] = encrypt_message(email)
                 else:
@@ -98,7 +99,7 @@ class VerifyCodeView(APIView):
                         "is_success": True,
                         "token": token,
                         "sessionid": request.session.session_key}
-                logger.info(f"Пользователь c telegram_id {tg_id} успешно аутентифицирован.")
+                logger.info(f"Пользователь {user} успешно аутентифицирован.")
                 return Response(data)
             logger.info(f"Введён неправильный код подтверждения: {code}, "
                         f"IP: {request.META.get('REMOTE_ADDR')}")
