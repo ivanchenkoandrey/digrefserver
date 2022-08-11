@@ -115,7 +115,7 @@ class UsersList(APIView):
     def post(cls, request, *args, **kwargs):
         if request.data.get('get_users') is not None:
             logger.info(f'Запрос на показ пользователей по умолчанию от {request.user}')
-            users_list = User.objects.order_by('profile__surname').annotate(
+            users_list = User.objects.exclude(username__in=[request.user.username]).order_by('profile__surname').annotate(
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),
                 name=F('profile__first_name'),
