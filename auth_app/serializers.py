@@ -58,7 +58,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
-        if recipient.accounts.filter(account_type__in='S').exists():
+        if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
         amount = self.validated_data['amount']
         if amount <= 0:
@@ -89,7 +89,9 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     transaction_class='T',
                     amount=self.validated_data['amount'],
                     status='W',
-                    reason=self.validated_data['reason']
+                    reason=self.validated_data['reason'],
+                    is_public=False,
+                    is_anonymous=False
                 )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
             return transaction_instance
