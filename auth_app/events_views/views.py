@@ -3,8 +3,32 @@ from rest_framework.authentication import (TokenAuthentication,
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import serializers
 
 from auth_app.models import EventTypes, Event, Transaction, Organization
+
+
+class EventTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventTypes
+        fields = '__all__'
+
+
+class EventSerializer(serializers.ModelSerializer):
+    event_type = EventTypeSerializer()
+    user = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return {
+            'user_id': obj.user.id,
+            'user_tg_name': obj.user.profile.tg_name,
+            'user_first_name': obj.user.profile.first_name,
+            'user_surname': obj.user.profile.surname
+        }
+
+    class Meta:
+        model = Event
+        fields = '__all__'
 
 
 class EventListView(APIView):
@@ -69,5 +93,6 @@ class EventListView(APIView):
                         time=transaction.updated_at,
                         user=transaction.recipient
                     )
-        events = [event.to_json() for event in Event.objects.all()]
-        return Response(events)
+        events = Event.objects.select_related('user', 'event_type', 'scope').all().order_by('-time')[:30]
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data)
