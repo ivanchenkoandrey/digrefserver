@@ -98,6 +98,9 @@ class TransactionStatus(models.TextChoices):
     WAITING = 'W', 'Ожидает подтверждения'
     APPROVED = 'A', 'Одобрено'
     DECLINED = 'D', 'Отклонено'
+    INGRACE = 'G', 'Ожидает'
+    READY = 'R', 'Выполнена'
+    CANCELLED = 'C', 'Отменена'
 
 
 class TransactionClass(models.TextChoices):
@@ -128,7 +131,7 @@ class CustomTransactionQueryset(models.QuerySet):
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile')
                     .filter(Q(sender=current_user) | Q(recipient=current_user))
-        )
+                    )
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def filter_to_use_by_controller(self):
@@ -148,8 +151,8 @@ class CustomTransactionQueryset(models.QuerySet):
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile')
                     .filter((Q(sender=current_user) | Q(recipient=current_user)) &
-                    Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
-        ))
+                            Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
+                            ))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     @staticmethod
@@ -159,7 +162,7 @@ class CustomTransactionQueryset(models.QuerySet):
         когда истекает возможность отменить транзакцию со стороны пользователя
         """
         return queryset.annotate(expire_to_cancel=ExpressionWrapper(
-                    F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
+            F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
 
 
 class Transaction(models.Model):
@@ -173,6 +176,16 @@ class Transaction(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления состояния', null=True, blank=True)
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование')
+    grace_timeout = models.DateTimeField(verbose_name='Время окончания периода возможной отмены', null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='organization_public_transactions',
+                                     null=True, blank=True, verbose_name='Согласующая организация')
+    period = models.ForeignKey('Period', on_delete=models.CASCADE, related_name='transactions', verbose_name='Период',
+                               null=True, blank=True)
+    is_anonymous = models.BooleanField(verbose_name='Отправитель скрыт', null=True, blank=True)
+    is_public = models.BooleanField(verbose_name='Публичность', null=True, blank=True)
+    scope = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='scope_public_transactions', null=True,
+                              blank=True,
+                              verbose_name='Уровень публикации')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -242,6 +255,9 @@ class Period(models.Model):
     start_date = models.DateField(verbose_name='С')
     end_date = models.DateField(verbose_name='По')
     name = CITextField(verbose_name='Название')  # например Июнь 2022 или 3й квартал 2022
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='periods',
+                                     verbose_name='Организация', null=True,
+                                     blank=True)  # поддерево организаций, к которым относится период.
 
     def __str__(self):
         return self.name
@@ -296,18 +312,6 @@ class UserStat(models.Model):
         db_table = 'user_stats'
 
 
-class Setting(models.Model):
-    name = models.CharField(max_length=50, verbose_name='Название', unique=True)
-    value = models.CharField(max_length=25, verbose_name='Значение')
-
-    def __str__(self):
-        return f"{self.name}: {self.value}"
-
-    class Meta:
-        db_table = 'custom_settings'
-        verbose_name = 'Настройки администратора'
-
-
 # /user/<id>/balance :
 # /user/<id>/stat/<period_id> :
 # - account.amount - только для текущего периода, для прошлых - всего получено баллов :
@@ -321,6 +325,62 @@ class Setting(models.Model):
 #       и количество использованных для расчета премий для левого income_used_for_bonus
 # - только для прошлых периодов : сумма премии bonus
 # - только для прошлых периодов : остаток баллов на конец периода income_at_end
+
+
+class EventObjectTypes(models.TextChoices):
+    TRANSACTION = 'T', 'Транзакция'
+    QUEST = 'Q', 'Запрос (челлендж, квест)'
+
+
+class EventRecordTypes(models.TextChoices):
+    TRANS_STATUS = 'S', 'Статус транзакции'
+    LIKE_ITEM = 'L', 'Лайк'
+    COMMENT_ITEM = 'C', 'Комментарий'
+
+
+class EventTypes(models.Model):
+    # id - идентификатор
+    name = CITextField()
+    object_type = models.CharField(max_length=1, choices=EventObjectTypes.choices, verbose_name='Тип объекта',
+                                   null=True, blank=True)
+    record_type = models.CharField(max_length=1, choices=EventRecordTypes.choices, verbose_name='Тип записи о событии',
+                                   null=True, blank=True)
+    is_personal = models.BooleanField(verbose_name='Относится к пользователю')
+    has_scope = models.BooleanField(verbose_name='Имеет область видимости')
+
+    class Meta:
+        db_table = 'event_types'
+
+# 'Входящая транзакция'  Transaction NULL 1 0
+# 'Исходящая транзакция отклонена' Transaction TransactionStatus  1 0
+# 'Исходящая транзакция одобрена' Transaction TransactionStatus 1 0
+# 'Новая публичная транзакция' Transaction NULL 0 1
+# 'Новая транзакция для согласования' Transaction NULL 0 1
+# 'Новый комментарий' Transaction TransComment 1 1
+# 'Новый лайк' Transaction TransLike 1 1
+
+
+class Event(models.Model):
+    # id: идентификатор - создается автоматически
+    # тип события - транзакция, лайк и тп
+    event_type = models.ForeignKey(EventTypes, on_delete=models.PROTECT, verbose_name='Тип события')
+    # объект, с которым произошло событие
+    event_object_id = models.IntegerField(null=True, blank=True)
+    # объект, описывающий событие
+    event_record_id = models.IntegerField(null=True, blank=True)
+    # таймстамп когда событие произошло / обновилось
+    time = models.DateTimeField(verbose_name='Время события')
+    # область видимости (организация)
+    scope = models.ForeignKey(Organization, on_delete=models.SET_NULL, verbose_name='Область видимости', null=True,
+                              blank=True)
+    # пользователь - адресат события
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='Пользователь', null=True, blank=True)
+
+    class Meta:
+        db_table = 'events'
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
 
 @receiver(post_save, sender=User)
@@ -349,30 +409,3 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
             organization=instance.department,
             amount=0
         )
-
-
-@receiver(post_save, sender=Period)
-def create_user_stats(instance: Period, created: bool, **kwargs):
-    if created:
-        users = User.objects.filter(accounts__account_type='I')
-        accounts = Account.objects.filter(account_type='I')
-        user_stats = [
-            UserStat(
-                user=user,
-                period=instance,
-                bonus=0,
-                income_at_start=0,
-                income_at_end=0,
-                income_exp=0,
-                income_thanks=0,
-                income_used_for_bonus=0,
-                income_used_for_thanks=0,
-                income_declined=0,
-                distr_initial=0,
-                distr_redist=0,
-                distr_burnt=0,
-                distr_thanks=0,
-                distr_declined=0
-            ) for user in users
-        ]
-        UserStat.objects.bulk_create(user_stats)

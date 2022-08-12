@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction, UserStat, Setting, Period
+from auth_app.models import Profile, Account, Transaction, UserStat, Period
 from utils.current_period import get_current_period
 
 User = get_user_model()

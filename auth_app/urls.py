@@ -1,9 +1,10 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
-from . import views
-from auth_app.admin_views import views as admin_views
+
 from auth_app.auth_views import views as auth_views
+from auth_app.events_views import views as events_views
 from auth_app.transaction_views import views as transaction_views
+from . import views
 
 urlpatterns = [
     # authentication
@@ -26,9 +27,10 @@ urlpatterns = [
          name='single_user_transaction'),
     path('user/transactions-by-period/<int:period_id>/', transaction_views.get_user_transaction_list_by_period,
          name='user_transactions_by_period'),
+    # events
+    path('feed/', events_views.EventListView.as_view(), name='events'),
     # periods
     path('periods/', views.PeriodListView.as_view(), name='periods'),
-    # for admin
-    path('set-anonymous-mode/', admin_views.set_anonymous_mode, name='set_anonymous_mode'),
+
     path('logout/', LogoutView.as_view(), name='logout'),
 ]

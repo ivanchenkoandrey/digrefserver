@@ -2,8 +2,7 @@ from django.contrib import admin
 
 from .models import (Profile, Organization, Account,
                      Contact, Transaction, UserStat,
-                     Period, TransactionState, UserRole,
-                     Setting)
+                     Period, TransactionState, UserRole)
 
 
 @admin.register(Profile)
@@ -62,7 +61,3 @@ class UserRoleAdmin(admin.ModelAdmin):
     list_select_related = ['user', 'organization']
     list_filter = ['role']
 
-
-@admin.register(Setting)
-class SettingAdmin(admin.ModelAdmin):
-    list_display = ['name']
