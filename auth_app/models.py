@@ -186,6 +186,7 @@ class Transaction(models.Model):
     scope = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='scope_public_transactions', null=True,
                               blank=True,
                               verbose_name='Уровень публикации')
+    photo = models.ImageField(blank=True, null=True, upload_to='transactions', verbose_name='Фотография')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
