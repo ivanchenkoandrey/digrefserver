@@ -47,6 +47,7 @@ def processing_accounts_data(user: User, period_id=None):
         if period_id is not None:
             distr_data.get("distr").update({"burnt": user_stat.distr_burnt})
             user_profile_data.update({"bonus": user_stat.bonus})
+            user_profile_data['income'].update({'used_for_bonus': user_stat.income_used_for_bonus})
     else:
         with open(os.path.join(settings.BASE_DIR, 'utils', 'distr_data.yml'), "r") as stream:
             try:

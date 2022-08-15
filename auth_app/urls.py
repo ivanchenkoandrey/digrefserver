@@ -5,6 +5,7 @@ from auth_app.auth_views import views as auth_views
 from auth_app.events_views import views as events_views
 from auth_app.transaction_views import views as transaction_views
 from . import views
+from auth_app.periods_views import views as periods_views
 
 urlpatterns = [
     # authentication
@@ -30,7 +31,11 @@ urlpatterns = [
     # events
     path('feed/', events_views.EventListView.as_view(), name='events'),
     # periods
-    path('periods/', views.PeriodListView.as_view(), name='periods'),
+    path('periods/', periods_views.PeriodListView.as_view(), name='periods'),
+    path('create-period/', periods_views.CreatePeriodView.as_view(), name='create_period'),
+    path('get-current-period/', periods_views.get_current_period, name='get_current_period'),
+    path('get-period-by-date/', periods_views.get_period_by_date, name='get_period_by_date'),
+    path('get-periods/', periods_views.get_periods, name='get_periods'),
 
     path('logout/', LogoutView.as_view(), name='logout'),
 ]
