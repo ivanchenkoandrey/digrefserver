@@ -51,6 +51,7 @@ class EventListView(APIView):
                     "id": transaction.pk,
                     "sender": transaction.sender.profile.tg_name,
                     "recipient": transaction.recipient.profile.tg_name,
+                    "amount": transaction.amount,
                     "status": transaction.get_status_display(),
                     "is_anonymous": transaction.is_anonymous,
                     "reason": transaction.reason

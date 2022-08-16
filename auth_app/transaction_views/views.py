@@ -16,7 +16,8 @@ from auth_app.serializers import (TransactionPartialSerializer,
                                   TransactionFullSerializer, TransactionCancelSerializer)
 from auth_app.service import (update_transactions_by_controller,
                               is_controller_data_is_valid,
-                              cancel_transaction_by_user, is_cancel_transaction_request_is_valid)
+                              cancel_transaction_by_user, is_cancel_transaction_request_is_valid,
+                              AlreadyUpdatedByControllerError, NotWaitingTransactionError)
 from utils.custom_permissions import IsController
 
 logger = logging.getLogger(__name__)
@@ -80,10 +81,17 @@ class VerifyOrCancelTransactionByControllerView(APIView):
     @classmethod
     def put(cls, request, *args, **kwargs):
         data = request.data
-        if is_controller_data_is_valid(data):
-            response = update_transactions_by_controller(data, request)
-            logger.info(f"Контроллер {request.user} выполнил подтверждение / отклонение транзакций")
-            return Response(response)
+        try:
+            if is_controller_data_is_valid(data):
+                response = update_transactions_by_controller(data, request)
+                logger.info(f"Контроллер {request.user} выполнил подтверждение / отклонение транзакций")
+                return Response(response)
+        except AlreadyUpdatedByControllerError:
+            return Response("ID транзакций должны быть различными!",
+                            status=status.HTTP_400_BAD_REQUEST)
+        except NotWaitingTransactionError:
+            return Response("В запросе присутствует ID транзакции, которую не следует подтверждать!",
+                            status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 

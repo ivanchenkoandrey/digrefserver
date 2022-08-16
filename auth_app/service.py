@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Union
+from typing import Dict, List
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -17,6 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 class VerifyTransactionItemError(Exception):
+    pass
+
+
+class AlreadyUpdatedByControllerError(Exception):
+    pass
+
+
+class NotWaitingTransactionError(Exception):
     pass
 
 
@@ -37,16 +45,16 @@ class VerifyTransactionItem:
             raise VerifyTransactionItemError("Нужно указать обоснование смены статуса транзакции")
 
 
-def is_controller_data_is_valid(data: List[List[Union[int, str]]]) -> bool:
+def is_controller_data_is_valid(data) -> bool:
     """Проверка валидности запроса и формата данных,
     переданных в запросе на верификацию транзакций контроллером"""
     try:
         for item in data:
             logger.info(item)
-            _id, status, reason = item
+            _id, status, reason = item.get('id'), item.get('status'), item.get('reason')
             VerifyTransactionItem(_id, status, reason)
         return True
-    except (TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError):
         logger.info(f"Неправильный запрос верификации транзакций контроллером: {data}")
         return False
     except VerifyTransactionItemError:
@@ -58,10 +66,21 @@ def is_controller_data_is_valid(data: List[List[Union[int, str]]]) -> bool:
 def update_transactions_by_controller(data: Dict,
                                       request: HttpRequest) -> List[Dict]:
     """Обновление контроллером статусов транзакций, счетов пользователей и их статистики"""
+    waiting_transactions_ids = (Transaction.objects
+                                .filter(status='W')
+                                .values_list('pk', flat=True))
+    already_updated_ids = []
     response = []
     period = get_current_period()
     with transaction.atomic():
-        for transaction_pk, transaction_status, reason in data:
+        for transaction_data in data:
+            transaction_pk = transaction_data.get('id')
+            if transaction_pk in already_updated_ids:
+                raise AlreadyUpdatedByControllerError
+            if transaction_pk not in waiting_transactions_ids:
+                raise NotWaitingTransactionError
+            transaction_status = transaction_data.get('status')
+            reason = transaction_data.get('reason')
             transaction_instance = Transaction.objects.get(pk=transaction_pk)
             TransactionState.objects.create(
                 transaction=transaction_instance,
@@ -97,6 +116,7 @@ def update_transactions_by_controller(data: Dict,
             sender_frozen_account.save(update_fields=['amount', 'transaction'])
             sender_distr_account.save(update_fields=['amount', 'transaction'])
             response.append({"transaction": transaction_pk, "status": transaction_status, "reason": reason})
+            already_updated_ids.append(transaction_pk)
     return response
 
 

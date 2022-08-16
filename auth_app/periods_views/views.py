@@ -41,10 +41,6 @@ class CreatePeriodView(APIView):
     def post(cls, request, *args, **kwargs):
         serializer = PeriodSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            organization = request.data.get('organization')
-            if organization is None:
-                user_organization = request.user.profile.organization
-                serializer.validated_data['organization'] = user_organization
             serializer.save()
             return Response(serializer.data)
 

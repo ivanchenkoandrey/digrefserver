@@ -8,7 +8,7 @@ class IsController(BasePermission):
     """
     def has_permission(self, request, view):
         return bool(request.user.is_authenticated
-                    and request.user.privileged.filter(role__in=['C']))
+                    and request.user.privileged.filter(role__in=['A', 'C']))
 
 
 class IsAnonymous(BasePermission):
