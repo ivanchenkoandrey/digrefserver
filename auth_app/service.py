@@ -50,7 +50,6 @@ def is_controller_data_is_valid(data) -> bool:
     переданных в запросе на верификацию транзакций контроллером"""
     try:
         for item in data:
-            logger.info(item)
             _id, status, reason = item.get('id'), item.get('status'), item.get('reason')
             VerifyTransactionItem(_id, status, reason)
         return True

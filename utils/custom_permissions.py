@@ -31,3 +31,13 @@ class IsAllowedToMakePeriod(BasePermission):
         return (bool(request.user.is_staff
                      or (request.user.is_authenticated
                          and request.user.filter.privileged.filter(role__in=['A'], organization_id__in=[top_id_list]))))
+
+
+class IsUserUpdatesHisProfile(BasePermission):
+    """
+    Проверка, что пользователь обновляет свой профиль, а не чей-то ещё
+    """
+    message = "Вы не можете изменить данные чужого профиля"
+
+    def has_object_permission(self, request, view, obj):
+        return bool(request.user.profile.pk == obj.pk)

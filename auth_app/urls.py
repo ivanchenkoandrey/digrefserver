@@ -3,9 +3,10 @@ from django.urls import path
 
 from auth_app.auth_views import views as auth_views
 from auth_app.events_views import views as events_views
+from auth_app.periods_views import views as periods_views
+from auth_app.profile_views import views as profile_views
 from auth_app.transaction_views import views as transaction_views
 from . import views
-from auth_app.periods_views import views as periods_views
 
 urlpatterns = [
     # authentication
@@ -17,6 +18,8 @@ urlpatterns = [
     path('user/stat/<int:period_id>/', views.get_user_stat_by_period, name='user_stat_by_period'),
     path('search-user/', views.SearchUserView.as_view(), name='search_user'),
     path('users-list/', views.UsersList.as_view(), name='users-list'),
+    path('update-profile-image/<int:pk>/', profile_views.UpdateProfileImageView.as_view(),
+         name='update_profile_image'),
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view(), name='send_coins'),
     path('cancel-transaction/<int:pk>/', transaction_views.CancelTransactionByUserView.as_view(),
