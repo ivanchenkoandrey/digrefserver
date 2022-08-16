@@ -191,6 +191,11 @@ class Transaction(models.Model):
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
+    def get_photo_url(self):
+        if self.photo:
+            return f"{settings.MEDIA_URL}{self.photo.url}"
+        return None
+
     def __str__(self):
         date = self.updated_at.strftime('%d-%m-%Y %H:%M:%S')
         return (f"to: {self.recipient} "

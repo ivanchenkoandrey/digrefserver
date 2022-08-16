@@ -54,7 +54,8 @@ class EventListView(APIView):
                     "amount": transaction.amount,
                     "status": transaction.get_status_display(),
                     "is_anonymous": transaction.is_anonymous,
-                    "reason": transaction.reason
+                    "reason": transaction.reason,
+                    "photo": transaction.get_photo_url()
                 },
                 "scope": event_type.get('scope')
             }

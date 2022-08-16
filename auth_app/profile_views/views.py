@@ -1,15 +1,12 @@
+import logging
+
 from rest_framework import authentication
 from rest_framework import serializers
 from rest_framework.generics import UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 
 from auth_app.models import Profile
-
 from utils.custom_permissions import IsUserUpdatesHisProfile
-
-
-import logging
-
 
 logger = logging.getLogger(__name__)
 

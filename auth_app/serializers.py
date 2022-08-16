@@ -53,7 +53,7 @@ class AccountSerializer(serializers.ModelSerializer):
 class TransactionPartialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['recipient', 'amount', 'reason']
+        fields = ['recipient', 'amount', 'reason', 'photo']
 
     def create(self, validated_data):
         sender = self.context['request'].user
@@ -91,7 +91,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     status='W',
                     reason=self.validated_data['reason'],
                     is_public=False,
-                    is_anonymous=False
+                    is_anonymous=False,
+                    photo=self.validated_data['photo']
                 )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
             return transaction_instance
