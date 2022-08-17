@@ -41,3 +41,15 @@ class IsUserUpdatesHisProfile(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return bool(request.user.profile.pk == obj.pk)
+
+
+class IsMemberOfAdminGroup(BasePermission):
+    """
+    Проверка, что пользователь входит в группу администраторов
+    """
+    message = 'Вы не являетесь администратором'
+
+    def has_permission(self, request, view):
+        return (bool(request.user.is_staff
+                     or (request.user.is_authenticated
+                         and request.user.filter.privileged.filter(role='A'))))

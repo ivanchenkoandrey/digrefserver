@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction, UserStat, Period
+from auth_app.models import Profile, Account, Transaction, UserStat, Period, Contact
 from utils.current_period import get_current_period
 
 User = get_user_model()
@@ -27,7 +27,14 @@ class SearchUserSerializer(serializers.Serializer):
     data = serializers.CharField(max_length=50)
 
 
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = ['contact_type', 'contact_id']
+
+
 class ProfileSerializer(serializers.ModelSerializer):
+    contacts = ContactSerializer(many=True)
     organization = serializers.CharField(source="organization.name")
     department = serializers.CharField(source="department.name")
 

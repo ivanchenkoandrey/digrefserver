@@ -27,6 +27,10 @@ class Organization(models.Model):
     top_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='pride', verbose_name='Юр.лицо')
     parent_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='children', null=True,
                                   verbose_name='Входит в', blank=True)
+    photo = models.ImageField(blank=True, null=True, upload_to='organizations', verbose_name='Фотография')
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
     def __str__(self):
         return self.name
@@ -46,6 +50,7 @@ class Profile(models.Model):
     tg_name = CICharField(max_length=20, blank=True, null=True, verbose_name='Имя пользователя Telegram')
     photo = models.ImageField(blank=True, null=True, upload_to='users_photo/', verbose_name='Фотография')
     hired_at = models.DateField(null=True, blank=True, verbose_name='Работает с')
+    fired_at = models.DateField(null=True, blank=True, verbose_name='Не работает с')
     surname = CITextField(blank=True, default='', verbose_name='Фамилия')
     first_name = CITextField(blank=True, null=True, verbose_name='Имя')
     middle_name = CITextField(blank=True, null=True, verbose_name='Отчество')
