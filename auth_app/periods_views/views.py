@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from auth_app.models import Period
 from utils.custom_permissions import IsAllowedToMakePeriod
 from .serializers import PeriodSerializer
-from .service import (get_period_pk, get_period_pk_by_date,
+from .service import (get_period, _get_period_by_date,
                       get_periods_list, NotADateError,
                       WrongDateFormatError, PeriodDoesntExistError)
 
@@ -54,8 +54,9 @@ def get_current_period(request):
     Возвращает id текущего периода либо, если текущий период не задан,
     то id предыдущего
     """
-    period_id = get_period_pk()
-    return Response({'period_id': period_id})
+    period = get_period()
+    # request.session['period'] = period
+    return Response(period)
 
 
 @api_view(http_method_names=['POST'])
@@ -67,8 +68,9 @@ def get_period_by_date(request):
     Возвращает id периода, в котором была указанная дата
     """
     try:
-        period_id = get_period_pk_by_date(request.data.get('date', ''))
-        return Response({'period_id': period_id})
+        period = _get_period_by_date(request.data.get('date', ''))
+        # request.session['period'] = period
+        return Response(period)
     except NotADateError:
         return Response('Дата не была передана', status=status.HTTP_400_BAD_REQUEST)
     except WrongDateFormatError:

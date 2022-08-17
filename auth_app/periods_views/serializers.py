@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 
 
 class PeriodSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Period
         fields = '__all__'

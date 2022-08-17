@@ -3,6 +3,7 @@ from django.urls import path
 
 from auth_app.auth_views import views as auth_views
 from auth_app.events_views import views as events_views
+from auth_app.organization_views import views as organization_views
 from auth_app.periods_views import views as periods_views
 from auth_app.profile_views import views as profile_views
 from auth_app.transaction_views import views as transaction_views
@@ -39,6 +40,9 @@ urlpatterns = [
     path('get-current-period/', periods_views.get_current_period, name='get_current_period'),
     path('get-period-by-date/', periods_views.get_period_by_date, name='get_period_by_date'),
     path('get-periods/', periods_views.get_periods, name='get_periods'),
+    # organizations
+    path('create-root-organization/', organization_views.CreateRootOrganization.as_view(),
+         name='create_root_organization'),
 
     path('logout/', LogoutView.as_view(), name='logout'),
 ]

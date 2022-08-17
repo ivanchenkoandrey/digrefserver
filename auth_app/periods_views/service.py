@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 from auth_app.models import Period
 import datetime
@@ -18,14 +18,14 @@ class PeriodDoesntExistError(Exception):
     pass
 
 
-def get_period_pk() -> int:
+def get_period() -> Dict:
     today = datetime.date.today()
     current_period = Period.objects.filter(
         Q(start_date__lte=today) & Q(end_date__gte=today)).first()
     if current_period is None:
         previous_period = Period.objects.filter(end_date__lt=today).order_by('-end_date').first()
-        return previous_period.pk
-    return current_period.pk
+        return previous_period.to_json()
+    return current_period.to_json()
 
 
 def is_date(string: str, fuzzy=False) -> bool:
@@ -36,14 +36,14 @@ def is_date(string: str, fuzzy=False) -> bool:
         return False
 
 
-def get_period_pk_by_date(date: str) -> int:
+def _get_period_by_date(date: str) -> Dict:
     if is_date(date):
         try:
             date_object = datetime.datetime.strptime(date, '%Y-%m-%d')
             period = Period.objects.filter(
                 Q(start_date__lte=date) & Q(end_date__gte=date)).first()
             if period is not None:
-                return period.pk
+                return period.to_json()
             else:
                 raise PeriodDoesntExistError
         except ValueError:
@@ -58,7 +58,7 @@ def get_periods_list(from_date: Optional[str], limit: int):
             today = datetime.date.today()
             date_object = datetime.datetime.strptime(from_date, '%Y-%m-%d')
             period_list = (Period.objects
-                           .filter(Q(start_date__lte=from_date) & Q(start_date__lte=today))
+                           .filter(Q(start_date__gte=date_object) & Q(start_date__lte=today))
                            .order_by('-end_date')[:limit]
                            .annotate(time_from=F('start_date'),
                                      time_to=F('end_date'))

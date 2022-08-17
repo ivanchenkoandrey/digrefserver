@@ -270,6 +270,9 @@ class Period(models.Model):
                                      verbose_name='Организация', null=True,
                                      blank=True)  # поддерево организаций, к которым относится период.
 
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
     def __str__(self):
         return self.name
 
