@@ -43,13 +43,11 @@ class IsUserUpdatesHisProfile(BasePermission):
         return bool(request.user.profile.pk == obj.pk)
 
 
-class IsMemberOfAdminGroup(BasePermission):
+class IsSystemAdmin(BasePermission):
     """
     Проверка, что пользователь входит в группу администраторов
     """
-    message = 'Вы не являетесь администратором'
+    message = 'Вы не являетесь администратором системы'
 
     def has_permission(self, request, view):
-        return (bool(request.user.is_staff
-                     or (request.user.is_authenticated
-                         and request.user.filter.privileged.filter(role='A'))))
+        return bool(request.user.is_staff)

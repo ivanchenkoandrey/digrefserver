@@ -70,8 +70,8 @@ def get_period_by_date(request):
     Возвращает id периода, в котором была указанная дата
     """
     try:
+        logger.info(f"period by date: {request.data}")
         period = _get_period_by_date(request.data.get('date', ''))
-        request.session['period'] = period
         return Response(period)
     except NotADateError:
         return Response('Дата не была передана', status=status.HTTP_400_BAD_REQUEST)
