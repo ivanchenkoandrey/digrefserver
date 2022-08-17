@@ -1,3 +1,4 @@
+import json
 import logging
 
 from rest_framework import authentication
@@ -55,7 +56,8 @@ def get_current_period(request):
     то id предыдущего
     """
     period = get_period()
-    # request.session['period'] = period
+    request.session['period'] = json.dumps(period, sort_keys=True, default=str)
+    logger.info(f"{request.session.get('period')}")
     return Response(period)
 
 
@@ -69,7 +71,7 @@ def get_period_by_date(request):
     """
     try:
         period = _get_period_by_date(request.data.get('date', ''))
-        # request.session['period'] = period
+        request.session['period'] = period
         return Response(period)
     except NotADateError:
         return Response('Дата не была передана', status=status.HTTP_400_BAD_REQUEST)
