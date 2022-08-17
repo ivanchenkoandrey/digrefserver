@@ -52,13 +52,22 @@ class CreatePeriodView(APIView):
                         authentication.TokenAuthentication])
 def get_current_period(request):
     """
-    Возвращает id текущего периода либо, если текущий период не задан,
-    то id предыдущего
+    Возвращает текущий периода либо, если текущий период не задан,
+    то предыдущий
     """
     period = get_period()
-    request.session['period'] = json.dumps(period, sort_keys=True, default=str)
-    logger.info(f"{request.session.get('period')}")
-    return Response(period)
+    response = Response(period)
+    if 'period_id' not in request.COOKIES:
+        set_period_cookies(period, response)
+    return response
+
+
+def set_period_cookies(period, response):
+    cookie_max_age = 3600 * 24 * 14
+    response.set_cookie('period_id', period.get('id'), max_age=cookie_max_age)
+    response.set_cookie('period_start_date', period.get('start_date'), max_age=cookie_max_age)
+    response.set_cookie('period_end_date', period.get('end_date'), max_age=cookie_max_age)
+    response.set_cookie('period_organization_id', period.get('organization_id'), max_age=cookie_max_age)
 
 
 @api_view(http_method_names=['POST'])
@@ -67,10 +76,9 @@ def get_current_period(request):
                         authentication.TokenAuthentication])
 def get_period_by_date(request):
     """
-    Возвращает id периода, в котором была указанная дата
+    Возвращает период, в котором была искомая дата
     """
     try:
-        logger.info(f"period by date: {request.data}")
         period = _get_period_by_date(request.data.get('date', ''))
         return Response(period)
     except NotADateError:
