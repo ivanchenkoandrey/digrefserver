@@ -64,14 +64,16 @@ class AccountSerializer(serializers.ModelSerializer):
 
 
 class TransactionPartialSerializer(serializers.ModelSerializer):
+    photo = serializers.ImageField(required=False)
+
     class Meta:
         model = Transaction
-        fields = ['recipient', 'amount', 'reason']
+        fields = ['recipient', 'amount', 'reason', 'photo']
 
     def create(self, validated_data):
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
-        photo = self.validated_data.get('photo')
+        photo = self.context['request'].FILES.get('photo')
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
         amount = self.validated_data['amount']

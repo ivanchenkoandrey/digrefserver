@@ -198,7 +198,7 @@ class Transaction(models.Model):
 
     def get_photo_url(self):
         if self.photo:
-            return f"{settings.MEDIA_URL}{self.photo.url}"
+            return f"{self.photo.url}"
         return None
 
     def __str__(self):
