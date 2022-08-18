@@ -60,11 +60,12 @@ class AccountSerializer(serializers.ModelSerializer):
 class TransactionPartialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['recipient', 'amount', 'reason', 'photo']
+        fields = ['recipient', 'amount', 'reason']
 
     def create(self, validated_data):
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
+        photo = self.validated_data.get('photo')
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
         amount = self.validated_data['amount']
@@ -99,7 +100,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     reason=self.validated_data['reason'],
                     is_public=False,
                     is_anonymous=False,
-                    photo=self.validated_data['photo']
+                    photo=photo
                 )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
             return transaction_instance
