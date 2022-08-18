@@ -1,4 +1,3 @@
-import json
 import logging
 
 from rest_framework import authentication
@@ -10,7 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from auth_app.models import Period
-from utils.custom_permissions import IsAllowedToMakePeriod
+from utils.custom_permissions import (IsOrganizationAdmin, IsDepartmentAdmin,
+                                      IsSystemAdmin)
 from .serializers import PeriodSerializer
 from .service import (get_period, _get_period_by_date,
                       get_periods_list, NotADateError,
@@ -36,7 +36,8 @@ class CreatePeriodView(APIView):
     """
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsAuthenticated, IsAllowedToMakePeriod]
+    permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
+                          IsDepartmentAdmin]
 
     @classmethod
     def post(cls, request, *args, **kwargs):
@@ -59,10 +60,18 @@ def get_current_period(request):
     response = Response(period)
     if 'period_id' not in request.COOKIES:
         set_period_cookies(period, response)
+    else:
+        logger.info(f"ID периода: {type(request.COOKIES.get('period_id'))}")
+        if request.COOKIES.get('period_id') != period.get('id'):
+            set_period_cookies(period, response)
     return response
 
 
 def set_period_cookies(period, response):
+    """
+    Установка кук для быстрого получения информации о периоде
+    без дополнительного запроса в БД
+    """
     cookie_max_age = 3600 * 24 * 14
     response.set_cookie('period_id', period.get('id'), max_age=cookie_max_age)
     response.set_cookie('period_start_date', period.get('start_date'), max_age=cookie_max_age)

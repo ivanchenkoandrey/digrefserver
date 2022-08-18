@@ -1,14 +1,28 @@
+import logging
+
 from rest_framework.permissions import BasePermission
-from auth_app.models import Organization
+
+logger = logging.getLogger(__name__)
+
+
+class IsSystemAdmin(BasePermission):
+    """
+    Проверка, что пользователь является администратором системы
+    """
+    message = 'Вы не являетесь администратором системы'
+
+    def has_permission(self, request, view):
+        return bool(request.user.is_staff)
 
 
 class IsController(BasePermission):
     """
     Проверка, является ли пользователь контроллером
     """
+    message = 'Вы не являетесь контроллером или администратором'
+
     def has_permission(self, request, view):
-        return bool(request.user.is_authenticated
-                    and request.user.privileged.filter(role__in=['A', 'C']))
+        return bool(request.user.is_staff or request.user.privileged.filter(role__in=['A', 'C']))
 
 
 class IsAnonymous(BasePermission):
@@ -19,18 +33,35 @@ class IsAnonymous(BasePermission):
         return bool(request.user.is_anonymous)
 
 
-class IsAllowedToMakePeriod(BasePermission):
+class IsOrganizationAdmin(BasePermission):
     """
-    Проверка, является ли пользователь администратором системы
+    Проверка, является ли пользователь администратором организации
     """
 
-    message = 'У вас нет прав создавать новый период'
+    message = 'Вы не являетесь администратором организации'
 
     def has_permission(self, request, view):
-        top_id_list = Organization.objects.values_list('top_id', flat=True).distinct().order_by()
-        return (bool(request.user.is_staff
-                     or (request.user.is_authenticated
-                         and request.user.filter.privileged.filter(role__in=['A'], organization_id__in=[top_id_list]))))
+        user_organization_pk = request.user.profile.organization_id
+        user_privileged_organization = request.user.privileged.filter(
+            role='A', organization__top_id=user_organization_pk).first()
+        if user_privileged_organization is not None:
+            return True
+        return False
+
+
+class IsDepartmentAdmin(BasePermission):
+    """
+    Проверка, является ли пользователь администратором подразделения
+    """
+    message = 'Вы не являетесь администратором подразделения'
+
+    def has_permission(self, request, view):
+        users_department_pk = request.user.profile.department.pk
+        users_privileged_department = request.user.privileged.filter(
+            role='A', organization_id=users_department_pk).first()
+        if users_privileged_department is not None:
+            return True
+        return False
 
 
 class IsUserUpdatesHisProfile(BasePermission):
@@ -41,13 +72,3 @@ class IsUserUpdatesHisProfile(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return bool(request.user.profile.pk == obj.pk)
-
-
-class IsSystemAdmin(BasePermission):
-    """
-    Проверка, что пользователь входит в группу администраторов
-    """
-    message = 'Вы не являетесь администратором системы'
-
-    def has_permission(self, request, view):
-        return bool(request.user.is_staff)

@@ -23,7 +23,7 @@ class Organization(models.Model):
         MARKET = 'М', 'Маркетплейс'
 
     name = CITextField()
-    organization_type = CICharField(max_length=1, choices=OrganizationTypes.choices, verbose_name='Вид контакта')
+    organization_type = CICharField(max_length=1, choices=OrganizationTypes.choices, verbose_name='Тип организации')
     top_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='pride', verbose_name='Юр.лицо')
     parent_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='children', null=True,
                                   verbose_name='Входит в', blank=True)

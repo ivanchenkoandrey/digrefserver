@@ -21,6 +21,7 @@ urlpatterns = [
     path('users-list/', views.UsersList.as_view(), name='users-list'),
     path('update-profile-image/<int:pk>/', profile_views.UpdateProfileImageView.as_view(),
          name='update_profile_image'),
+    path('create-employee/', profile_views.CreateEmployeeView.as_view()),
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view(), name='send_coins'),
     path('cancel-transaction/<int:pk>/', transaction_views.CancelTransactionByUserView.as_view(),
@@ -33,7 +34,7 @@ urlpatterns = [
     path('user/transactions-by-period/<int:period_id>/', transaction_views.get_user_transaction_list_by_period,
          name='user_transactions_by_period'),
     # events
-    path('feed/', events_views.EventListView.as_view(), name='events'),
+    path('feed/', events_views.EventListView.as_view(), name='feed'),
     # periods
     path('periods/', periods_views.PeriodListView.as_view(), name='periods'),
     path('create-period/', periods_views.CreatePeriodView.as_view(), name='create_period'),
@@ -43,6 +44,8 @@ urlpatterns = [
     # organizations
     path('create-root-organization/', organization_views.CreateRootOrganization.as_view(),
          name='create_root_organization'),
+    path('create-department/', organization_views.CreateDepartmentView.as_view(),
+         name='create_department'),
 
     path('logout/', LogoutView.as_view(), name='logout'),
 ]

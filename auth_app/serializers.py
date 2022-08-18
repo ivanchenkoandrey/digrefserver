@@ -34,7 +34,7 @@ class ContactSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    contacts = ContactSerializer(many=True)
+    contacts = ContactSerializer(many=True, required=False)
     organization = serializers.CharField(source="organization.name")
     department = serializers.CharField(source="department.name")
 
@@ -49,6 +49,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'profile']
+
+
+class CreateUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username']
 
 
 class AccountSerializer(serializers.ModelSerializer):
