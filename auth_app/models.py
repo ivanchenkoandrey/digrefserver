@@ -51,7 +51,7 @@ class Profile(models.Model):
     photo = models.ImageField(blank=True, null=True, upload_to='users_photo/', verbose_name='Фотография')
     hired_at = models.DateField(null=True, blank=True, verbose_name='Работает с')
     fired_at = models.DateField(null=True, blank=True, verbose_name='Не работает с')
-    surname = CITextField(blank=True, default='', verbose_name='Фамилия')
+    surname = CITextField(blank=True, null=True, default='', verbose_name='Фамилия')
     first_name = CITextField(blank=True, null=True, verbose_name='Имя')
     middle_name = CITextField(blank=True, null=True, verbose_name='Отчество')
     nickname = CITextField(blank=True, null=True, verbose_name='Псевдоним')

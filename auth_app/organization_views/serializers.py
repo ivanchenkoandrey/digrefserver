@@ -8,6 +8,12 @@ from auth_app.models import Organization
 logger = logging.getLogger(__name__)
 
 
+class FullOrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = '__all__'
+
+
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization

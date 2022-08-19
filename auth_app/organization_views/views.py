@@ -1,12 +1,13 @@
 from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from auth_app.models import Organization
 from utils.custom_permissions import IsSystemAdmin, IsDepartmentAdmin, IsOrganizationAdmin
 from .serializers import (RootOrganizationSerializer,
-                          DepartmentSerializer)
+                          DepartmentSerializer,
+                          FullOrganizationSerializer)
 
 
 class CreateRootOrganization(CreateAPIView):
@@ -40,3 +41,12 @@ class CreateDepartmentView(APIView):
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class RootOrganizationListView(ListAPIView):
+    authentication_classes = [authentication.TokenAuthentication,
+                              authentication.SessionAuthentication]
+    permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
+                          IsDepartmentAdmin]
+    queryset = Organization.objects.filter(parent_id=None)
+    serializer_class = FullOrganizationSerializer

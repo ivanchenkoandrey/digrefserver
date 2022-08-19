@@ -22,6 +22,9 @@ urlpatterns = [
     path('update-profile-image/<int:pk>/', profile_views.UpdateProfileImageView.as_view(),
          name='update_profile_image'),
     path('create-employee/', profile_views.CreateEmployeeView.as_view()),
+    path('create-user-role/', profile_views.CreateUserRoleView.as_view()),
+    path('remove-user-role/<int:pk>/', profile_views.DeleteUserRoleView.as_view()),
+    path('get-user-roles/', profile_views.UserRoleListView.as_view()),
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view(), name='send_coins'),
     path('cancel-transaction/<int:pk>/', transaction_views.CancelTransactionByUserView.as_view(),
@@ -46,6 +49,7 @@ urlpatterns = [
          name='create_root_organization'),
     path('create-department/', organization_views.CreateDepartmentView.as_view(),
          name='create_department'),
+    path('root-organizations/', organization_views.RootOrganizationListView.as_view()),
 
     path('logout/', LogoutView.as_view(), name='logout'),
 ]
