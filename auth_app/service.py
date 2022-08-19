@@ -41,7 +41,7 @@ class VerifyTransactionItem:
             raise VerifyTransactionItemError("Первичный ключ транзакции должен быть числом!")
         if self.transaction_status not in ["A", "D"]:
             raise VerifyTransactionItemError("Статус должен быть либо A (одобрено), либо D (отклонено)")
-        if not self.reason:
+        if not self.reason and self.transaction_status == 'D':
             raise VerifyTransactionItemError("Нужно указать обоснование смены статуса транзакции")
 
 
@@ -80,6 +80,8 @@ def update_transactions_by_controller(data: Dict,
                 raise NotWaitingTransactionError
             transaction_status = transaction_data.get('status')
             reason = transaction_data.get('reason')
+            if not reason:
+                reason = 'OK'
             transaction_instance = Transaction.objects.get(pk=transaction_pk)
             TransactionState.objects.create(
                 transaction=transaction_instance,

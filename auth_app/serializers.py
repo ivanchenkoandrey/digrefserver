@@ -71,6 +71,9 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         fields = ['recipient', 'amount', 'reason', 'photo']
 
     def create(self, validated_data):
+        current_period = get_current_period()
+        if current_period is None:
+            raise ValidationError('Период отправки транзакций закончился')
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
         photo = self.context['request'].FILES.get('photo')
@@ -90,7 +93,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                                   "суммы на счету распределения")
         sender_frozen_account = Account.objects.filter(
             owner=sender, account_type='F').first()
-        sender_user_stat = UserStat.objects.get(user=sender, period=get_current_period())
+        sender_user_stat = UserStat.objects.get(user=sender, period=current_period)
         if amount <= current_account_amount // 2:
             with transaction.atomic():
                 sender_distr_account.amount -= amount
@@ -108,6 +111,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     reason=self.validated_data['reason'],
                     is_public=False,
                     is_anonymous=False,
+                    period=current_period,
                     photo=photo
                 )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
