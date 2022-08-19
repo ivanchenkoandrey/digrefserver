@@ -12,17 +12,11 @@ PASSWORD = settings.DEFAULT_USER_PASSWORD
 
 User = get_user_model()
 
-import logging
-
-
-logger = logging.getLogger(__name__)
-
 
 class ProfileImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ['photo']
-
 
 
 class EmployeeSerializer(serializers.Serializer):
@@ -107,13 +101,11 @@ class EmployeeSerializer(serializers.Serializer):
 
 
 class UserRoleSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = UserRole
         fields = '__all__'
 
     def create(self, validated_data):
-        logger.info(f"{validated_data=}")
         user_id = validated_data['user'].pk
         user_department_id = validated_data['user'].profile.department_id
         role = validated_data['role']
@@ -127,3 +119,33 @@ class UserRoleSerializer(serializers.ModelSerializer):
         if existing_user_role is not None:
             raise ValidationError("Такая роль у этого пользователя уже задана")
         return super().create(validated_data)
+
+
+class FullUserRoleSerializer(serializers.ModelSerializer):
+    organization = serializers.SerializerMethodField()
+    organization_id = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
+    role_id = serializers.SerializerMethodField()
+
+    def get_organization(self, obj):
+        organization = obj.organization
+        if organization:
+            return {"id": obj.organization.pk,
+                    "name": obj.organization.name}
+        return None
+
+    def get_organization_id(self, obj):
+        organization = obj.organization
+        if organization:
+            return obj.organization.pk
+        return None
+
+    def get_role(self, obj):
+        return {"id": obj.id, "role": obj.role}
+
+    def get_role_id(self, obj):
+        return obj.id
+
+    class Meta:
+        model = UserRole
+        exclude = ['user', 'id']

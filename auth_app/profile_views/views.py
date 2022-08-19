@@ -2,16 +2,16 @@ import logging
 
 from django.contrib.auth import get_user_model
 from rest_framework import authentication, status
-from rest_framework import serializers
 from rest_framework.generics import UpdateAPIView, CreateAPIView, DestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from auth_app.models import Profile, UserRole
-from utils.custom_permissions import IsSystemAdmin, IsOrganizationAdmin, IsUserUpdatesHisProfile
-from .serializers import EmployeeSerializer, UserRoleSerializer, ProfileImageSerializer
-
 from auth_app.models import Organization
+from auth_app.models import Profile, UserRole
+from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin,
+                                      IsUserUpdatesHisProfile)
+from .serializers import (EmployeeSerializer, UserRoleSerializer,
+                          ProfileImageSerializer, FullUserRoleSerializer)
 
 User = get_user_model()
 
@@ -72,8 +72,8 @@ class UserRoleListView(APIView):
     def post(cls, request, *args, **kwargs):
         user_id = request.data.get('user_id')
         if user_id is not None:
-            roles = UserRole.objects.filter(user_id=user_id)
-            serializer = UserRoleSerializer(roles, many=True)
+            roles = UserRole.objects.select_related('organization').filter(user_id=user_id)
+            serializer = FullUserRoleSerializer(roles, many=True)
             return Response(serializer.data)
         return Response("Передайте ID работника для получения списка ролей",
                         status=status.HTTP_400_BAD_REQUEST)
