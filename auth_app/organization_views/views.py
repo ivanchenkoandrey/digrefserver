@@ -44,9 +44,38 @@ class CreateDepartmentView(APIView):
 
 
 class RootOrganizationListView(ListAPIView):
+    """
+    Cписок организаций верхнего уровня
+    """
     authentication_classes = [authentication.TokenAuthentication,
                               authentication.SessionAuthentication]
     permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
                           IsDepartmentAdmin]
     queryset = Organization.objects.filter(parent_id=None)
     serializer_class = FullOrganizationSerializer
+
+
+class DepartmentsListView(APIView):
+    """
+    Список всех подразделений переданной организации
+    """
+    authentication_classes = [authentication.TokenAuthentication,
+                              authentication.SessionAuthentication]
+    permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
+                          IsDepartmentAdmin]
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        organization_id = request.data.get('organization_id')
+        if organization_id is not None:
+            try:
+                root_organization = Organization.objects.get(pk=organization_id)
+                departments = root_organization.children.all()
+                serializer = FullOrganizationSerializer(departments, many=True)
+                return Response(serializer.data)
+            except Organization.DoesNotExist:
+                return Response("Переданный идентификатор не относится "
+                                "ни к одной организации",
+                                status=status.HTTP_404_NOT_FOUND)
+        return Response("Не передан параметр organization_id",
+                        status=status.HTTP_400_BAD_REQUEST)

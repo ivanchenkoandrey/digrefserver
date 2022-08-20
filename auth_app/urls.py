@@ -50,6 +50,7 @@ urlpatterns = [
     path('create-department/', organization_views.CreateDepartmentView.as_view(),
          name='create_department'),
     path('root-organizations/', organization_views.RootOrganizationListView.as_view()),
+    path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
 
     path('logout/', LogoutView.as_view(), name='logout'),
 ]
