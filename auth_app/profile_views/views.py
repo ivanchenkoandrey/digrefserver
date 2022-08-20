@@ -6,12 +6,16 @@ from rest_framework.generics import UpdateAPIView, CreateAPIView, DestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from auth_app.models import Organization
+from auth_app.models import Organization, Contact
 from auth_app.models import Profile, UserRole
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin,
-                                      IsUserUpdatesHisProfile)
+                                      IsUserUpdatesHisProfile,
+                                      IsUserUpdatesHisContact)
 from .serializers import (EmployeeSerializer, UserRoleSerializer,
-                          ProfileImageSerializer, FullUserRoleSerializer)
+                          ProfileImageSerializer, FullUserRoleSerializer,
+                          UserProfileUpdateSerializer,
+                          AdminProfileUpdateSerializer,
+                          ContactUpdateSerializer)
 
 User = get_user_model()
 
@@ -77,3 +81,56 @@ class UserRoleListView(APIView):
             return Response(serializer.data)
         return Response("Передайте ID работника для получения списка ролей",
                         status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateProfileView(UpdateAPIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsUserUpdatesHisProfile]
+    queryset = Profile.objects.all()
+    serializer_class = UserProfileUpdateSerializer
+    lookup_field = 'pk'
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserUpdateProfileView(UpdateProfileView):
+    permission_classes = [IsUserUpdatesHisProfile]
+    serializer_class = UserProfileUpdateSerializer
+
+
+class AdminUpdateProfileView(UpdateProfileView):
+    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    serializer_class = AdminProfileUpdateSerializer
+
+
+class UpdateContactView(UpdateAPIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    queryset = Contact.objects.all()
+    serializer_class = ContactUpdateSerializer
+    lookup_field = 'pk'
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserUpdateContactView(UpdateContactView):
+    permission_classes = [IsUserUpdatesHisContact]
+
+
+class AdminUpdateContactView(UpdateContactView):
+    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]

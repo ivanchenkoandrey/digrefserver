@@ -30,7 +30,7 @@ class SearchUserSerializer(serializers.Serializer):
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ['contact_type', 'contact_id']
+        fields = ['id', 'contact_type', 'contact_id']
 
 
 class ProfileSerializer(serializers.ModelSerializer):

@@ -72,3 +72,13 @@ class IsUserUpdatesHisProfile(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return bool(request.user.profile.pk == obj.pk)
+
+
+class IsUserUpdatesHisContact(BasePermission):
+    """
+    Проверка, что пользователь обновляет свой контакт, а не чей-то ещё
+    """
+    message = "Вы не можете изменить данные чужого контакта"
+
+    def has_object_permission(self, request, view, obj):
+        return bool(request.user.profile.pk == obj.profile.pk)

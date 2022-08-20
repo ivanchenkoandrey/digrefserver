@@ -19,6 +19,50 @@ class ProfileImageSerializer(serializers.ModelSerializer):
         fields = ['photo']
 
 
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['tg_name', 'surname', 'first_name',
+                  'middle_name', 'nickname']
+
+
+class ContactUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = ['contact_id']
+
+    def validate(self, attrs):
+        contact_type = self.instance.contact_type
+        contact_id = attrs.get('contact_id')
+        if contact_type and contact_id:
+            if '@' not in contact_id and contact_type == '@':
+                raise ValidationError('В адресе электронной почты должен быть символ @')
+        return attrs
+
+
+class AdminProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        exclude = ['id', 'user', 'organization']
+
+    def validate(self, attrs):
+        hired_at = self.instance.hired_at
+        fired_at = attrs.get('fired_at')
+        organization = self.instance.organization
+        department = attrs.get('department')
+        if department:
+            possible_department_ids = (list(organization.children
+                                       .values_list('id', flat=True)
+                                       .distinct().order_by()) + [organization.pk])
+            if department not in possible_department_ids:
+                raise ValidationError('Передан ID, не относящийся к департаментам '
+                                      'внутри организации работника')
+        if hired_at and fired_at:
+            if hired_at >= fired_at:
+                raise ValidationError('Дата увольнения должна быть позже даты приема на работу')
+        return attrs
+
+
 class EmployeeSerializer(serializers.Serializer):
     tg_name = serializers.CharField()
     tg_id = serializers.CharField()
