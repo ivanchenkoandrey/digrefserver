@@ -26,9 +26,9 @@ def processing_accounts_data(user: User, period_id=None):
         "income": {
             "amount": accounts_data.get('I').get('amount'),
             "frozen": accounts_data.get('F').get('amount'),
-            "sent": user_stat.income_used_for_thanks,
-            "received": user_stat.income_thanks,
-            "cancelled": user_stat.income_declined
+            "sent": 0 if not user_stat else user_stat.income_used_for_thanks,
+            "received": 0 if not user_stat else user_stat.income_thanks,
+            "cancelled": 0 if not user_stat else user_stat.income_declined
         }
     }
     distr_account = accounts_data.get('D')
@@ -37,10 +37,10 @@ def processing_accounts_data(user: User, period_id=None):
             "distr": {
                 "amount": accounts_data.get('D').get('amount'),
                 "frozen": accounts_data.get('F').get('amount'),
-                "sent": user_stat.distr_initial - accounts_data.get('D').get('amount'),
-                "received": user_stat.distr_initial,
-                "cancelled": user_stat.distr_declined,
-                "expire_date": period.end_date
+                "sent": 0 if not user_stat else user_stat.distr_thanks,
+                "received": 0 if not user_stat else user_stat.distr_initial,
+                "cancelled": 0 if not user_stat else user_stat.distr_declined,
+                "expire_date": None if not period else period.end_date
             }
         }
         user_profile_data.update(distr_data)

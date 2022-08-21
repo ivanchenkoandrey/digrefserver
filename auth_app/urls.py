@@ -49,5 +49,6 @@ urlpatterns = [
     path('root-organizations/', organization_views.RootOrganizationListView.as_view()),
     path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
 
+    path('burn-thanks/', views.BurnThanksView.as_view()),
     path('logout/', LogoutView.as_view()),
 ]

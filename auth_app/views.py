@@ -1,6 +1,9 @@
+import datetime
 import logging
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import F
 from rest_framework import status, authentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.generics import ListAPIView
@@ -9,11 +12,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
-from .models import Period
+from utils.custom_permissions import IsSystemAdmin
+from .models import Period, UserStat, Account, Transaction
 from .serializers import (UserSerializer, SearchUserSerializer,
                           PeriodSerializer)
 from .service import (get_search_user_data)
-from django.db.models import F
 
 User = get_user_model()
 
@@ -123,3 +126,45 @@ class UsersList(APIView):
             return Response(users_list)
         logger.info(f'Неправильный запрос на показ пользователей по умолчанию от {request.user}: {request.data}')
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class BurnThanksView(APIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsSystemAdmin]
+
+    @classmethod
+    def get(cls, request, *args, **kwargs):
+        today = datetime.date.today()
+        burnt_account = Account.objects.get(account_type='B')
+        system = User.objects.get(username='system')
+        previous_period = Period.objects.filter(end_date__lt=today).order_by('-end_date').first()
+        logger.info(f"{previous_period=}")
+        stats = UserStat.objects.select_related('user').filter(period=previous_period)
+        accounts = Account.objects.select_related('owner').filter(account_type='D', owner__stats__in=stats)
+        data = {}
+        with transaction.atomic():
+            for stat in stats:
+                if stat.distr_burnt == 0:
+                    account = accounts.get(owner_id=stat.user.pk)
+                    stat.distr_burnt = account.amount
+            UserStat.objects.bulk_update(stats, ['distr_burnt'])
+            overall_burnt = 0
+            for account in accounts:
+                if account.amount > 0:
+                    overall_burnt += account.amount
+                    Transaction.objects.create(
+                        sender=account.owner,
+                        recipient=system,
+                        amount=account.amount,
+                        reason=f"burnt from {account.owner}",
+                        status='R',
+                        is_anonymous=True,
+                        is_public=False
+                    )
+                    account.amount = 0
+            Account.objects.bulk_update(accounts, ['amount'])
+            if overall_burnt:
+                burnt_account.amount += overall_burnt
+                burnt_account.save(update_fields=['amount'])
+        return Response(data)
