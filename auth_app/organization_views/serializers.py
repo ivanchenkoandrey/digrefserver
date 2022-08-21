@@ -46,16 +46,18 @@ class DepartmentSerializer(serializers.ModelSerializer):
                   'parent_id', 'organization_type']
 
     def create(self, validated_data):
-        request = self.context.get('request')
+        top_organization = validated_data['top_id']
+        top_ids = list(Organization.objects.filter(parent_id=None)
+                       .values_list('pk', flat=True)
+                       .distinct().order_by())
+        if top_organization.pk not in top_ids:
+            raise ValidationError('Укажите в качестве top_id id какой-нибудь '
+                                  'существующей ведущей компании')
         parent = validated_data['parent_id']
-        user = request.user
-        root_organization: Organization = user.profile.organization
-        possible_parent_ids = list(root_organization.children
+        possible_parent_ids = list(Organization.objects.get(pk=top_organization.pk).children
                                    .values_list('pk', flat=True)
-                                   .distinct().order_by()) + [root_organization.top_id]
-        if validated_data.get('top_id') != root_organization.top_id:
-            raise ValidationError('Укажите в качестве top_id свою ведущую компанию')
-        if parent not in possible_parent_ids:
+                                   .distinct().order_by()) + [top_organization.pk]
+        if parent.pk not in possible_parent_ids:
             raise ValidationError('Укажите в качестве parent_id свою ведущую компанию '
                                   'либо один из её департаментов')
         return super().create(validated_data)
