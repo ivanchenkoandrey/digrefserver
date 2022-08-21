@@ -31,7 +31,7 @@ class CreateDepartmentView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        data = request.data
+        data = request.data.copy()
         if data.get('parent_id') is None or data.get('top_id') is None:
             return Response('У подразделения должны быть parent_id '
                             '(вышестоящее подразделение) и top_id (юридическое лицо)',
