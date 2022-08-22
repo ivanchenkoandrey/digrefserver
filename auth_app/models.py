@@ -56,6 +56,11 @@ class Profile(models.Model):
     middle_name = CITextField(blank=True, null=True, verbose_name='Отчество')
     nickname = CITextField(blank=True, null=True, verbose_name='Псевдоним')
 
+    def get_photo_url(self):
+        if self.photo:
+            return f"{self.photo.url}"
+        return None
+
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 

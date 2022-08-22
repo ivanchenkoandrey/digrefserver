@@ -122,7 +122,8 @@ class UsersList(APIView):
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),
                 name=F('profile__first_name'),
-                surname=F('profile__surname')).values('user_id', 'tg_name', 'name', 'surname')[:10]
+                surname=F('profile__surname'),
+                photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:10]
             return Response(users_list)
         logger.info(f'Неправильный запрос на показ пользователей по умолчанию от {request.user}: {request.data}')
         return Response(status=status.HTTP_400_BAD_REQUEST)

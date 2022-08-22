@@ -150,7 +150,8 @@ class TransactionFullSerializer(serializers.ModelSerializer):
             'sender_id': obj.sender.id,
             'sender_tg_name': obj.sender.profile.tg_name,
             'sender_first_name': obj.sender.profile.first_name,
-            'sender_surname': obj.sender.profile.surname
+            'sender_surname': obj.sender.profile.surname,
+            'sender_photo': obj.sender.profile.get_photo_url()
         }
 
     def get_sender_id(self, obj):
@@ -161,7 +162,8 @@ class TransactionFullSerializer(serializers.ModelSerializer):
             'recipient_id': obj.recipient.id,
             'recipient_tg_name': obj.recipient.profile. tg_name,
             'recipient_first_name': obj.recipient.profile.first_name,
-            'recipient_surname': obj.recipient.profile.surname
+            'recipient_surname': obj.recipient.profile.surname,
+            'recipient_photo': obj.recipient.profile.get_photo_url()
         }
 
     def get_recipient_id(self, obj):
