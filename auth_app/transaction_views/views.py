@@ -74,7 +74,7 @@ class VerifyOrCancelTransactionByControllerView(APIView):
     @classmethod
     def get(cls, request, *args, **kwargs):
         queryset = Transaction.objects.filter_to_use_by_controller().order_by('-created_at')
-        serializer = TransactionFullSerializer(queryset, many=True)
+        serializer = TransactionFullSerializer(queryset, many=True, context={'user': request.user})
         logger.info(f"Контроллер {request.user} смотрит список транзакций для подтверждения / отклонения")
         return Response(serializer.data)
 
@@ -109,6 +109,11 @@ class TransactionsByUserView(ListAPIView):
     def get_queryset(self):
         return Transaction.objects.filter_by_user(self.request.user).order_by('-updated_at')
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'user': self.request.user})
+        return context
+
 
 class SingleTransactionByUserView(RetrieveAPIView):
     permission_classes = [IsAuthenticated]
@@ -126,6 +131,11 @@ class SingleTransactionByUserView(RetrieveAPIView):
     def get_queryset(self):
         return Transaction.objects.filter_by_user(self.request.user)
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'user': self.request.user})
+        return context
+
 
 @api_view(http_method_names=['GET'])
 @authentication_classes([authentication.SessionAuthentication,
@@ -134,5 +144,5 @@ class SingleTransactionByUserView(RetrieveAPIView):
 def get_user_transaction_list_by_period(request, period_id):
     period = get_object_or_404(Period, pk=period_id)
     transactions_queryset = Transaction.objects.filter_by_period(request.user, period)
-    serializer = TransactionFullSerializer(transactions_queryset, many=True)
+    serializer = TransactionFullSerializer(transactions_queryset, many=True, context={"user": request.user})
     return Response(serializer.data)

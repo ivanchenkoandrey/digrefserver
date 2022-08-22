@@ -8,6 +8,8 @@ from rest_framework.exceptions import ValidationError
 from auth_app.models import Profile, Account, Transaction, UserStat, Period, Contact
 from utils.current_period import get_current_period
 
+from rest_framework.fields import CurrentUserDefault
+
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
@@ -148,8 +150,9 @@ class TransactionFullSerializer(serializers.ModelSerializer):
         }
 
     def get_sender(self, obj):
+        user_id = self.context.get('user').pk
         if (not obj.is_anonymous
-                or self.context.get('request').user.pk == obj.sender.id):
+                or user_id == obj.sender.id):
             return {
                 'sender_id': obj.sender.id,
                 'sender_tg_name': obj.sender.profile.tg_name,
