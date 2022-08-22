@@ -68,7 +68,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = ['recipient', 'amount', 'reason', 'photo']
+        fields = ['recipient', 'amount', 'reason',
+                  'photo', 'is_anonymous']
 
     def create(self, validated_data):
         current_period = get_current_period()
@@ -77,6 +78,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
         photo = self.context['request'].FILES.get('photo')
+        is_anonymous = self.validated_data['is_anonymous']
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
         amount = self.validated_data['amount']
@@ -109,8 +111,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     amount=self.validated_data['amount'],
                     status='W',
                     reason=self.validated_data['reason'],
-                    is_public=False,
-                    is_anonymous=False,
+                    is_public=True,
+                    is_anonymous=is_anonymous,
                     period=current_period,
                     photo=photo
                 )
@@ -146,16 +148,21 @@ class TransactionFullSerializer(serializers.ModelSerializer):
         }
 
     def get_sender(self, obj):
-        return {
-            'sender_id': obj.sender.id,
-            'sender_tg_name': obj.sender.profile.tg_name,
-            'sender_first_name': obj.sender.profile.first_name,
-            'sender_surname': obj.sender.profile.surname,
-            'sender_photo': obj.sender.profile.get_photo_url()
-        }
+        if (not obj.is_anonymous
+                or self.context.get('request').user.pk == obj.sender.id):
+            return {
+                'sender_id': obj.sender.id,
+                'sender_tg_name': obj.sender.profile.tg_name,
+                'sender_first_name': obj.sender.profile.first_name,
+                'sender_surname': obj.sender.profile.surname,
+                'sender_photo': obj.sender.profile.get_photo_url()
+            }
+        return 'anonymous'
 
     def get_sender_id(self, obj):
-        return obj.sender.id
+        if not obj.is_anonymous:
+            return obj.sender.id
+        return None
 
     def get_recipient(self, obj):
         return {

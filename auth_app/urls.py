@@ -1,18 +1,22 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 
+from auth_app.accounts_views import views as account_views
 from auth_app.auth_views import views as auth_views
 from auth_app.events_views import views as events_views
 from auth_app.organization_views import views as organization_views
 from auth_app.periods_views import views as periods_views
 from auth_app.profile_views import views as profile_views
 from auth_app.transaction_views import views as transaction_views
+from auth_app.user_stat_views import views as stat_views
 from . import views
 
 urlpatterns = [
     # authentication
     path('auth/', auth_views.AuthView.as_view()),
     path('verify/', auth_views.VerifyCodeView.as_view()),
+    # accounts
+    path('emit/', account_views.EmitDistributionThanks.as_view()),
     # profile
     path('user/profile/', views.ProfileView.as_view()),
     path('user/balance/', views.UserBalanceView.as_view()),
@@ -50,5 +54,6 @@ urlpatterns = [
     path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
 
     path('burn-thanks/', views.BurnThanksView.as_view()),
+    path('create-user-stats/', stat_views.CreateUserStats.as_view()),
     path('logout/', LogoutView.as_view()),
 ]

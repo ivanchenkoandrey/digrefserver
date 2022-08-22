@@ -42,6 +42,7 @@ class EventListView(APIView):
         feed_data = []
         for transaction in extended_queryset:
             event_type = get_event_type(request.user, transaction, event_types).to_json()
+            sender = 'anonymous' if transaction.is_anonymous else transaction.sender.profile.tg_name
             del event_type['record_type']
             event_data = {
                 "id": 0,
@@ -49,7 +50,7 @@ class EventListView(APIView):
                 "event_type": event_type,
                 "transaction": {
                     "id": transaction.pk,
-                    "sender": transaction.sender.profile.tg_name,
+                    "sender": sender,
                     "recipient": transaction.recipient.profile.tg_name,
                     "amount": transaction.amount,
                     "status": transaction.get_status_display(),

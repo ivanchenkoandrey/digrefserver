@@ -14,6 +14,8 @@ from django.conf import settings
 User = get_user_model()
 
 
+
+
 class Organization(models.Model):
     class OrganizationTypes(models.TextChoices):
         ROOT = 'R', 'Ведущая компания группы'
@@ -288,38 +290,38 @@ class Period(models.Model):
 class UserStat(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stats', verbose_name='Пользователь')
     period = models.ForeignKey(Period, on_delete=models.CASCADE, related_name='stats', verbose_name='Период')
-    bonus = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Премия')  # получается извне
-    income_at_start = models.DecimalField(max_digits=10, decimal_places=0,
+    bonus = models.DecimalField(max_digits=10, decimal_places=0, default=0, verbose_name='Премия')  # получается извне
+    income_at_start = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                           verbose_name='Остаток на начало периода')  # account [INCOME]
-    income_at_end = models.DecimalField(max_digits=10, decimal_places=0,
+    income_at_end = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                         verbose_name='Остаток на конец периода')  # account [INCOME]
-    income_exp = models.DecimalField(max_digits=10, decimal_places=0,
+    income_exp = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                      verbose_name='Получено за стаж работы')  # account [INCOME] <- transaction [EXP]
-    income_thanks = models.DecimalField(max_digits=10, decimal_places=0,
+    income_thanks = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                         verbose_name='Получено в качестве благодарности')
     # account [INCOME] <- transaction [THANKS]
-    income_used_for_bonus = models.DecimalField(max_digits=10, decimal_places=0,
+    income_used_for_bonus = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                                 verbose_name='Использовано для распределения премий')
     # account [INCOME] -> transaction [BONUS]
-    income_used_for_thanks = models.DecimalField(max_digits=10, decimal_places=0,
+    income_used_for_thanks = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                                  verbose_name='Использовано своих для благодарности')
     # account [INCOME] -> transaction [THANKS]
-    income_declined = models.DecimalField(max_digits=10, decimal_places=0,
+    income_declined = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                           verbose_name='Сгоревшие (отклоненные транзакции из своих)')
     # account [INCOME] -> transaction [THANKS][DECLINED]
-    distr_initial = models.DecimalField(max_digits=10, decimal_places=0,
+    distr_initial = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                         verbose_name='Получено для распределения')
     # account [DISTR] <- transaction [DISTR]
-    distr_redist = models.DecimalField(max_digits=10, decimal_places=0,
+    distr_redist = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                        verbose_name='Получено для распределения')
     # account [DISTR] <- transaction [REDIST]
-    distr_burnt = models.DecimalField(max_digits=10, decimal_places=0,
+    distr_burnt = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                       verbose_name='Сгоревшие как неиспользованные')
     # account [DISTR] -> transaction [BURNING]
-    distr_thanks = models.DecimalField(max_digits=10, decimal_places=0,
+    distr_thanks = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                        verbose_name='Использовано распределяемых')
     # account [DISTR] -> transaction [THANKS]
-    distr_declined = models.DecimalField(max_digits=10, decimal_places=0,
+    distr_declined = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                          verbose_name='Сгоревшие (отклоненные транзакции из распределяемых)')
 
     # account [DISTR] -> transaction [THANKS][DECLINED]
@@ -431,3 +433,26 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
             organization=instance.department,
             amount=0
         )
+
+
+@receiver(post_save, sender=Profile)
+def create_frozen_account(instance: Profile, created: bool, **kwargs):
+    if created:
+        Account.objects.create(
+            owner=instance.user,
+            account_type='D',
+            organization=instance.department,
+            amount=0
+        )
+
+
+@receiver(post_save, sender=User)
+def create_user_stat(instance: User, created: bool, **kwargs):
+    if created:
+        from utils.current_period import get_current_period
+        period = get_current_period()
+        if period:
+            UserStat.objects.create(
+                user=instance,
+                period=period
+            )
