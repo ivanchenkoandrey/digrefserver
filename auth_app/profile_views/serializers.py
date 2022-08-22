@@ -100,9 +100,9 @@ class EmployeeSerializer(serializers.Serializer):
         phone_number = self.data.get('phone_number')
         email = self.data.get('email')
         organization = Organization.objects.get(id=organization_id)
-        possible_departments = (list(organization.children
+        possible_departments = (list(Organization.objects.filter(top_id=organization_id)
                                      .values_list('id', flat=True)
-                                     .distinct().order_by())) + [organization.pk]
+                                     .distinct().order_by()))
         if department_id not in possible_departments:
             raise ValidationError("Укажите существующий департамент "
                                   "в составе указанной вами организации")
