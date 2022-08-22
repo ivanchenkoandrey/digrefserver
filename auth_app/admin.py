@@ -7,6 +7,8 @@ from .models import (Profile, Organization, Account,
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
+    list_display = ['tg_id', 'tg_name',
+                    'surname', 'first_name']
     list_select_related = ['user']
 
 
@@ -60,4 +62,3 @@ class UserRoleAdmin(admin.ModelAdmin):
     list_display = ['user', 'role']
     list_select_related = ['user', 'organization']
     list_filter = ['role']
-
