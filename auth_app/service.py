@@ -130,7 +130,7 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
          Q(profile__surname__istartswith=data) |
          Q(profile__contacts__contact_id__istartswith=data)) &
         ~Q(profile__tg_name=request.user.profile.tg_name)
-    ).annotate(
+    ).distinct().annotate(
         user_id=F('id'),
         tg_name=F('profile__tg_name'),
         name=F('profile__first_name'),

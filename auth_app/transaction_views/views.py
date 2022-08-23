@@ -55,6 +55,10 @@ class CancelTransactionByUserView(UpdateAPIView):
         if instance.status == 'D':
             logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
             return Response(f"Транзакция уже отменена", status=status.HTTP_400_BAD_REQUEST)
+        if instance.status != 'W':
+            logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
+            return Response(f"Пользователь может отменить только ожидающую транзакцию",
+                            status=status.HTTP_400_BAD_REQUEST)
         timedelta = timezone.now() - instance.created_at
         if timedelta.seconds > settings.GRACE_PERIOD:
             logger.info(f"Попытка отменить транзакцию с id {instance.pk} пользователем {request.user} "
