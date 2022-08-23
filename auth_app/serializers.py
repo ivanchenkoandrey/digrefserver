@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
 import logging
+
+from django.conf import settings
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -7,8 +10,6 @@ from rest_framework.exceptions import ValidationError
 
 from auth_app.models import Profile, Account, Transaction, UserStat, Period, Contact
 from utils.current_period import get_current_period
-
-from rest_framework.fields import CurrentUserDefault
 
 User = get_user_model()
 
@@ -136,6 +137,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
     transaction_status = serializers.SerializerMethodField()
     transaction_class = serializers.SerializerMethodField()
     expire_to_cancel = serializers.DateTimeField()
+    can_user_cancel = serializers.SerializerMethodField()
 
     def get_transaction_status(self, obj):
         return {
@@ -186,6 +188,12 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_recipient_id(self, obj):
         return obj.recipient.id
+
+    def get_can_user_cancel(self, obj):
+        user_id = self.context.get('user').pk
+        return (obj.status == 'W'
+                and user_id == obj.sender.id
+                and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
 
     class Meta:
         model = Transaction

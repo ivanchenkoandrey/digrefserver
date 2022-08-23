@@ -59,14 +59,11 @@ class CancelTransactionByUserView(UpdateAPIView):
         if instance.status != 'W':
             logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
             raise ValidationError(f"Пользователь может отменить только ожидающую транзакцию")
-        if instance.status == 'D':
-            logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
-            raise ValidationError(f"Транзакция уже отменена")
         timedelta = timezone.now() - instance.created_at
         if timedelta.seconds > settings.GRACE_PERIOD:
             logger.info(f"Попытка отменить транзакцию с id {instance.pk} пользователем {request.user} "
                         f"по истечении grace периода (превышение {timedelta.seconds - settings.GRACE_PERIOD} секунд)")
-            return Response(f"Время возможности отмены транзакции истекло", status=status.HTTP_400_BAD_REQUEST)
+            raise ValidationError(f"Время возможности отмены транзакции истекло")
         serializer = self.serializer_class(instance, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
             cancel_transaction_by_user(instance, request, serializer)
