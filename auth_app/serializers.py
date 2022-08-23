@@ -160,10 +160,18 @@ class TransactionFullSerializer(serializers.ModelSerializer):
                 'sender_surname': obj.sender.profile.surname,
                 'sender_photo': obj.sender.profile.get_photo_url()
             }
-        return 'anonymous'
+        return {
+            'sender_id': None,
+            'sender_tg_name': 'anonymous',
+            'sender_first_name': None,
+            'sender_surname': None,
+            'sender_photo': None
+        }
 
     def get_sender_id(self, obj):
-        if not obj.is_anonymous:
+        user_id = self.context.get('user').pk
+        if (not obj.is_anonymous
+                or user_id == obj.sender.id):
             return obj.sender.id
         return None
 
