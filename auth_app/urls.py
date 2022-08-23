@@ -9,6 +9,7 @@ from auth_app.periods_views import views as periods_views
 from auth_app.profile_views import views as profile_views
 from auth_app.transaction_views import views as transaction_views
 from auth_app.user_stat_views import views as stat_views
+from auth_app.contacts_views import views as contact_views
 from . import views
 
 urlpatterns = [
@@ -32,6 +33,9 @@ urlpatterns = [
     path('update-profile-by-admin/<int:pk>/', profile_views.AdminUpdateProfileView.as_view()),
     path('update-contact-by-user/<int:pk>/', profile_views.UserUpdateContactView.as_view()),
     path('update-contact-by-admin/<int:pk>/', profile_views.AdminUpdateContactView.as_view()),
+    path('create-contact-by-user/', contact_views.CreateContactByUserView.as_view()),
+    path('create-contact-by-admin/', contact_views.CreateContactByAdminView.as_view()),
+    path('delete-contact/<int:pk>/', contact_views.DeleteContactByAdmin.as_view()),
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view()),
     path('cancel-transaction/<int:pk>/', transaction_views.CancelTransactionByUserView.as_view()),

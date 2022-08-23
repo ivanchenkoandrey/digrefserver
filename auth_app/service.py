@@ -132,10 +132,11 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
         ~Q(profile__tg_name=request.user.profile.tg_name)
     ).distinct().annotate(
         user_id=F('id'),
+        profile_id=F('profile__id'),
         tg_name=F('profile__tg_name'),
         name=F('profile__first_name'),
         surname=F('profile__surname'),
-        photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:10]
+        photo=F('profile__photo')).values('user_id', 'profile_id', 'tg_name', 'name', 'surname', 'photo')[:10]
     return users_data
 
 

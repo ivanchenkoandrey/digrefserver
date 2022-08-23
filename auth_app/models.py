@@ -1,19 +1,16 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
 from django.db.models import Q, F, ExpressionWrapper
+from django.db.models.fields import DateTimeField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
-from django.db.models.fields import DateTimeField
-
-from django.conf import settings
 
 User = get_user_model()
-
-
 
 
 class Organization(models.Model):
@@ -189,13 +186,15 @@ class Transaction(models.Model):
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование')
     grace_timeout = models.DateTimeField(verbose_name='Время окончания периода возможной отмены', null=True, blank=True)
-    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='organization_public_transactions',
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL,
+                                     related_name='organization_public_transactions',
                                      null=True, blank=True, verbose_name='Согласующая организация')
     period = models.ForeignKey('Period', on_delete=models.CASCADE, related_name='transactions', verbose_name='Период',
                                null=True, blank=True)
     is_anonymous = models.BooleanField(verbose_name='Отправитель скрыт', null=True, blank=True)
     is_public = models.BooleanField(verbose_name='Публичность', null=True, blank=True)
-    scope = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='scope_public_transactions', null=True,
+    scope = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='scope_public_transactions',
+                              null=True,
                               blank=True,
                               verbose_name='Уровень публикации')
     photo = models.ImageField(blank=True, null=True, upload_to='transactions', verbose_name='Фотография')
@@ -374,6 +373,7 @@ class EventTypes(models.Model):
 
     class Meta:
         db_table = 'event_types'
+
 
 # 'Входящая транзакция'  Transaction NULL 1 0
 # 'Исходящая транзакция отклонена' Transaction TransactionStatus  1 0
