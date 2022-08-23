@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, authentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
@@ -52,13 +53,15 @@ class CancelTransactionByUserView(UpdateAPIView):
         logger.info(f"Пользователь {request.user} отправил "
                     f"следующие данные для отмены транзакции: {request.data}")
         instance: Transaction = self.get_object()
-        if instance.status == 'D':
+        if instance.sender != request.user:
             logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
-            return Response(f"Транзакция уже отменена", status=status.HTTP_400_BAD_REQUEST)
+            raise ValidationError(f"Пользователь может отменить только свою транзакцию")
         if instance.status != 'W':
             logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
-            return Response(f"Пользователь может отменить только ожидающую транзакцию",
-                            status=status.HTTP_400_BAD_REQUEST)
+            raise ValidationError(f"Пользователь может отменить только ожидающую транзакцию")
+        if instance.status == 'D':
+            logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
+            raise ValidationError(f"Транзакция уже отменена")
         timedelta = timezone.now() - instance.created_at
         if timedelta.seconds > settings.GRACE_PERIOD:
             logger.info(f"Попытка отменить транзакцию с id {instance.pk} пользователем {request.user} "
