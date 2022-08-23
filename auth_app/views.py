@@ -6,16 +6,16 @@ from django.db import transaction
 from django.db.models import F
 from rest_framework import status, authentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
-from utils.custom_permissions import IsSystemAdmin
-from .models import Period, UserStat, Account, Transaction
+from utils.custom_permissions import IsSystemAdmin, IsOrganizationAdmin
+from .models import Period, UserStat, Account, Transaction, Profile
 from .serializers import (UserSerializer, SearchUserSerializer,
-                          PeriodSerializer)
+                          PeriodSerializer, ProfileSerializer)
 from .service import (get_search_user_data)
 
 User = get_user_model()
@@ -37,6 +37,14 @@ class ProfileView(APIView):
         profile_serializer = UserSerializer(user)
         logger.info(f"Пользователь {request.user} зашёл на страницу профиля")
         return Response(profile_serializer.data)
+
+
+class GetProfileView(RetrieveAPIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
 
 
 class UserBalanceView(APIView):
