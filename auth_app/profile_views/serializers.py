@@ -10,6 +10,10 @@ from auth_app.models import Contact, Profile, Organization, UserRole
 
 PASSWORD = settings.DEFAULT_USER_PASSWORD
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 User = get_user_model()
 
 
@@ -51,10 +55,10 @@ class AdminProfileUpdateSerializer(serializers.ModelSerializer):
         organization = self.instance.organization
         department = attrs.get('department')
         if department:
-            possible_department_ids = (list(organization.children
-                                       .values_list('id', flat=True)
-                                       .distinct().order_by()) + [organization.pk])
-            if department not in possible_department_ids:
+            possible_departments = (list(Organization.objects.filter(top_id=organization.pk)
+                                         .values_list('id', flat=True)
+                                         .distinct().order_by()))
+            if department.pk not in possible_departments:
                 raise ValidationError('Передан ID, не относящийся к департаментам '
                                       'внутри организации работника')
         if hired_at and fired_at:
