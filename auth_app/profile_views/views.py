@@ -34,6 +34,9 @@ class UpdateProfileImageView(UpdateAPIView):
         queryset = Profile.objects.filter(pk=pk)
         return queryset
 
+    def post(self, request, *args, **kwargs):
+        return self.put(request, *args, **kwargs)
+
 
 class CreateEmployeeView(APIView):
     authentication_classes = [authentication.SessionAuthentication,

@@ -60,6 +60,18 @@ class Profile(models.Model):
             return f"{self.photo.url}"
         return None
 
+    @property
+    def get_surname(self):
+        if self.surname:
+            return self.surname
+        return None
+
+    @property
+    def get_first_name(self):
+        if self.first_name:
+            return self.first_name
+        return None
+
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
