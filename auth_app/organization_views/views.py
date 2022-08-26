@@ -27,7 +27,7 @@ class CreateDepartmentView(APIView):
     """
     authentication_classes = [authentication.TokenAuthentication,
                               authentication.SessionAuthentication]
-    permission_classes = [IsOrganizationAdmin, IsDepartmentAdmin]
+    permission_classes = [IsOrganizationAdmin | IsDepartmentAdmin]
 
     @classmethod
     def post(cls, request, *args, **kwargs):
@@ -49,8 +49,7 @@ class RootOrganizationListView(ListAPIView):
     """
     authentication_classes = [authentication.TokenAuthentication,
                               authentication.SessionAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
-                          IsDepartmentAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
     queryset = Organization.objects.filter(parent_id=None)
     serializer_class = FullOrganizationSerializer
 
@@ -61,8 +60,7 @@ class DepartmentsListView(APIView):
     """
     authentication_classes = [authentication.TokenAuthentication,
                               authentication.SessionAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
-                          IsDepartmentAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
 
     @classmethod
     def post(cls, request, *args, **kwargs):

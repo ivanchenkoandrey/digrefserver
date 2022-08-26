@@ -36,7 +36,7 @@ class CreatePeriodView(APIView):
     """
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin,
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin |
                           IsDepartmentAdmin]
 
     @classmethod

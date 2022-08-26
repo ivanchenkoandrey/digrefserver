@@ -41,7 +41,7 @@ class IsOrganizationAdmin(BasePermission):
     message = 'Вы не являетесь администратором организации'
 
     def has_permission(self, request, view):
-        user_organization_pk = request.user.profile.organization_id
+        user_organization_pk = request.user.profile.organization.pk
         user_privileged_organization = request.user.privileged.filter(
             role='A', organization__top_id=user_organization_pk).first()
         if user_privileged_organization is not None:

@@ -26,13 +26,13 @@ class CreateContactByUserView(CreateContactView):
 
 
 class CreateContactByAdminView(CreateContactView):
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin]
     serializer_class = AdminMakesContactSerializer
 
 
 class DeleteContactByAdmin(DestroyAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin]
     queryset = Contact.objects.all()
     serializer_class = ContactFullSerializer

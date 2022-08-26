@@ -5,6 +5,7 @@ from typing import Dict, List
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q, F
+from django.db.models.query import QuerySet
 from django.http import HttpRequest
 
 from auth_app.models import Transaction, TransactionState, UserStat
@@ -124,20 +125,28 @@ def update_transactions_by_controller(data: Dict,
 def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
     """Поиск пользователя по совпадению с началом запрошенной строки
     с именем, фамилией, никнеймом или адресом электронной почты"""
-    users_data = User.objects.filter(
-        (Q(profile__tg_name__istartswith=data) |
-         Q(profile__first_name__istartswith=data) |
-         Q(profile__surname__istartswith=data) |
-         Q(profile__contacts__contact_id__istartswith=data)) &
-        ~Q(profile__tg_name=request.user.profile.tg_name)
-    ).distinct().annotate(
+    main_search_filters = (Q(profile__tg_name__istartswith=data) |
+                           Q(profile__first_name__istartswith=data) |
+                           Q(profile__surname__istartswith=data) |
+                           Q(profile__contacts__contact_id__istartswith=data))
+    not_show_myself_filter = ~Q(profile__tg_name=request.user.profile.tg_name)
+    if request.data.get('show_myself') is True:
+        users_data = User.objects.filter(main_search_filters).distinct()
+    else:
+        users_data = User.objects.filter(main_search_filters & not_show_myself_filter).distinct()
+    return annotate_search_users_queryset(users_data)
+
+
+def annotate_search_users_queryset(users_queryset: QuerySet) -> Dict:
+    """Добавить поля с определённым названием для вывода JSON структуры"""
+    return users_queryset.annotate(
         user_id=F('id'),
         profile_id=F('profile__id'),
         tg_name=F('profile__tg_name'),
         name=F('profile__first_name'),
         surname=F('profile__surname'),
-        photo=F('profile__photo')).values('user_id', 'profile_id', 'tg_name', 'name', 'surname', 'photo')[:10]
-    return users_data
+        photo=F('profile__photo')).values(
+        'user_id', 'profile_id', 'tg_name', 'name', 'surname', 'photo')[:10]
 
 
 def cancel_transaction_by_user(instance: Transaction,

@@ -10,7 +10,7 @@ from auth_app.models import Organization, Contact
 from auth_app.models import Profile, UserRole
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin,
                                       IsUserUpdatesHisProfile,
-                                      IsUserUpdatesHisContact)
+                                      IsUserUpdatesHisContact, IsDepartmentAdmin)
 from .serializers import (EmployeeSerializer, UserRoleSerializer,
                           ProfileImageSerializer, FullUserRoleSerializer,
                           UserProfileUpdateSerializer,
@@ -41,7 +41,7 @@ class UpdateProfileImageView(UpdateAPIView):
 class CreateEmployeeView(APIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
 
     @classmethod
     def post(cls, request, *args, **kwargs):
@@ -57,7 +57,7 @@ class CreateEmployeeView(APIView):
 class CreateUserRoleView(CreateAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
     queryset = UserRole.objects.all()
     serializer_class = UserRoleSerializer
 
@@ -65,7 +65,7 @@ class CreateUserRoleView(CreateAPIView):
 class DeleteUserRoleView(DestroyAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
     queryset = UserRole.objects.all()
     serializer_class = UserRoleSerializer
 
@@ -73,7 +73,7 @@ class DeleteUserRoleView(DestroyAPIView):
 class UserRoleListView(APIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
 
     @classmethod
     def post(cls, request, *args, **kwargs):
@@ -110,7 +110,7 @@ class UserUpdateProfileView(UpdateProfileView):
 
 
 class AdminUpdateProfileView(UpdateProfileView):
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
     serializer_class = AdminProfileUpdateSerializer
 
 
@@ -136,4 +136,4 @@ class UserUpdateContactView(UpdateContactView):
 
 
 class AdminUpdateContactView(UpdateContactView):
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
