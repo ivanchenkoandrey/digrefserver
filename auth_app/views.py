@@ -12,10 +12,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
-from utils.custom_permissions import IsSystemAdmin, IsOrganizationAdmin
+from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin, IsDepartmentAdmin)
 from .models import Period, UserStat, Account, Transaction, Profile
 from .serializers import (UserSerializer, SearchUserSerializer,
-                          PeriodSerializer, ProfileSerializer)
+                          PeriodSerializer, ProfileSerializer,
+                          ProfileAdminSerializer)
 from .service import (get_search_user_data)
 
 User = get_user_model()
@@ -42,9 +43,9 @@ class ProfileView(APIView):
 class GetProfileView(RetrieveAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    permission_classes = [IsSystemAdmin, IsOrganizationAdmin]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
     queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
+    serializer_class = ProfileAdminSerializer
 
 
 class UserBalanceView(APIView):

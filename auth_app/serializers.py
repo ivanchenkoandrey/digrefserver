@@ -46,6 +46,24 @@ class ProfileSerializer(serializers.ModelSerializer):
         exclude = ['user']
 
 
+class ProfileAdminSerializer(serializers.ModelSerializer):
+    contacts = ContactSerializer(many=True, required=False)
+    organization_id = serializers.SerializerMethodField()
+    organization = serializers.CharField(source="organization.name")
+    department_id = serializers.SerializerMethodField()
+    department = serializers.CharField(source="department.name")
+
+    def get_organization_id(self, obj):
+        return obj.organization_id
+
+    def get_department_id(self, obj):
+        return obj.department_id
+
+    class Meta:
+        model = Profile
+        exclude = ['user']
+
+
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
 
