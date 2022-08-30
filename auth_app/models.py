@@ -96,6 +96,9 @@ class Contact(models.Model):
     class Meta:
         db_table = 'contacts'
 
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
 
 class UserRole(models.Model):
     class Roles(models.TextChoices):

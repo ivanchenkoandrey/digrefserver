@@ -30,20 +30,6 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
                   'middle_name', 'nickname']
 
 
-class ContactUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Contact
-        fields = ['contact_id']
-
-    def validate(self, attrs):
-        contact_type = self.instance.contact_type
-        contact_id = attrs.get('contact_id')
-        if contact_type and contact_id:
-            if '@' not in contact_id and contact_type == '@':
-                raise ValidationError('В адресе электронной почты должен быть символ @')
-        return attrs
-
-
 class AdminProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile

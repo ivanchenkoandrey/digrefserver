@@ -8,14 +8,14 @@ from rest_framework.views import APIView
 
 from auth_app.models import Organization, Contact
 from auth_app.models import Profile, UserRole
+from auth_app.serializers import ContactUpdateSerializer
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin,
                                       IsUserUpdatesHisProfile,
                                       IsUserUpdatesHisContact, IsDepartmentAdmin)
 from .serializers import (EmployeeSerializer, UserRoleSerializer,
                           ProfileImageSerializer, FullUserRoleSerializer,
                           UserProfileUpdateSerializer,
-                          AdminProfileUpdateSerializer,
-                          ContactUpdateSerializer)
+                          AdminProfileUpdateSerializer)
 
 User = get_user_model()
 

@@ -36,6 +36,7 @@ urlpatterns = [
     path('create-contact-by-user/', contact_views.CreateContactByUserView.as_view()),
     path('create-contact-by-admin/', contact_views.CreateContactByAdminView.as_view()),
     path('delete-contact/<int:pk>/', contact_views.DeleteContactByAdmin.as_view()),
+    path('create-few-contacts/', contact_views.CreateFewContactsByUser.as_view()),
     path('get-user-profile-for-admin/<int:pk>/', views.GetProfileView.as_view()),
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view()),
