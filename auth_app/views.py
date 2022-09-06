@@ -13,10 +13,9 @@ from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin, IsDepartmentAdmin)
-from .models import Period, UserStat, Account, Transaction, Profile
+from .models import Period, UserStat, Account, Transaction
 from .serializers import (UserSerializer, SearchUserSerializer,
-                          PeriodSerializer, ProfileSerializer,
-                          ProfileAdminSerializer)
+                          PeriodSerializer)
 from .service import (get_search_user_data)
 
 User = get_user_model()
@@ -40,12 +39,19 @@ class ProfileView(APIView):
         return Response(profile_serializer.data)
 
 
-class GetProfileView(RetrieveAPIView):
+class RetrieveProfileView(RetrieveAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class GetProfileView(RetrieveProfileView):
+    permission_classes = [IsAuthenticated]
+
+
+class GetProfileViewAdmin(RetrieveProfileView):
     permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
-    queryset = Profile.objects.all()
-    serializer_class = ProfileAdminSerializer
 
 
 class UserBalanceView(APIView):
@@ -127,12 +133,13 @@ class UsersList(APIView):
     def post(cls, request, *args, **kwargs):
         if request.data.get('get_users') is not None:
             logger.info(f'Запрос на показ пользователей по умолчанию от {request.user}')
-            users_list = User.objects.exclude(username__in=[request.user.username]).order_by('profile__surname').annotate(
+            users_list = (User.objects.exclude(username__in=[request.user.username, 'system'])
+                          .order_by('profile__surname').annotate(
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),
                 name=F('profile__first_name'),
                 surname=F('profile__surname'),
-                photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:10]
+                photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:10])
             return Response(users_list)
         logger.info(f'Неправильный запрос на показ пользователей по умолчанию от {request.user}: {request.data}')
         return Response(status=status.HTTP_400_BAD_REQUEST)

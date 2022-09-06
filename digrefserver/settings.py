@@ -107,60 +107,52 @@ CELERY_BROKER_URL = env('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
 
 LOGGING = {
-              'version': 1,
-              'disable_existing_loggers': False,
-              'formatters': {
-                  'simple': {
-                      'format': '{levelname} || {asctime} || {message}',
-                      'style': '{',
-                      'datefmt': '%d.%m.%Y %H:%M:%S',
-                  },
-              },
-              'handlers': {
-                  'file': {
-                      'level': 'INFO',
-                      'class': 'logging.handlers.RotatingFileHandler',
-                      'filename': os.path.join(BASE_DIR, 'app_logs/thanks.log'),
-                      'maxBytes': 1024 * 50,
-                      'backupCount': 10,
-                      'formatter': 'simple',
-                  },
-                  'db_file': {
-                      'level': 'DEBUG',
-                      'class': 'logging.handlers.RotatingFileHandler',
-                      'filename': os.path.join(BASE_DIR, 'db_logs/db_queries.log'),
-                      'maxBytes': 1024 * 50,
-                      'backupCount': 10,
-                      'formatter': 'simple',
-                  },
-              },
-              'loggers': {
-                  'auth_app': {
-                      'handlers': ['file'],
-                      'level': 'INFO',
-                      'propagate': True,
-                  },
-                  'utils.accounts_data': {
-                      'handlers': ['file'],
-                      'level': 'INFO',
-                      'propagate': True,
-                  },
-                  'django.db.backends': {
-                      'handlers': ['db_file'],
-                      'level': 'DEBUG',
-                      'propagate': True,
-                  }
-              }
-          }
-
-CELERY_BEAT_SCHEDULE = {
-    "make_log_message": {
-        "task": "auth_app.tasks.make_log_message",
-        "schedule": crontab(minute="*/15", hour="9-18", day_of_week="mon,tue,wed,thu,fri"),
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '{levelname} || {asctime} || {message}',
+            'style': '{',
+            'datefmt': '%d.%m.%Y %H:%M:%S',
+        },
     },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'app_logs/thanks.log'),
+            'maxBytes': 1024 * 50,
+            'backupCount': 10,
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'auth_app': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'utils.accounts_data': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'utils.query_debugger': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        }
+    }
 }
 
-GRACE_PERIOD = 60 * 60 * 2  # 2 часа
+CELERY_BEAT_SCHEDULE = {
+    "validate_transactions_after_grace_period": {
+        "task": "auth_app.tasks.validate_transactions_after_grace_period",
+        "schedule": crontab(minute="*"),
+    }
+}
+
+GRACE_PERIOD = 60 * 10  # 10 minutes
 ANONYMOUS_MODE = False
 
 DEFAULT_USER_PASSWORD = env('DEFAULT_USER_PASSWORD')
@@ -171,3 +163,18 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
+
+DATETIME_INPUT_FORMATS = [
+    '%Y-%m-%d %H:%M:%S',  # '2006-10-25 14:30:59'
+    '%Y-%m-%d %H:%M:%S.%f',  # '2006-10-25 14:30:59.000200'
+    '%Y-%m-%d %H:%M',  # '2006-10-25 14:30'
+    '%Y-%m-%d',  # '2006-10-25'
+    '%m/%d/%Y %H:%M:%S',  # '10/25/2006 14:30:59'
+    '%m/%d/%Y %H:%M:%S.%f',  # '10/25/2006 14:30:59.000200'
+    '%m/%d/%Y %H:%M',  # '10/25/2006 14:30'
+    '%m/%d/%Y',  # '10/25/2006'
+    '%m/%d/%y %H:%M:%S',  # '10/25/06 14:30:59'
+    '%m/%d/%y %H:%M:%S.%f',  # '10/25/06 14:30:59.000200'
+    '%m/%d/%y %H:%M',  # '10/25/06 14:30'
+    '%m/%d/%y',  # '10/25/06'
+]

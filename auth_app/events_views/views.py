@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from rest_framework.authentication import (TokenAuthentication,
                                            SessionAuthentication)
 from rest_framework.permissions import IsAuthenticated
@@ -33,10 +35,10 @@ class EventListView(APIView):
                 has_scope=True
             )
         public_transactions = (Transaction.objects.select_related('sender__profile', 'recipient__profile')
-                               .filter(is_public=True, status='A')
+                               .filter(is_public=True, status__in=['A', 'R'], )
                                .exclude(recipient=request.user))
         transactions_receiver_only = (Transaction.objects.select_related('sender__profile', 'recipient__profile')
-                                      .filter(recipient=request.user, status='A'))
+                                      .filter(recipient=request.user, status__in=['A', 'R']))
         extended_queryset = (public_transactions | transactions_receiver_only).distinct().order_by('-updated_at')[:25]
         event_types = EventTypes.objects.all()
         feed_data = []
@@ -46,7 +48,7 @@ class EventListView(APIView):
             del event_type['record_type']
             event_data = {
                 "id": 0,
-                "time": transaction.updated_at,
+                "time": transaction.updated_at + timedelta(hours=3),
                 "event_type": event_type,
                 "transaction": {
                     "id": transaction.pk,

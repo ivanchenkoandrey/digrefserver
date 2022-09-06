@@ -104,11 +104,6 @@ class UpdateProfileView(UpdateAPIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserUpdateProfileView(UpdateProfileView):
-    permission_classes = [IsUserUpdatesHisProfile]
-    serializer_class = UserProfileUpdateSerializer
-
-
 class AdminUpdateProfileView(UpdateProfileView):
     permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
     serializer_class = AdminProfileUpdateSerializer

@@ -1,14 +1,15 @@
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 
 from django.conf import settings
-
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Profile, Account, Transaction, UserStat, Period, Contact
+from auth_app.models import (Profile, Account, Transaction,
+                             UserStat, Period, Contact,
+                             UserRole, Tag, ObjectTag)
 from utils.current_period import get_current_period
 
 User = get_user_model()
@@ -40,6 +41,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     contacts = ContactSerializer(many=True, required=False)
     organization = serializers.CharField(source="organization.name")
     department = serializers.CharField(source="department.name")
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return obj.get_status_display()
 
     class Meta:
         model = Profile
@@ -64,12 +69,30 @@ class ProfileAdminSerializer(serializers.ModelSerializer):
         exclude = ['user']
 
 
+class UserRoleSerializer(serializers.ModelSerializer):
+    role_name = serializers.SerializerMethodField()
+    department_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserRole
+        fields = ['role_name', 'department_name']
+
+    def get_role_name(self, obj):
+        return obj.get_role_display()
+
+    def get_department_name(self, obj):
+        if obj.organization is not None:
+            return obj.organization.name
+        return None
+
+
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
+    privileged = UserRoleSerializer(many=True, required=False)
 
     class Meta:
         model = User
-        fields = ['username', 'profile']
+        fields = ['username', 'profile', 'privileged']
 
 
 class CreateUserSerializer(serializers.ModelSerializer):
@@ -86,26 +109,31 @@ class AccountSerializer(serializers.ModelSerializer):
 
 class TransactionPartialSerializer(serializers.ModelSerializer):
     photo = serializers.ImageField(required=False)
+    tags_list = serializers.SerializerMethodField(required=False)
 
     class Meta:
         model = Transaction
-        fields = ['recipient', 'amount', 'reason',
-                  'photo', 'is_anonymous']
+        fields = ['recipient', 'amount',
+                  'photo', 'is_anonymous',
+                  'reason', 'reason_def', 'tags_list']
+
+    def get_tags_list(self, obj):
+        return self.context.get('request').data.get('tags_list')
 
     def create(self, validated_data):
         current_period = get_current_period()
-        if current_period is None:
-            raise ValidationError('Период отправки транзакций закончился')
+        request = self.context.get('request')
+        tags_list = request.data.get('tags_list')
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
         photo = self.context['request'].FILES.get('photo')
-        is_anonymous = self.validated_data['is_anonymous']
-        if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
-            raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
+        reason = self.data.get('reason')
+        reason_def = self.data.get('reason_def')
+        if reason is not None and reason_def is not None:
+            reason = None
         amount = self.validated_data['amount']
-        if amount <= 0:
-            logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
-            raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
+        is_anonymous = self.validated_data['is_anonymous']
+        self.make_validations(amount, current_period, reason, reason_def, recipient, sender, tags_list)
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_distr_account.amount
@@ -131,12 +159,21 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     transaction_class='T',
                     amount=self.validated_data['amount'],
                     status='W',
-                    reason=self.validated_data['reason'],
+                    reason=reason,
                     is_public=True,
                     is_anonymous=is_anonymous,
                     period=current_period,
-                    photo=photo
+                    photo=photo,
+                    reason_def_id=reason_def
                 )
+                if tags_list:
+                    for tag in tags_list:
+                        ObjectTag.objects.create(
+                            tag_id=tag,
+                            tagged_object=transaction_instance,
+                            created_by_id=request.user.pk
+                        )
+
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
             return transaction_instance
         else:
@@ -145,6 +182,32 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                         f"но большую чем её половина")
             raise ValidationError('Нельзя перевести больше половины '
                                   'имеющейся под распределение суммы')
+
+    @classmethod
+    def make_validations(cls, amount, current_period, reason, reason_def, recipient, sender, tags):
+        if current_period is None:
+            logger.info(f"Попытка создать транзакцию, когда закончился период")
+            raise ValidationError('Период отправки транзакций закончился')
+        if reason is None and reason_def is None:
+            logger.error(f"Не переданы ни своё обоснование, ни готовое обоснование")
+            raise ValidationError("Нужно либо заполнить поле обоснования, "
+                                  "либо указать ID уже существующего обоснования (благодарности)")
+        if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
+            logger.info(f"Попытка отправить спасибки на системный аккаунт")
+            raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
+        if tags is not None:
+            if not isinstance(tags, list):
+                logger.info(f"Попытка передать ценности не списком")
+                raise ValidationError('Передайте ценности (теги) для данного объекта списком')
+            else:
+                possible_tag_ids = set(Tag.objects.values_list('id', flat=True))
+                for tag in tags:
+                    if tag not in possible_tag_ids:
+                        logger.info(f"Ценность (тег) с ID {tag} не найдена")
+                        raise ValidationError(f'Ценность (тег) с ID {tag}не найдена')
+        if amount <= 0:
+            logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
+            raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
 
 
 class TransactionFullSerializer(serializers.ModelSerializer):
@@ -156,6 +219,8 @@ class TransactionFullSerializer(serializers.ModelSerializer):
     transaction_class = serializers.SerializerMethodField()
     expire_to_cancel = serializers.DateTimeField()
     can_user_cancel = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
+    reason_def = serializers.SerializerMethodField()
 
     def get_transaction_status(self, obj):
         return {
@@ -209,9 +274,16 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_can_user_cancel(self, obj):
         user_id = self.context.get('user').pk
-        return (obj.status == 'W'
+        return (obj.status in ['W', 'G', 'A']
                 and user_id == obj.sender.id
                 and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
+
+    def get_tags(self, obj):
+        return obj.tags.values('tag__id', 'tag__name')
+
+    def get_reason_def(self, obj):
+        if obj.reason_def is not None:
+            return obj.reason_def.data
 
     class Meta:
         model = Transaction

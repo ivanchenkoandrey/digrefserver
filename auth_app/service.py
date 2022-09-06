@@ -8,7 +8,7 @@ from django.db.models import Q, F
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 
-from auth_app.models import Transaction, TransactionState, UserStat
+from auth_app.models import Transaction, TransactionState, UserStat, Account
 from auth_app.serializers import TransactionCancelSerializer
 from utils.current_period import get_current_period
 
@@ -130,10 +130,13 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
                            Q(profile__surname__istartswith=data) |
                            Q(profile__contacts__contact_id__istartswith=data))
     not_show_myself_filter = ~Q(profile__tg_name=request.user.profile.tg_name)
+    not_show_system_filter = ~Q(username='system')
     if request.data.get('show_myself') is True:
-        users_data = User.objects.filter(main_search_filters).distinct()
+        users_data = User.objects.filter(
+            main_search_filters & not_show_system_filter).distinct()
     else:
-        users_data = User.objects.filter(main_search_filters & not_show_myself_filter).distinct()
+        users_data = User.objects.filter(
+            main_search_filters & not_show_myself_filter & not_show_system_filter).distinct()
     return annotate_search_users_queryset(users_data)
 
 
@@ -158,15 +161,19 @@ def cancel_transaction_by_user(instance: Transaction,
     """
     with transaction.atomic():
         period = get_current_period()
+        burnt_account = Account.objects.get(account_type='B')
         sender_accounts = instance.sender.accounts.all()
         amount = instance.amount
         sender_user_stat = UserStat.objects.get(user=request.user, period=period)
         sender_distr_account = sender_accounts.filter(account_type='D').first()
         sender_frozen_account = sender_accounts.filter(account_type='F').first()
-        sender_distr_account.amount += amount
+        burnt_account.amount += amount
         sender_frozen_account.amount -= amount
         sender_user_stat.distr_thanks -= amount
         sender_user_stat.distr_declined += amount
+        instance.status = 'C'
+        instance.save(update_fields=['status'])
+        burnt_account.save(update_fields=['amount'])
         sender_distr_account.save(update_fields=['amount'])
         sender_frozen_account.save(update_fields=['amount'])
         sender_user_stat.save(update_fields=['distr_thanks', 'distr_declined'])
@@ -177,6 +184,6 @@ def is_cancel_transaction_request_is_valid(request_data: Dict) -> bool:
     """
     Валидация пришедших в запрос данных для отмены транзакции со стороны пользователя
     """
-    if request_data.get('status') == 'D' and len(request_data) == 1:
+    if request_data.get('status') in ['D', 'C'] and len(request_data) == 1:
         return True
     return False

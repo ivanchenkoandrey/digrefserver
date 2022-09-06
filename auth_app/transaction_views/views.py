@@ -37,6 +37,11 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
                     f"следующие данные для совершения транзакции: {request.data}")
         return self.create(request, *args, **kwargs)
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'request': self.request})
+        return context
+
 
 class CancelTransactionByUserView(UpdateAPIView):
     queryset = Transaction.objects.all()
@@ -56,7 +61,7 @@ class CancelTransactionByUserView(UpdateAPIView):
         if instance.sender != request.user:
             logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
             raise ValidationError(f"Пользователь может отменить только свою транзакцию")
-        if instance.status != 'W':
+        if instance.status not in ['W', 'G', 'A']:
             logger.info(f"Попытка отмены транзакции с id {instance.pk} пользователем {request.user}")
             raise ValidationError(f"Пользователь может отменить только ожидающую транзакцию")
         timedelta = timezone.now() - instance.created_at

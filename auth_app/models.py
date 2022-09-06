@@ -38,6 +38,13 @@ class Organization(models.Model):
         db_table = 'organizations'
 
 
+class EmployeeStatus(models.TextChoices):
+    OFFICE = 'O', 'В офисе'
+    DISTANT = 'D', 'Удалённо'
+    HOLIDAY = 'H', 'Отпуск'
+    SICK = 'S', 'На больничном'
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profileorganization',
@@ -46,7 +53,7 @@ class Profile(models.Model):
     department = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profiledepartment', null=True,
                                    verbose_name='Подразделение', blank=True)
     tg_id = CICharField(max_length=20, verbose_name='Идентификатор пользователя Telegram')
-    tg_name = CICharField(max_length=20, blank=True, null=True, verbose_name='Имя пользователя Telegram')
+    tg_name = CICharField(max_length=40, blank=True, null=True, verbose_name='Имя пользователя Telegram')
     photo = models.ImageField(blank=True, null=True, upload_to='users_photo/', verbose_name='Фотография')
     hired_at = models.DateField(null=True, blank=True, verbose_name='Работает с')
     fired_at = models.DateField(null=True, blank=True, verbose_name='Не работает с')
@@ -54,6 +61,11 @@ class Profile(models.Model):
     first_name = CITextField(blank=True, null=True, verbose_name='Имя')
     middle_name = CITextField(blank=True, null=True, verbose_name='Отчество')
     nickname = CITextField(blank=True, null=True, verbose_name='Псевдоним')
+    status = models.CharField(max_length=1, choices=EmployeeStatus.choices,
+                              verbose_name='Статус сотрудника', null=True, blank=True)
+    timezone = models.PositiveSmallIntegerField(verbose_name='Разница во времени с МСК', null=True, blank=True)
+    date_of_birth = models.DateField(verbose_name='Дата рождения', null=True, blank=True)
+    job_title = CICharField(max_length=100, verbose_name='Должность', null=True, blank=True)
 
     def get_photo_url(self):
         if self.photo:
@@ -153,9 +165,9 @@ class CustomTransactionQueryset(models.QuerySet):
         Возвращает список транзакций пользователя
         """
         queryset = (self
-                    .select_related('sender__profile', 'recipient__profile')
-                    .filter(Q(sender=current_user) | Q(recipient=current_user))
-                    )
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
+                    .prefetch_related('tags')
+                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def filter_to_use_by_controller(self):
@@ -163,7 +175,8 @@ class CustomTransactionQueryset(models.QuerySet):
         Возвращает список транзакций со статусом 'Ожидает подтверждения'
         """
         queryset = (self
-                    .select_related('sender__profile', 'recipient__profile')
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
+                    .prefetch_related('tags')
                     .filter(status='W'))
         return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
 
@@ -173,7 +186,8 @@ class CustomTransactionQueryset(models.QuerySet):
         """
 
         queryset = (self
-                    .select_related('sender__profile', 'recipient__profile')
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
+                    .prefetch_related('tags')
                     .filter((Q(sender=current_user) | Q(recipient=current_user)) &
                             Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
                             ))
@@ -199,7 +213,7 @@ class Transaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления состояния', null=True, blank=True)
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
-    reason = CITextField(verbose_name='Обоснование')
+    reason = CITextField(verbose_name='Обоснование', null=True, blank=True)
     grace_timeout = models.DateTimeField(verbose_name='Время окончания периода возможной отмены', null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.SET_NULL,
                                      related_name='organization_public_transactions',
@@ -213,6 +227,8 @@ class Transaction(models.Model):
                               blank=True,
                               verbose_name='Уровень публикации')
     photo = models.ImageField(blank=True, null=True, upload_to='transactions', verbose_name='Фотография')
+    reason_def = models.ForeignKey('Reason', on_delete=models.PROTECT, verbose_name='Типовое обоснование', null=True,
+                                   blank=True)
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -420,6 +436,112 @@ class Event(models.Model):
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
+
+class Tag(models.Model):
+    created_at = models.DateTimeField(verbose_name='Время создания', auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='Пользователь, создавший ценность',
+                                   null=True, blank=True, related_name='tag_created_by')
+    updated_at = models.DateTimeField(verbose_name='Время обновления', auto_now=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='Пользователь, изменивший ценность',
+                                   null=True, blank=True, related_name='tag_updated_by')
+    flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     verbose_name='Подразделение (область видимости)', null=True, blank=True)
+    time_from = models.DateTimeField(verbose_name='Начало периода действия', null=True, blank=True)
+    time_to = models.DateTimeField(verbose_name='Окончание периода действия', null=True, blank=True)
+    name = CICharField(max_length=100, verbose_name="Отображаемый текст тега")
+    info = models.TextField(verbose_name="Пояснительный текст тега", null=True, blank=True)
+    pict = models.ImageField(upload_to='tags', verbose_name="Пиктограмма", null=True, blank=True)
+
+    def get_pict_url(self):
+        if self.pict:
+            return f"{self.pict.url}"
+        return None
+
+    class Meta:
+        db_table = 'tags'
+        verbose_name = "Ценности"
+
+
+class Reason(models.Model):
+    created_at = models.DateTimeField(verbose_name='Время создания', auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='reason_created_by',
+                                   verbose_name='Пользователь, добавивший типовое обоснование', null=True, blank=True)
+    updated_at = models.DateTimeField(verbose_name='Время обновления', auto_now=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='reason_updated_by',
+                                   verbose_name='Пользователь, изменивший типовое обоснование', null=True, blank=True)
+    flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     verbose_name='Подразделение (область видимости)', null=True, blank=True)
+    time_from = models.DateTimeField(verbose_name='Начало периода действия', null=True, blank=True)
+    time_to = models.DateTimeField(verbose_name='Окончание периода действия', null=True, blank=True)
+    data = CITextField(verbose_name="Текст типового обоснования")
+    tags = models.ManyToManyField(Tag, related_name='reasons', through='ReasonByTag')
+
+    class Meta:
+        db_table = 'reasons'
+        verbose_name = "Типовые обоснования"
+
+
+class ReasonByTag(models.Model):
+    created_at = models.DateTimeField(verbose_name='Время назначения', auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='reason_by_tag_created_by',
+                                   verbose_name='Пользователь, назначивший типовое обоснование ценности', null=True,
+                                   blank=True)
+    updated_at = models.DateTimeField(verbose_name='Время изменения', auto_now=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='reason_by_tag_updated_by',
+                                   verbose_name='Пользователь, изменивший назначение типового обоснования ценности',
+                                   null=True, blank=True)
+    flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     verbose_name='Подразделение (область видимости)', null=True, blank=True)
+    time_from = models.DateTimeField(verbose_name='Начало периода действия', null=True, blank=True)
+    time_to = models.DateTimeField(verbose_name='Окончание периода действия', null=True, blank=True)
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name='Ценность')
+    reason = models.ForeignKey(Reason, on_delete=models.CASCADE, verbose_name='Типовое обоснование')
+
+    class Meta:
+        db_table = 'reasons_by_tags'
+        verbose_name = "Назначения типовых обоснований ценностям"
+
+
+class ObjectTag(models.Model):
+    created_at = models.DateTimeField(verbose_name='Время назначения', auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='object_tag_created_by',
+                                   verbose_name='Пользователь, назначивший ценность', null=True, blank=True)
+    updated_at = models.DateTimeField(verbose_name='Время отключения', auto_now=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='object_tag_updated_by',
+                                   verbose_name='Пользователь, отключивший ценность', null=True, blank=True)
+    flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
+    tagged_object = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='tags', verbose_name='Объект')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='objecttags', verbose_name='Ценность')
+
+    class Meta:
+        db_table = 'object_tags'
+        verbose_name = "Назначения ценностей объектам"
+
+
+class TagLink(models.Model):
+    created_at = models.DateTimeField(verbose_name='Время назначения', auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='tag_link_created_by',
+                                   verbose_name='Пользователь, назначивший синоним ценности', null=True, blank=True)
+    updated_at = models.DateTimeField(verbose_name='Время изменения', auto_now=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='tag_link_updated_by',
+                                   verbose_name='Пользователь, изменивший назначение синонима ценности', null=True,
+                                   blank=True)
+    flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     verbose_name='Подразделение (область видимости)', null=True, blank=True)
+    time_from = models.DateTimeField(verbose_name='Начало периода действия', null=True, blank=True)
+    time_to = models.DateTimeField(verbose_name='Окончание периода действия', null=True, blank=True)
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name='Ценность', related_name='tag_link')
+    tag_basic = models.ForeignKey(Tag, on_delete=models.CASCADE,
+                                  verbose_name='Ценность - основной синоним', related_name='tag_link_basic')
+
+    class Meta:
+        db_table = 'tag_links'
+        verbose_name = "Синонимы ценностей"
 
 
 @receiver(post_save, sender=User)

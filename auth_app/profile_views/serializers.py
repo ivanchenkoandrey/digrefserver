@@ -1,3 +1,5 @@
+import datetime
+import logging
 from random import randint
 
 from django.conf import settings
@@ -9,9 +11,6 @@ from rest_framework.exceptions import ValidationError
 from auth_app.models import Contact, Profile, Organization, UserRole
 
 PASSWORD = settings.DEFAULT_USER_PASSWORD
-
-import logging
-
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
@@ -24,10 +23,20 @@ class ProfileImageSerializer(serializers.ModelSerializer):
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Profile
         fields = ['tg_name', 'surname', 'first_name',
-                  'middle_name', 'nickname']
+                  'middle_name', 'nickname', 'status',
+                  'timezone', 'date_of_birth', 'job_title']
+
+    def validate(self, attrs):
+        date_of_birth = attrs.get('date_of_birth')
+        if date_of_birth:
+            today = datetime.date.today()
+            if date_of_birth >= today:
+                raise ValidationError('Укажите дату рождения в прошедшем времени')
+        return attrs
 
 
 class AdminProfileUpdateSerializer(serializers.ModelSerializer):

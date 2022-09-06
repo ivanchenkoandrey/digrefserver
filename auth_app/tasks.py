@@ -1,20 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
-import datetime
 import logging
 
-from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
-from django.db import transaction
 
 from digrefserver.celery import app
 
 logger = logging.getLogger(__name__)
-
-
-@app.task
-def make_log_message():
-    logger.info(f'Task successfully done')
 
 
 @app.task
@@ -29,37 +21,35 @@ def send(user_email: str, code: str) -> None:
 
 
 @app.task
-def open_period():
-    User = get_user_model()
-    today = datetime.date.today()
-    from auth_app.models import Account, Transaction, Period
-    period = Period.objects.filter(start_date=today).first()
-    system_user = User.objects.get(accounts__account_type='S')
-    organization = period.organization or None
-    if period is not None:
-        system_account = Account.objects.get(owner=system_user, type='S')
-        users = User.objects.filter(profile__organization=period.organization).values_list('pk', flat=True)
-        income_accounts = Account.objects.filter(account_type='I', owner_id__in=users)
-        distr_accounts = Account.objects.filter(account_type='D', owner_id__in=users)
-        with transaction.atomic():
-            for account in income_accounts:
-                Transaction.objects.create(
-                    sender=system_user,
-                    recipient=account.owner,
-                    transaction_class='X',
-                    amount=100,
-                    status='R',
-                    organization=organization
-                )
-                system_account.amount -= 100
-            for account in distr_accounts:
-                Transaction.objects.create(
-                    sender=system_user,
-                    recipient=account.owner,
-                    transaction_class='D',
-                    amount=100,
-                    status='R',
-                    organization=organization
-                )
-                system_account.amount -= 100
-            system_account.save(update_fields=['amount'])
+def validate_transactions_after_grace_period():
+    from auth_app.models import Account, Transaction, UserStat
+    from django.conf import settings
+    from django.db import transaction
+    from datetime import datetime, timezone
+
+    grace_period = settings.GRACE_PERIOD
+    now = datetime.now(timezone.utc)
+
+    transactions_to_check = Transaction.objects.filter(status='G')
+    with transaction.atomic():
+        accounts = Account.objects.all()
+        user_stats = UserStat.objects.all()
+        for _transaction in transactions_to_check:
+            amount = _transaction.amount
+            if (now - _transaction.created_at).seconds >= grace_period:
+                sender_accounts = accounts.filter(owner_id=_transaction.sender_id)
+                recipient_accounts = accounts.filter(owner_id=_transaction.recipient_id)
+                recipient_user_stat = user_stats.get(period=_transaction.period,
+                                                     user_id=_transaction.recipient_id)
+                sender_frozen_account = sender_accounts.get(account_type='F')
+                recipient_income_account = recipient_accounts.get(account_type='I')
+                sender_frozen_account.amount -= amount
+                sender_frozen_account.transaction = _transaction
+                recipient_income_account.amount += amount
+                recipient_income_account.transaction = _transaction
+                recipient_user_stat.income_thanks += amount
+                _transaction.status = 'R'
+                _transaction.save(update_fields=['status'])
+                sender_frozen_account.save(update_fields=['amount', 'transaction'])
+                recipient_income_account.save(update_fields=['amount', 'transaction'])
+                recipient_user_stat.save(update_fields=['income_thanks'])
