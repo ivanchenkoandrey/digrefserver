@@ -126,7 +126,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         tags_list = request.data.get('tags_list')
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
-        photo = self.context['request'].FILES.get('photo')
+        photo = request.FILES.get('photo')
         reason = self.data.get('reason')
         reason_def = self.data.get('reason_def')
         if reason is not None and reason_def is not None:

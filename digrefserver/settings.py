@@ -178,3 +178,5 @@ DATETIME_INPUT_FORMATS = [
     '%m/%d/%y %H:%M',  # '10/25/06 14:30'
     '%m/%d/%y',  # '10/25/06'
 ]
+
+TELEGRAM_BOT_AUTH_TOKEN = env('TELEGRAM_BOT_AUTH_TOKEN')

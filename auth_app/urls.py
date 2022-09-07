@@ -11,6 +11,7 @@ from auth_app.transaction_views import views as transaction_views
 from auth_app.user_stat_views import views as stat_views
 from auth_app.contacts_views import views as contact_views
 from auth_app.tags_views import views as tag_views
+from auth_app.tg_bot_views import views as tg_bot_views
 from . import views
 
 urlpatterns = [
@@ -71,6 +72,9 @@ urlpatterns = [
     path('tags/', tag_views.TagListView.as_view()),
     path('tags/<int:pk>/', tag_views.TagDetailView.as_view()),
     path('reasons/', tag_views.ReasonListView.as_view()),
+
+    # tg bot views
+    path('tg-get-user-token/', tg_bot_views.GetUserToken.as_view()),
 
     path('burn-thanks/', views.BurnThanksView.as_view()),
     path('create-user-stats/', stat_views.CreateUserStats.as_view()),
