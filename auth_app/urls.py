@@ -75,6 +75,9 @@ urlpatterns = [
 
     # tg bot views
     path('tg-get-user-token/', tg_bot_views.GetUserToken.as_view()),
+    path('tg-admin-analytics/', tg_bot_views.GetAnalyticsAdmin.as_view()),
+    path('tg-export/', tg_bot_views.ExportUserTransactions.as_view()),
+    path('tg-balance/', tg_bot_views.ExportUserBalance.as_view()),
 
     path('burn-thanks/', views.BurnThanksView.as_view()),
     path('create-user-stats/', stat_views.CreateUserStats.as_view()),

@@ -129,8 +129,6 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         photo = request.FILES.get('photo')
         reason = self.data.get('reason')
         reason_def = self.data.get('reason_def')
-        if reason is not None and reason_def is not None:
-            reason = None
         amount = self.validated_data['amount']
         is_anonymous = self.validated_data['is_anonymous']
         self.make_validations(amount, current_period, reason, reason_def, recipient, sender, tags_list)
@@ -147,18 +145,12 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         sender_user_stat = UserStat.objects.get(user=sender, period=current_period)
         if amount <= current_account_amount // 2:
             with transaction.atomic():
-                sender_distr_account.amount -= amount
-                sender_frozen_account.amount += amount
-                sender_user_stat.distr_thanks += amount
-                sender_distr_account.save(update_fields=['amount'])
-                sender_frozen_account.save(update_fields=['amount'])
-                sender_user_stat.save(update_fields=['distr_thanks'])
                 transaction_instance = Transaction.objects.create(
                     sender=self.context['request'].user,
                     recipient=recipient,
                     transaction_class='T',
                     amount=self.validated_data['amount'],
-                    status='W',
+                    status='G',
                     reason=reason,
                     is_public=True,
                     is_anonymous=is_anonymous,
@@ -166,6 +158,14 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     photo=photo,
                     reason_def_id=reason_def
                 )
+                sender_distr_account.amount -= amount
+                sender_distr_account.transaction = transaction_instance
+                sender_frozen_account.amount += amount
+                sender_frozen_account.transaction = transaction_instance
+                sender_user_stat.distr_thanks += amount
+                sender_distr_account.save(update_fields=['amount', 'transaction'])
+                sender_frozen_account.save(update_fields=['amount', 'transaction'])
+                sender_user_stat.save(update_fields=['distr_thanks'])
                 if tags_list:
                     for tag in tags_list:
                         ObjectTag.objects.create(

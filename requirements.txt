@@ -18,9 +18,11 @@ django-cors-headers==3.13.0
 django-environ==0.8.1
 django-rest-framework==0.1.0
 djangorestframework==3.13.1
+et-xmlfile==1.1.0
 gunicorn==20.1.0
 idna==3.3
 kombu==5.2.4
+openpyxl==3.0.10
 packaging==21.3
 Pillow==9.1.1
 prompt-toolkit==3.0.30

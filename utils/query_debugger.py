@@ -18,7 +18,8 @@ def query_debugger(func):
         end_queries = len(connection.queries)
 
         logger.info(f"Метод : {func.__qualname__}")
-        logger.info(f"{connection.queries=}")
+        for i, query in enumerate(connection.queries, 1):
+            logger.info(f"{i}. {query}")
         logger.info(f"Количество запросов : {end_queries - start_queries}")
         logger.info(f"Получено за {(end - start):.2f} секунд")
         return result

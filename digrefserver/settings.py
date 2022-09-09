@@ -149,6 +149,10 @@ CELERY_BEAT_SCHEDULE = {
     "validate_transactions_after_grace_period": {
         "task": "auth_app.tasks.validate_transactions_after_grace_period",
         "schedule": crontab(minute="*"),
+    },
+    "remove_reports": {
+        "task": "auth_app.tasks.remove_reports",
+        "schedule": crontab(minute="*"),
     }
 }
 

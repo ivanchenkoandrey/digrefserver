@@ -76,13 +76,19 @@ class Profile(models.Model):
     def get_surname(self):
         if self.surname:
             return self.surname
-        return None
+        return ''
+
+    @property
+    def get_middle_name(self):
+        if self.middle_name:
+            return self.middle_name
+        return ''
 
     @property
     def get_first_name(self):
         if self.first_name:
             return self.first_name
-        return None
+        return ''
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
