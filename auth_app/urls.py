@@ -12,7 +12,12 @@ from auth_app.user_stat_views import views as stat_views
 from auth_app.contacts_views import views as contact_views
 from auth_app.tags_views import views as tag_views
 from auth_app.tg_bot_views import views as tg_bot_views
+from auth_app.comments_views import views as comment_views
+from auth_app.likes_views import views as likes_views
+from auth_app.comments_views import views as comments_views
+
 from . import views
+
 
 urlpatterns = [
     # authentication
@@ -82,4 +87,15 @@ urlpatterns = [
     path('burn-thanks/', views.BurnThanksView.as_view()),
     path('create-user-stats/', stat_views.CreateUserStats.as_view()),
     path('logout/', LogoutView.as_view()),
+    # comments
+    path('create-comment/', comments_views.CreateCommentView.as_view()),
+    path('update-comment/', comments_views.UpdateCommentView.as_view()),
+    path('delete-comment/', comments_views.DeleteCommentView.as_view()),
+    path('get-comments/', comment_views.CommentListAPIView.as_view()),
+    # likes
+    path('press-like/', likes_views.PressLikeView.as_view()),
+    path('get-likes-by-transaction/', likes_views.LikesTransactionListAPIView.as_view()),
+    path('get-likes-by-user/', likes_views.LikesUserListAPIView.as_view()),
+    # statistics
+    path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
 ]

@@ -4,6 +4,7 @@ from pathlib import Path
 import environ
 from celery.schedules import crontab
 import auth_app.tasks
+from rest_framework.pagination import PageNumberPagination
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -79,15 +80,12 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 LANGUAGE_CODE = 'ru'
 TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
-
 STATIC_URL = '/static/'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {

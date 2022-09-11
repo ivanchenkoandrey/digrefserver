@@ -69,6 +69,7 @@ class DepartmentsListView(APIView):
             try:
                 root_organization = Organization.objects.get(pk=organization_id)
                 departments = root_organization.children.all()
+
                 serializer = FullOrganizationSerializer(departments, many=True)
                 return Response(serializer.data)
             except Organization.DoesNotExist:

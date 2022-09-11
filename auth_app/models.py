@@ -236,6 +236,9 @@ class Transaction(models.Model):
     reason_def = models.ForeignKey('Reason', on_delete=models.PROTECT, verbose_name='Типовое обоснование', null=True,
                                    blank=True)
 
+    is_commentable = models.BooleanField(default=True,
+                                         verbose_name="Разрешение на добавление/изменение/удаления комментариев")
+
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
@@ -443,6 +446,150 @@ class Event(models.Model):
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
+
+class CustomCommentQueryset(models.QuerySet):
+    """
+    Объект, инкапсулирующий в себе логику кастомных запросов к БД
+    в рамках менеджера objects в инстансах модели Comment
+    """
+
+    def filter_by_transaction(self, transaction):
+        """
+        Возвращает список комментариев заданной транзакции
+        """
+        return Comment.objects.filter(transaction=transaction)
+
+
+class Comment(models.Model):
+    objects = CustomCommentQueryset.as_manager()
+
+    # id: идентификатор - создается автоматически
+    transaction = models.ForeignKey(Transaction, related_name="comments", on_delete=models.SET_NULL,
+                                    null=True, blank=True, verbose_name="Транзакция")
+    user = models.ForeignKey(User, related_name='comment', on_delete=models.CASCADE,
+                             verbose_name='Владелец Комментария')
+    date_created = models.DateTimeField(null=True, verbose_name="Дата создания")
+    date_last_modified = models.DateTimeField(null=True, verbose_name="Дата последнего изменения")
+    # date_deleted = models.DateTimeField(verbose_name="Дата удаления")
+    is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
+    previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.CASCADE,
+                             verbose_name='Ссылка на предыдущий комментарий')
+    text = models.CharField(max_length=50, null=True, blank=True, verbose_name="Текст")
+    picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures', verbose_name='Картинка Комментария')
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
+    def __str__(self):
+        return self.text
+
+    class Meta:
+        db_table = 'comments'
+
+
+class LikeKind(models.Model):
+    # id: идентификатор - создается автоматически
+
+    code = models.TextField(verbose_name="Код Типа Лайка", null=True)
+    name = models.TextField(verbose_name="Название Типа Лайка")
+    icon = models.ImageField(blank=True, null=True, upload_to='icons', verbose_name='Пиктограмма')
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
+    def get_icon_url(self):
+        if self.icon:
+            return f"{self.icon.url}"
+        return None
+
+    class Meta:
+        db_table = 'like_kind'
+
+
+class CustomLikeQueryset(models.QuerySet):
+    """
+    Объект, инкапсулирующий в себе логику кастомных запросов к БД
+    в рамках менеджера objects в инстансах модели Comment
+    """
+
+    def filter_by_transaction(self, transaction):
+        """
+        Возвращает список комментариев заданной транзакции
+        """
+        return Like.objects.filter(transaction=transaction, is_liked=True)
+
+    def filter_by_transaction_and_like_kind(self, transaction, like_kind):
+        """
+        Возвращает список комментариев заданной транзакции и типа лайка
+        """
+        return Like.objects.filter(transaction=transaction, like_kind=like_kind, is_liked=True)
+
+    def filter_by_user(self, user):
+        """
+        Возвращает список комментариев заданного пользователя
+        """
+        return Like.objects.filter(user=user, is_liked=True)
+
+    def filter_by_user_and_like_kind(self, user, like_kind):
+        """
+        Возвращает список комментариев заданного пользователя и типа лайка
+        """
+        return Like.objects.filter(user=user, like_kind=like_kind, is_liked=True)
+
+
+class Like(models.Model):
+    # id: идентификатор - создается автоматически
+
+    objects = CustomLikeQueryset.as_manager()
+
+    like_kind = models.ForeignKey(LikeKind, related_name='like', on_delete=models.CASCADE,
+                             verbose_name='Тип лайка')
+    is_liked = models.BooleanField(default=False, verbose_name="Выставлен")
+    date_created = models.DateTimeField(verbose_name="Дата выставления лайка")
+    date_deleted = models.DateTimeField(null=True, blank=True, default=None, verbose_name="Дата отзыва лайка")
+    user = models.ForeignKey(User, related_name='like', on_delete=models.CASCADE,
+                             verbose_name='Владелец Лайка')
+    transaction = models.ForeignKey(Transaction, related_name="likes", on_delete=models.CASCADE,
+                                    verbose_name="Транзакция")
+
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
+    class Meta:
+        db_table = 'likes'
+
+
+class LikeStatistics(models.Model):
+    transaction = models.ForeignKey(Transaction, related_name='like_statistics', on_delete=models.SET_NULL,
+                                    null=True, blank=True, verbose_name='Транзакция')
+    like_counter = models.IntegerField(verbose_name='Количество лайков')
+    like_kind = models.ForeignKey(LikeKind, related_name='like_statistics', on_delete=models.SET_NULL,
+                                  null=True, blank=True, verbose_name='Тип лайка')
+    last_change_at = models.DateTimeField(verbose_name='Время последнего изменения количества лайков типа Лайк',
+                                          null=True, blank=True)
+    class Meta:
+        db_table = 'like_statistics'
+
+
+class LikeCommentStatistics(models.Model):
+    transaction = models.ForeignKey(Transaction, related_name='like_comment_statistics', on_delete=models.SET_NULL,
+                                    null=True, blank=True, verbose_name='Транзакция')
+
+    first_comment = models.ForeignKey("Comment", related_name='first_comment_statistics', on_delete=models.SET_NULL,
+                                      null=True, blank=True, verbose_name='Первый комментарий')
+    last_comment = models.ForeignKey("Comment", related_name='last_comment_statistics', on_delete=models.SET_NULL,
+                                     null=True, blank=True, verbose_name='Последний комментарий')
+    last_event_comment = models.ForeignKey("Comment", related_name='last_event_comment_statistics',
+                                           blank=True, on_delete=models.SET_NULL, null=True,
+                                           verbose_name='Последний добавленный или измененный комментарий')
+    last_like_or_comment_change_at = models.DateTimeField(verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
+                                                          null=True, blank=True)
+    comment_counter = models.IntegerField(verbose_name='Количество комментариев', default=0)
+    # TODO
+    # is_commentable = models.BooleanField(default=True, verbose_name="Разрешение на добавление/изменение/удаления комментариев")
+
+    class Meta:
+        db_table = 'like_comment_statistics'
 
 class Tag(models.Model):
     created_at = models.DateTimeField(verbose_name='Время создания', auto_now_add=True)
