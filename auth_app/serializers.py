@@ -444,21 +444,29 @@ class AccountSerializer(serializers.ModelSerializer):
 
 class TransactionPartialSerializer(serializers.ModelSerializer):
     photo = serializers.ImageField(required=False)
-    tags_list = serializers.SerializerMethodField(required=False)
+    tags = serializers.SerializerMethodField(required=False)
 
     class Meta:
         model = Transaction
         fields = ['recipient', 'amount',
                   'photo', 'is_anonymous',
-                  'reason', 'reason_def', 'tags_list']
+                  'reason', 'reason_def', 'tags']
 
-    def get_tags_list(self, obj):
-        return self.context.get('request').data.get('tags_list')
+    def get_tags(self, obj):
+        try:
+            tags = self.context.get('request').data.get('tags')
+            if tags is not None:
+                tags = [int(tag) for tag in tags.split()]
+            else:
+                tags = []
+            return tags
+        except ValueError:
+            pass
 
     def create(self, validated_data):
         current_period = get_current_period()
         request = self.context.get('request')
-        tags_list = request.data.get('tags_list')
+        tags = request.data.get('tags')
         sender = self.context['request'].user
         recipient = self.validated_data['recipient']
         photo = request.FILES.get('photo')
@@ -466,7 +474,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         reason_def = self.data.get('reason_def')
         amount = self.validated_data['amount']
         is_anonymous = self.validated_data['is_anonymous']
-        self.make_validations(amount, current_period, reason, reason_def, recipient, sender, tags_list)
+        tags = self.make_validations(amount, current_period, reason, reason_def, recipient, sender, tags)
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_distr_account.amount
@@ -501,8 +509,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 sender_distr_account.save(update_fields=['amount', 'transaction'])
                 sender_frozen_account.save(update_fields=['amount', 'transaction'])
                 sender_user_stat.save(update_fields=['distr_thanks'])
-                if tags_list:
-                    for tag in tags_list:
+                if tags:
+                    for tag in tags:
                         ObjectTag.objects.create(
                             tag_id=tag,
                             tagged_object=transaction_instance,
@@ -531,15 +539,20 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             logger.info(f"Попытка отправить спасибки на системный аккаунт")
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
         if tags is not None:
-            if not isinstance(tags, list):
-                logger.info(f"Попытка передать ценности не списком")
-                raise ValidationError('Передайте ценности (теги) для данного объекта списком')
+            if not isinstance(tags, str):
+                logger.info(f"Попытка передать ценности не строкой")
+                raise ValidationError('Передайте ценности (теги) для данного объекта строкой')
             else:
-                possible_tag_ids = set(Tag.objects.values_list('id', flat=True))
-                for tag in tags:
-                    if tag not in possible_tag_ids:
-                        logger.info(f"Ценность (тег) с ID {tag} не найдена")
-                        raise ValidationError(f'Ценность (тег) с ID {tag}не найдена')
+                try:
+                    tags_list = list(map(int, tags.split()))
+                    possible_tag_ids = set(Tag.objects.values_list('id', flat=True))
+                    for tag in tags_list:
+                        if tag not in possible_tag_ids:
+                            logger.info(f"Ценность (тег) с ID {tag} не найдена")
+                            raise ValidationError(f'Ценность (тег) с ID {tag} не найдена')
+                    return tags_list
+                except ValueError:
+                    raise ValidationError(f'Передайте строку в виде "1 2 3"')
         if amount <= 0:
             logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
             raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
