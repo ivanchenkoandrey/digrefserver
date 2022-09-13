@@ -12,10 +12,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from auth_app.models import Transaction, Period, Like
+from auth_app.models import Transaction, Period
 from auth_app.serializers import (TransactionPartialSerializer, TransactionFullSerializer,
                                   TransactionCancelSerializer, TransactionStatisticsSerializer)
-
 from auth_app.service import (update_transactions_by_controller,
                               is_controller_data_is_valid,
                               cancel_transaction_by_user, is_cancel_transaction_request_is_valid,
@@ -247,6 +246,3 @@ def get_user_transaction_list_by_period(request, period_id):
     transactions_queryset = Transaction.objects.filter_by_period(request.user, period)
     serializer = TransactionFullSerializer(transactions_queryset, many=True, context={"user": request.user})
     return Response(serializer.data)
-
-
-

@@ -627,7 +627,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
                 and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
 
     def get_tags(self, obj):
-        return obj.tags.values('tag__id', 'tag__name')
+        return obj._objecttags.values('tag__id', 'tag__name')
 
     def get_reason_def(self, obj):
         if obj.reason_def is not None:

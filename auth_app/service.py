@@ -161,19 +161,17 @@ def cancel_transaction_by_user(instance: Transaction,
     """
     with transaction.atomic():
         period = get_current_period()
-        burnt_account = Account.objects.get(account_type='B')
         sender_accounts = instance.sender.accounts.all()
         amount = instance.amount
         sender_user_stat = UserStat.objects.get(user=request.user, period=period)
         sender_distr_account = sender_accounts.filter(account_type='D').first()
         sender_frozen_account = sender_accounts.filter(account_type='F').first()
-        burnt_account.amount += amount
+        sender_distr_account.amount += amount
         sender_frozen_account.amount -= amount
         sender_user_stat.distr_thanks -= amount
         sender_user_stat.distr_declined += amount
         instance.status = 'C'
         instance.save(update_fields=['status'])
-        burnt_account.save(update_fields=['amount'])
         sender_distr_account.save(update_fields=['amount'])
         sender_frozen_account.save(update_fields=['amount'])
         sender_user_stat.save(update_fields=['distr_thanks', 'distr_declined'])

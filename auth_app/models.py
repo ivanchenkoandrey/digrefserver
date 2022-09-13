@@ -172,7 +172,7 @@ class CustomTransactionQueryset(models.QuerySet):
         """
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile', 'reason_def')
-                    .prefetch_related('tags')
+                    .prefetch_related('_objecttags')
                     .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
@@ -182,7 +182,7 @@ class CustomTransactionQueryset(models.QuerySet):
         """
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile', 'reason_def')
-                    .prefetch_related('tags')
+                    .prefetch_related('_objecttags')
                     .filter(status='W'))
         return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
 
@@ -193,7 +193,7 @@ class CustomTransactionQueryset(models.QuerySet):
 
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile', 'reason_def')
-                    .prefetch_related('tags')
+                    .prefetch_related('_objecttags')
                     .filter((Q(sender=current_user) | Q(recipient=current_user)) &
                             Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
                             ))
@@ -667,7 +667,7 @@ class ObjectTag(models.Model):
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='object_tag_updated_by',
                                    verbose_name='Пользователь, отключивший ценность', null=True, blank=True)
     flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
-    tagged_object = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='tags', verbose_name='Объект')
+    tagged_object = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='_objecttags', verbose_name='Объект')
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='objecttags', verbose_name='Ценность')
 
     class Meta:
