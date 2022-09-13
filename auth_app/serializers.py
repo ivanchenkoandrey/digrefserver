@@ -125,35 +125,33 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        counter = 0
         comments_on_transaction = Comment.objects.filter_by_transaction(obj.id).order_by(order_by)
-        for i in range(len(comments_on_transaction)):
-            if i >= offset - 1 and counter < limit:
-                comment_info = {
-                    "id": comments_on_transaction[i].id,
+        comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
+        for i in range(len(comments_on_transaction_cut)):
+            comment_info = {
+                "id": comments_on_transaction_cut[i].id,
 
-                    "text": comments_on_transaction[i].text,
-                    "picture": comments_on_transaction[i].picture,
-                    "created": comments_on_transaction[i].date_created,
-                    "edited": comments_on_transaction[i].date_last_modified
+                "text": comments_on_transaction_cut[i].text,
+                "picture": comments_on_transaction_cut[i].picture,
+                "created": comments_on_transaction_cut[i].date_created,
+                "edited": comments_on_transaction_cut[i].date_last_modified
+            }
+            if comments_on_transaction_cut[i].picture:
+                comment_info['picture'] = comments_on_transaction_cut[i].picture
+            else:
+                comment_info['picture'] = None
+            if include_name:
+                user_info = {
+                    "id": comments_on_transaction_cut[i].user_id,
+                    "name": comments_on_transaction_cut[i].user.profile.first_name,
+                    "avatar": comments_on_transaction_cut[i].user.profile.get_photo_url()
                 }
-                if comments_on_transaction[i].picture:
-                    comment_info['picture'] = comments_on_transaction[i].picture
-                else:
-                    comment_info['picture'] = None
-                if include_name:
-                    user_info = {
-                        "id": comments_on_transaction[i].user_id,
-                        "name": comments_on_transaction[i].user.profile.first_name,
-                        "avatar": comments_on_transaction[i].user.profile.get_photo_url()
-                    }
 
-                else:
-                    user_info = {"id": comments_on_transaction[i].user_id}
-                comment_info['user'] = user_info
+            else:
+                user_info = {"id": comments_on_transaction_cut[i].user_id}
+            comment_info['user'] = user_info
 
-                comments.append(comment_info)
-                counter += 1
+            comments.append(comment_info)
 
         return comments
 
@@ -177,33 +175,34 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
             like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
                           LikeKind.objects.all()]
         else:
-            like_kinds = [(like_kind.id, like_kind.name, like_kind.get_icon_url()) for like_kind in
+            like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
                           [LikeKind.objects.get(id=like_kind_id)]]
         # {"user_id": 1}
 
         for like_kind in like_kinds:
             items = []
             users_liked = [(like.date_created, like.user)
-                           for like in Like.objects.filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('date_created')]
+                           for like in Like.objects.select_related('user__profile')
+                           .only('user__profile__first_name', 'user__profile__photo').
+                           filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('date_created')]
 
-            counter = 0
-            for i in range(len(users_liked)):
-                if i >= offset and counter < limit:
-                    user_info = {"time_of": users_liked[i][0]}
-                    if include_name:
-                        this_user = {
-                                'id': users_liked[i][1].id,
-                                'name': users_liked[i][1].profile.first_name,
-                                'avatar': users_liked[i][1].profile.get_photo_url()
-                            }
+            users_liked_cut = users_liked[offset:offset+limit]
+            for i in range(len(users_liked_cut)):
 
-                    else:
-                        this_user = {
-                            'id': users_liked[i][1].id
+                user_info = {"time_of": users_liked_cut[i][0]}
+                if include_name:
+                    this_user = {
+                            'id': users_liked_cut[i][1].id,
+                            'name': users_liked_cut[i][1].profile.first_name,
+                            'avatar': users_liked_cut[i][1].profile.get_photo_url()
                         }
-                    user_info['user'] = this_user
-                    items.append(user_info)
-                    counter += 1
+
+                else:
+                    this_user = {
+                        'id': users_liked_cut[i][1].id
+                    }
+                user_info['user'] = this_user
+                items.append(user_info)
 
             if include_code:
                 likes.append(
@@ -251,54 +250,54 @@ class LikeUserSerializer(serializers.ModelSerializer):
         like_kind_id = self.context.get('like_kind')
         offset = self.context.get('offset')
         limit = self.context.get('limit')
-        likes = {}
+
         if include_code:
             like_kinds = [{"id": like_kind.id, "code": like_kind.code, "name": like_kind.name,
                            "icon": like_kind.get_icon_url()} for like_kind in LikeKind.objects.all()]
         else:
             like_kinds = [{"id": like_kind.id, "code": like_kind.code} for like_kind in LikeKind.objects.all()]
-        likes["like_kinds"] = like_kinds
+        likes = {"like_kinds": like_kinds}
         # {"user_id": 1}
+        items = []
+
         if like_kind_id != 'all':
             like_kind = LikeKind.objects.get(id=like_kind_id)
-            items = []
+
             transactions_liked = [(like.transaction_id, like.date_created)
-                                  for like in Like.objects.filter_by_user_and_like_kind(obj.id, like_kind).order_by('date_created')]
-            counter = 0
-            for i in range(len(transactions_liked)):
-                if i >= offset - 1 and counter < limit:
-                    items.append(
-                        {
-                            "transaction_id": transactions_liked[i][0],
-                            "time_of": transactions_liked[i][1],
-                            "like_kind": like_kind_id,
-                        }
-                    )
-                    likes['items'] = items
-                    counter += 1
-            if len(transactions_liked) == 0:
+                                  for like in Like.objects.filter_by_user_and_like_kind(obj.id, like_kind).
+                                  order_by('date_created')]
+
+            transactions_liked_cut = transactions_liked[offset:offset + limit]
+            for i in range(len(transactions_liked_cut)):
+                transaction_info = {
+                                      "transaction_id": transactions_liked_cut[i][0],
+                                      "time_of": transactions_liked_cut[i][1],
+                                      "like_kind": like_kind_id
+                                    }
+                items.append(transaction_info)
+            likes['items'] = items
+
+            if len(transactions_liked_cut) == 0:
                 items.append(None)
                 likes['items'] = items
             return likes
 
         else:
-
-            items = []
             transactions_liked = [(like.transaction_id, like.date_created, like.like_kind_id)
                                   for like in Like.objects.filter_by_user(obj.id).order_by('date_created')]
-            counter = 0
-            for i in range(len(transactions_liked)):
-                if i >= offset and counter < limit:
-                    items.append(
-                        {
-                            "transaction_id": transactions_liked[i][0],
-                            "time_of": transactions_liked[i][1],
-                            "like_kind": transactions_liked[i][2],
-                        }
-                    )
-                    likes['items'] = items
-                    counter += 1
-            if len(transactions_liked) == 0:
+            transactions_liked_cut = transactions_liked[offset: offset + limit]
+            for i in range(len(transactions_liked_cut)):
+
+                items.append(
+                    {
+                        "transaction_id": transactions_liked_cut[i][0],
+                        "time_of": transactions_liked_cut[i][1],
+                        "like_kind": transactions_liked_cut[i][2],
+                    }
+                )
+                likes['items'] = items
+
+            if len(transactions_liked_cut) == 0:
                 items = None
                 likes['items'] = items
             return likes
@@ -391,7 +390,8 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_code = self.context.get('include_code')
         likes = []
         # {"transaction_id":6}
-        fields = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in LikeKind.objects.all()]
+        fields = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
+                  LikeKind.objects.all()]
 
         if include_code:
             for like_kind in fields:

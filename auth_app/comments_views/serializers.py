@@ -65,18 +65,15 @@ class CreateCommentSerializer(serializers.ModelSerializer):
 
 
 class UpdateCommentSerializer(serializers.ModelSerializer):
-
-    id = serializers.IntegerField(required=True)
-
     class Meta:
         model = Comment
-        fields = ['id', 'text', 'picture']
+        fields = ['text', 'picture']
 
-    def create(self, validated_data):
+    def validate(self, validated_data):
 
         text = validated_data['text']
         picture = validated_data['picture']
-        comment_id = validated_data['id']
+        comment_id = self.instance.id
         if (text is None or text == "") and picture is None:
             raise ValidationError("Не переданы параметры text или picture")
 
@@ -97,18 +94,14 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
         like_comment_statistics_data = {'last_event_comment': comment,
                                         'last_like_or_comment_change_at': datetime.now()}
         super().update(like_comment_statistics, like_comment_statistics_data)
-        return super().update(comment, data)
+        return data
 
 
 class DeleteCommentSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(required=True)
 
-    class Meta:
-        model = Comment
-        fields = ['id']
-
-    def create(self, validated_data):
-        comment_id = validated_data['id']
+    def validate(self, validated_data):
+        comment_id = self.instance.id
+        validated_data['id'] = comment_id
         try:
             comment = get_object_or_404(Comment, id=comment_id)
         except Comment.DoesNotExist:
@@ -146,7 +139,7 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
             except Comment.DoesNotExist:
                 pass
 
-        comment.delete()
+        # comment.delete()
         last_comment_created = Comment.objects.all().filter(transaction_id=transaction_id) \
             .order_by('-date_created').first()
         last_comment_modified = Comment.objects.all().filter(transaction_id=transaction_id) \
@@ -168,7 +161,8 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
             like_comment_statistics_data['last_event_comment'] = None
         super().update(like_comment_statistics, like_comment_statistics_data)
 
-        # TODO
-        transaction = Transaction.objects.get(id=transaction_id)
-        data = {"is_commentable": True}
-        return super().update(transaction, data)
+        return validated_data
+
+    class Meta:
+        model = Comment
+        fields = '__all__'

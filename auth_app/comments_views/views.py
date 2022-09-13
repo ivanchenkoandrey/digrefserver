@@ -1,5 +1,5 @@
 from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from auth_app.models import Comment, Transaction
@@ -76,19 +76,35 @@ class CreateCommentView(CreateAPIView):
     serializer_class = CreateCommentSerializer
 
 
-class UpdateCommentView(CreateAPIView):
-    permission_classes = [IsAuthenticated]
+class UpdateCommentView(UpdateAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
     queryset = Comment.objects.all()
     serializer_class = UpdateCommentSerializer
+    lookup_field = 'pk'
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
-class DeleteCommentView(CreateAPIView):
+class DeleteCommentView(DestroyAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    queryset = Transaction.objects.all()
-
+    queryset = Comment.objects.all()
     serializer_class = DeleteCommentSerializer
+    lookup_field = 'pk'
 
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            self.perform_destroy(instance)
+        return Response(serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
