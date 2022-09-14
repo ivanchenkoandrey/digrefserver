@@ -53,7 +53,7 @@ def get_events_list(request):
             "event_type": event_type,
             "transaction": {
                 "id": _transaction.pk,
-                "sender_id": _transaction.sender_id,
+                "sender_id": None if _transaction.is_anonymous else _transaction.sender_id,
                 "sender": sender,
                 "recipient_id": _transaction.recipient_id,
                 "recipient": recipient_tg_name,
