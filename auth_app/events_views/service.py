@@ -9,8 +9,10 @@ logger = logging.getLogger(__name__)
 
 TRANSACTION_FIELDS = (
     "id",
+    "sender_id",
     "sender__profile__tg_name",
     "is_public",
+    "recipient_id",
     "recipient__profile__tg_name",
     "recipient__profile__photo",
     "recipient__profile__first_name",
@@ -42,7 +44,6 @@ def get_events_list(request):
         is_public = _transaction.is_public
         sender = _transaction.sender.profile.tg_name
         recipient_photo = _transaction.recipient.profile.photo
-
         event_type = get_event_type(request_user_tg_name, recipient_tg_name, is_public, event_types).to_json()
         sender = 'anonymous' if _transaction.is_anonymous else sender
         del event_type['record_type']
@@ -52,7 +53,9 @@ def get_events_list(request):
             "event_type": event_type,
             "transaction": {
                 "id": _transaction.pk,
+                "sender_id": _transaction.sender_id,
                 "sender": sender,
+                "recipient_id": _transaction.recipient_id,
                 "recipient": recipient_tg_name,
                 "recipient_photo": f"/media/{recipient_photo}" if recipient_photo else None,
                 "recipient_first_name": _transaction.recipient.profile.first_name,
@@ -93,5 +96,5 @@ def get_transactions_queryset(request):
                                   .prefetch_related('_objecttags')
                                   .filter(recipient=request.user, status__in=['A', 'R'])
                                   .defer('transaction_class', 'grace_timeout', 'organization_id', 'period', 'scope'))
-    extended_transactions = (public_transactions | transactions_receiver_only).distinct().order_by('-updated_at')
+    extended_transactions = (public_transactions | transactions_receiver_only).distinct().order_by('-updated_at')[:20]
     return extended_transactions
