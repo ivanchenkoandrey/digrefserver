@@ -43,7 +43,6 @@ class LikesTransactionListAPIView(APIView):
                 return Response("Переданный идентификатор не относится "
                                 "ни к одному типу лайка",
                                 status=status.HTTP_404_NOT_FOUND)
-
         if include_code is None:
             include_code = False
         else:

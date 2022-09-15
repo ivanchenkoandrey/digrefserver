@@ -16,8 +16,8 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         validated_data['date_created'] = datetime.now()
-        content = validated_data['text']
-        image = validated_data['picture']
+        content = validated_data.get('text')
+        image = validated_data.get('picture')
 
         if (content is None or content == "") and image is None:
             raise ValidationError("Не переданы параметры text или picture")
@@ -71,8 +71,8 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
 
     def validate(self, validated_data):
 
-        text = validated_data['text']
-        picture = validated_data['picture']
+        text = validated_data.get('text')
+        picture = validated_data.get('picture')
         comment_id = self.instance.id
         if (text is None or text == "") and picture is None:
             raise ValidationError("Не переданы параметры text или picture")
@@ -81,20 +81,17 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
             comment = Comment.objects.get(id=comment_id)
         except Comment.DoesNotExist:
             raise ValidationError("Данного комментария не существует")
+        if comment.user_id != self.context['request'].user.id:
+            raise ValidationError("Вы не можете изменить комментарий чужого пользователя")
 
-        data = {'date_last_modified': datetime.now()}
-        if picture is not None:
-            data['picture'] = picture
+        validated_data['date_last_modified'] = datetime.now()
 
-        if text is not None and text != "":
-            data['text'] = text
-
-        transaction = comment.transaction
-        like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
+        transaction_id = comment.transaction_id
+        like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction_id)
         like_comment_statistics_data = {'last_event_comment': comment,
                                         'last_like_or_comment_change_at': datetime.now()}
         super().update(like_comment_statistics, like_comment_statistics_data)
-        return data
+        return validated_data
 
 
 class DeleteCommentSerializer(serializers.ModelSerializer):
@@ -106,6 +103,8 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
             comment = get_object_or_404(Comment, id=comment_id)
         except Comment.DoesNotExist:
             raise ValidationError("Данного комментария не существует")
+        if comment.user_id != self.context['request'].user.id:
+            raise ValidationError("Вы не можете удалить комментарий чужого пользователя")
         transaction_id = comment.transaction_id
         previous_comment = comment.previous_comment
         if previous_comment is not None:

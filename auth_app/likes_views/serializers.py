@@ -13,7 +13,7 @@ class PressLikeSerializer(serializers.ModelSerializer):
 
         user = self.context['request'].user
         validated_data['user'] = user
-        transaction = validated_data['transaction']
+        transaction = validated_data.get('transaction')
         like_kind = validated_data['like_kind']
 
         like_kinds = LikeKind.objects.all()
@@ -38,9 +38,6 @@ class PressLikeSerializer(serializers.ModelSerializer):
                                                                    last_like_or_comment_change_at=datetime.now())
             like_comment_statistics_object.save()
 
-        if transaction is None:
-            raise ValidationError("Не передана транзакция")
-
         if like_kind.id == like_kinds[0].id:
             another_like_kind = like_kinds[1].id
         else:
@@ -48,7 +45,7 @@ class PressLikeSerializer(serializers.ModelSerializer):
 
         existing_like_different_like_type = Like.objects.filter(transaction=transaction.id,
                                                                 user=user, is_liked=True,
-                                                                   like_kind=another_like_kind).first()
+                                                                like_kind=another_like_kind).first()
 
         if existing_like_different_like_type is not None:
 

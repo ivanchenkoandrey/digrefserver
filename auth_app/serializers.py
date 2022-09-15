@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from utils.query_debugger import query_debugger
 
 from auth_app.models import (Profile, Account, Transaction,
                              UserStat, Period, Contact,
@@ -104,6 +105,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         fields = ['username']
 
 
+@query_debugger
 class CommentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
@@ -125,7 +127,8 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        comments_on_transaction = Comment.objects.filter_by_transaction(obj.id).order_by(order_by)
+        comments_on_transaction = Comment.objects.filter_by_transaction(obj.id).select_related('user__profile').\
+            only('user__profile__first_name', 'user__profile__photo').order_by(order_by)
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
             comment_info = {
@@ -164,6 +167,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
     def get_transaction_id(self, obj):
         return obj.id
 
+    @query_debugger
     def get_likes(self, obj):
         include_code = self.context.get('include_code')
         include_name = self.context.get('include_name')
@@ -184,8 +188,10 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
             users_liked = [(like.date_created, like.user)
                            for like in Like.objects.select_related('user__profile')
                            .only('user__profile__first_name', 'user__profile__photo').
-                           filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('date_created')]
-
+                           filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('-date_created')]
+            # users_liked = [(like.date_created, like.user)
+            #                for like in Like.objects.
+            #                filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('date_created')]
             users_liked_cut = users_liked[offset:offset+limit]
             for i in range(len(users_liked_cut)):
 
@@ -223,6 +229,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
                         "like_kind": {
                             'id': like_kind[0],
                             'code': like_kind[1],
+
                         },
                         "items": items
                     }
@@ -236,6 +243,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
         fields = ['transaction_id', 'likes']
 
 
+@query_debugger
 class LikeUserSerializer(serializers.ModelSerializer):
 
     likes = serializers.SerializerMethodField()
@@ -284,7 +292,7 @@ class LikeUserSerializer(serializers.ModelSerializer):
 
         else:
             transactions_liked = [(like.transaction_id, like.date_created, like.like_kind_id)
-                                  for like in Like.objects.filter_by_user(obj.id).order_by('date_created')]
+                                  for like in Like.objects.filter_by_user(obj.id).order_by('-date_created')]
             transactions_liked_cut = transactions_liked[offset: offset + limit]
             for i in range(len(transactions_liked_cut)):
 
@@ -307,6 +315,7 @@ class LikeUserSerializer(serializers.ModelSerializer):
         fields = ['user_id', 'likes']
 
 
+@query_debugger
 class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
     transaction_id = serializers.SerializerMethodField()
