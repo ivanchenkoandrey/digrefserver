@@ -17,6 +17,7 @@ from .models import Period, UserStat, Account, Transaction
 from .serializers import (UserSerializer, SearchUserSerializer,
                           PeriodSerializer)
 from .service import (get_search_user_data)
+from utils.thumbnail_link import get_thumbnail_link
 
 User = get_user_model()
 
@@ -140,6 +141,10 @@ class UsersList(APIView):
                 name=F('profile__first_name'),
                 surname=F('profile__surname'),
                 photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:10])
+            for user in users_list:
+                photo = user.get('photo')
+                if photo is not None:
+                    user['photo'] = get_thumbnail_link(photo)
             return Response(users_list)
         logger.info(f'Неправильный запрос на показ пользователей по умолчанию от {request.user}: {request.data}')
         return Response(status=status.HTTP_400_BAD_REQUEST)

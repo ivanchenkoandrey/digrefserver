@@ -15,6 +15,9 @@ from auth_app.models import (Profile, Account, Transaction,
                              LikeStatistics,
                              LikeCommentStatistics)
 from utils.current_period import get_current_period
+from utils.thumbnail_link import get_thumbnail_link
+from utils.crop_photos import crop_image
+from utils.handle_image import change_transaction_filename
 
 User = get_user_model()
 
@@ -46,6 +49,11 @@ class ProfileSerializer(serializers.ModelSerializer):
     organization = serializers.CharField(source="organization.name")
     department = serializers.CharField(source="department.name")
     status = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+
+    def get_photo(self, obj):
+        if obj.photo:
+            return get_thumbnail_link(obj.photo.url)
 
     def get_status(self, obj):
         return obj.get_status_display()
@@ -520,6 +528,10 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                         created_by_id=request.user.pk
                     )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
+            if transaction_instance.photo is not None:
+                transaction_instance.photo.name = change_transaction_filename(transaction_instance.photo.name)
+                transaction_instance.save(update_fields=['photo'])
+                crop_image(transaction_instance.photo.name, f"{settings.BASE_DIR}/media/")
             return transaction_instance
 
     @classmethod
@@ -565,6 +577,11 @@ class TransactionFullSerializer(serializers.ModelSerializer):
     can_user_cancel = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
     reason_def = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+
+    def get_photo(self, obj):
+        if obj.photo:
+            return get_thumbnail_link(obj.photo.url)
 
     def get_transaction_status(self, obj):
         return {
@@ -580,6 +597,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_sender(self, obj):
         user_id = self.context.get('user').pk
+        sender_photo_url = obj.sender.profile.get_photo_url()
         if (not obj.is_anonymous
                 or user_id == obj.sender.id):
             return {
@@ -587,7 +605,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
                 'sender_tg_name': obj.sender.profile.tg_name,
                 'sender_first_name': obj.sender.profile.first_name,
                 'sender_surname': obj.sender.profile.surname,
-                'sender_photo': obj.sender.profile.get_photo_url()
+                'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
             }
         return {
             'sender_id': None,
@@ -605,12 +623,13 @@ class TransactionFullSerializer(serializers.ModelSerializer):
         return None
 
     def get_recipient(self, obj):
+        recipient_photo_url = obj.recipient.profile.get_photo_url()
         return {
             'recipient_id': obj.recipient.id,
             'recipient_tg_name': obj.recipient.profile. tg_name,
             'recipient_first_name': obj.recipient.profile.first_name,
             'recipient_surname': obj.recipient.profile.surname,
-            'recipient_photo': obj.recipient.profile.get_photo_url()
+            'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
         }
 
     def get_recipient_id(self, obj):

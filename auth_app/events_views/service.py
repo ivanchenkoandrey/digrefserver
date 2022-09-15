@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.db.models import F
 
 from auth_app.models import EventTypes, Transaction, Profile
+from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
 
@@ -57,16 +58,20 @@ def get_events_list(request):
                 "sender": sender,
                 "recipient_id": _transaction.recipient_id,
                 "recipient": recipient_tg_name,
-                "recipient_photo": f"/media/{recipient_photo}" if recipient_photo else None,
+                "recipient_photo": f"{get_thumbnail_link(recipient_photo.url)}" if recipient_photo else None,
                 "recipient_first_name": _transaction.recipient.profile.first_name,
                 "recipient_surname": _transaction.recipient.profile.surname,
-                "amount":  _transaction.amount,
-                "status": TRANSACTION_STATUS_DATA.get( _transaction.status),
-                "is_anonymous":  _transaction.is_anonymous,
-                "reason":  _transaction.reason,
-                "photo": f"/media/{ _transaction.photo}" if  _transaction.photo else None,
-                "updated_at":  _transaction.updated_at,
-                "tags":  _transaction._objecttags.values("tag_id", name=F("tag__name"))
+                "amount": _transaction.amount,
+                "status": TRANSACTION_STATUS_DATA.get(_transaction.status),
+                "is_anonymous": _transaction.is_anonymous,
+                "reason": _transaction.reason,
+                "photo": f"{get_thumbnail_link(_transaction.photo.url)}" if _transaction.photo else None,
+                "updated_at": _transaction.updated_at,
+                "tags": _transaction._objecttags.values("tag_id", name=F("tag__name")),
+                "comments": 3,
+                "last_like": "2022-09-13T21:44:42.995430+03:00",
+                "reactions": [{'id': 1, "code": "like", "counter": 10},
+                              {'id': 2, "code": "dislike", "counter": 10}]
             },
             "scope": event_type.get('scope')
         }

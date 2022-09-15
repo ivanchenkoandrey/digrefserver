@@ -139,6 +139,11 @@ LOGGING = {
             'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
+        },
+        'utils.thumbnail_link': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
         }
     }
 }
@@ -150,7 +155,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "remove_reports": {
         "task": "auth_app.tasks.remove_reports",
-        "schedule": crontab(minute="*"),
+        "schedule": crontab(minute=0, hour=0, day_of_week='sun'),
     }
 }
 
@@ -182,3 +187,4 @@ DATETIME_INPUT_FORMATS = [
 ]
 
 TELEGRAM_BOT_AUTH_TOKEN = env('TELEGRAM_BOT_AUTH_TOKEN')
+THUMBNAIL_SUFFIX = '_thumb'
