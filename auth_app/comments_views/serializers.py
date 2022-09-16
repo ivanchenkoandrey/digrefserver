@@ -139,9 +139,9 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
                 pass
 
         # comment.delete()
-        last_comment_created = Comment.objects.all().filter(transaction_id=transaction_id) \
+        last_comment_created = Comment.objects.only('id', 'date_created').filter(transaction_id=transaction_id) \
             .order_by('-date_created').first()
-        last_comment_modified = Comment.objects.all().filter(transaction_id=transaction_id) \
+        last_comment_modified = Comment.objects.only('id', 'date_last_modified').filter(transaction_id=transaction_id) \
             .order_by('-date_last_modified').first()
 
         like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=comment.transaction_id)

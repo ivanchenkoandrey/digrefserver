@@ -122,6 +122,8 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         limit = self.context.get('limit')
         include_name = self.context.get('include_name')
         is_reverse_order = self.context.get('is_reverse_order')
+        if type(offset) != int or type(limit) != int:
+            raise ValidationError("offset и limit должны быть типа Int")
         if is_reverse_order:
             order_by = "-date_created"
         else:
@@ -174,6 +176,8 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
         like_kind_id = self.context.get('like_kind')
         offset = self.context.get('offset')
         limit = self.context.get('limit')
+        if type(offset) != int or type(limit) != int:
+            raise ValidationError("offset и limit должны быть типа Int")
         likes = []
         if like_kind_id == "all":
             like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
@@ -181,34 +185,38 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
         else:
             like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
                           [LikeKind.objects.get(id=like_kind_id)]]
-        # {"user_id": 1}
+
+        users_liked = [(like.date_created, like.user, like.like_kind_id)
+                       for like in Like.objects.select_related('user__profile', 'like_kind', 'transaction')
+                       .only("id", "date_created", 'user__profile__first_name', 'user__profile__photo', 'like_kind',
+                             'transaction__id').
+                       filter(transaction_id=obj.id, is_liked=True).order_by('-date_created')]
 
         for like_kind in like_kinds:
             items = []
-            users_liked = [(like.date_created, like.user)
-                           for like in Like.objects.select_related('user__profile')
-                           .only('user__profile__first_name', 'user__profile__photo').
-                           filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('-date_created')]
-            # users_liked = [(like.date_created, like.user)
-            #                for like in Like.objects.
-            #                filter_by_transaction_and_like_kind(obj.id, like_kind[0]).order_by('date_created')]
-            users_liked_cut = users_liked[offset:offset+limit]
-            for i in range(len(users_liked_cut)):
+            counter = 0
+            index = 0
+            # users_liked_cut = users_liked[offset:offset+limit]
+            for i in range(len(users_liked)):
 
-                user_info = {"time_of": users_liked_cut[i][0]}
-                if include_name:
-                    this_user = {
-                            'id': users_liked_cut[i][1].id,
-                            'name': users_liked_cut[i][1].profile.first_name,
-                            'avatar': users_liked_cut[i][1].profile.get_photo_url()
-                        }
+                if users_liked[i][2] == like_kind[0]:
+                    if index >= offset and counter < limit:
+                        user_info = {"time_of": users_liked[i][0]}
+                        if include_name:
+                            this_user = {
+                                    'id': users_liked[i][1].id,
+                                    'name': users_liked[i][1].profile.first_name,
+                                    'avatar': users_liked[i][1].profile.get_photo_url()
+                                }
 
-                else:
-                    this_user = {
-                        'id': users_liked_cut[i][1].id
-                    }
-                user_info['user'] = this_user
-                items.append(user_info)
+                        else:
+                            this_user = {
+                                'id': users_liked[i][1].id
+                            }
+                        user_info['user'] = this_user
+                        items.append(user_info)
+                        counter += 1
+                    index += 1
 
             if include_code:
                 likes.append(
@@ -229,7 +237,6 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
                         "like_kind": {
                             'id': like_kind[0],
                             'code': like_kind[1],
-
                         },
                         "items": items
                     }
@@ -243,7 +250,6 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
         fields = ['transaction_id', 'likes']
 
 
-@query_debugger
 class LikeUserSerializer(serializers.ModelSerializer):
 
     likes = serializers.SerializerMethodField()
@@ -253,6 +259,7 @@ class LikeUserSerializer(serializers.ModelSerializer):
     def get_user_id(self, obj):
         return obj.id
 
+    @query_debugger
     def get_likes(self, obj):
         include_code = self.context.get('include_code')
         like_kind_id = self.context.get('like_kind')
@@ -263,9 +270,9 @@ class LikeUserSerializer(serializers.ModelSerializer):
             like_kinds = [{"id": like_kind.id, "code": like_kind.code, "name": like_kind.name,
                            "icon": like_kind.get_icon_url()} for like_kind in LikeKind.objects.all()]
         else:
-            like_kinds = [{"id": like_kind.id, "code": like_kind.code} for like_kind in LikeKind.objects.all()]
+            like_kinds = [{"id": like_kind.id, "code": like_kind.code} for like_kind in LikeKind.objects.
+                          only("id", 'code')]
         likes = {"like_kinds": like_kinds}
-        # {"user_id": 1}
         items = []
 
         if like_kind_id != 'all':
@@ -335,36 +342,41 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         except LikeCommentStatistics.DoesNotExist:
             return 0
 
-    def get_comment(self, comment, include_name):
-
-        comment_info = {"id": comment.id}
+    @query_debugger
+    def get_comment(self, comment_id, include_name):
+        comment = [(com.user.id, com.user.profile.first_name, com.user.profile.get_photo_url(), com.text, com.picture, com.date_created, com.date_last_modified)
+                   for com in Comment.objects.select_related("user__profile").
+                   only("id", "user__profile__first_name", "user__profile__photo", "text", "picture", "date_created", "date_last_modified").filter(id=comment_id)]
+        comment_info = {"id": comment_id}
         if include_name:
             user = {
-                    "id": comment.user.id,
-                    "name": comment.user.profile.first_name,
-                    "avatar": comment.user.profile.get_photo_url()
+                    "id": comment[0][0],
+                    "name": comment[0][1],
+                    "avatar": comment[0][2]
             }
         else:
-            user = {"id": comment.user.id}
+            user = {"id": comment[0][0]}
         comment_info['user'] = user
-        comment_info['text'] = comment.text
-        if comment.picture:
-            comment_info['picture'] = comment.picture
+        comment_info['text'] = comment[0][3]
+        if comment[0][4]:
+            comment_info['picture'] = comment[0][4]
         else:
             comment_info['picture'] = None
-        comment_info['created'] = comment.date_created
-        comment_info['edited'] = comment.date_last_modified
+        comment_info['created'] = comment[0][5]
+        comment_info['edited'] = comment[0][6]
         return comment_info
 
+    @query_debugger
     def get_first_comment(self, obj):
         include_name = self.context.get('include_name')
         include_first_comment = self.context.get('include_first_comment')
         if include_first_comment:
             try:
-                likes_comments_statistics = LikeCommentStatistics.objects.get(transaction_id=obj.id)
-                first_comment = likes_comments_statistics.first_comment
+                likes_comments_statistics = [statistics.first_comment for statistics in LikeCommentStatistics.objects.select_related("first_comment").
+                                             only("first_comment").filter(transaction_id=obj.id)]
+                first_comment = likes_comments_statistics[0]
                 if first_comment is not None:
-                    return self.get_comment(first_comment, include_name)
+                    return self.get_comment(first_comment.id, include_name)
             except LikeCommentStatistics.DoesNotExist:
                 pass
         return None
@@ -374,10 +386,12 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_comment = self.context.get('include_last_comment')
         if include_last_comment:
             try:
-                likes_comments_statistics = LikeCommentStatistics.objects.get(transaction_id=obj.id)
-                last_comment = likes_comments_statistics.last_comment
+                likes_comments_statistics = [statistics.first_comment for statistics in
+                                             LikeCommentStatistics.objects.select_related("last_comment").only(
+                                                 "last_comment").filter(transaction_id=obj.id)]
+                last_comment = likes_comments_statistics[0]
                 if last_comment is not None:
-                    return self.get_comment(last_comment, include_name)
+                    return self.get_comment(last_comment.id, include_name)
             except LikeCommentStatistics.DoesNotExist:
                 pass
         return None
@@ -387,58 +401,54 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_event_comment = self.context.get('include_last_event_comment')
         if include_last_event_comment:
             try:
-                likes_comments_statistics = LikeCommentStatistics.objects.get(transaction_id=obj.id)
-                last_event_comment = likes_comments_statistics.last_event_comment
+                likes_comments_statistics = [statistics.first_comment for statistics in
+                                             LikeCommentStatistics.objects.select_related("last_event_comment").only(
+                                                 "last_event_comment").filter(transaction_id=obj.id)]
+                last_event_comment = likes_comments_statistics[0]
                 if last_event_comment is not None:
-                    return self.get_comment(last_event_comment, include_name)
+                    return self.get_comment(last_event_comment.id, include_name)
             except LikeCommentStatistics.DoesNotExist:
                 pass
         return None
 
+    @query_debugger
     def get_likes(self, obj):
         include_code = self.context.get('include_code')
         likes = []
-        # {"transaction_id":6}
         fields = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
                   LikeKind.objects.all()]
 
-        if include_code:
-            for like_kind in fields:
-                like_info = {
-                    'like_kind': {
-                                'id': like_kind[0],
-                                'code': like_kind[1],
-                                'name': like_kind[2],
-                                'icon': like_kind[3]
-                                }
+        try:
+            like_statistics = [(statistics.like_kind_id, statistics.like_counter, statistics.last_change_at) for statistics in LikeStatistics.objects.select_related("transaction", "like_kind").only("id", "like_counter", "like_kind", "last_change_at", "transaction__id").
+                               filter(transaction_id=obj.id)]
+        except LikeStatistics.DoesNotExist:
+            pass
+        for like_kind in fields:
+            like_info = {}
+            if include_code:
+                like_kind_info = {
+                    'id': like_kind[0],
+                    'code': like_kind[1],
+                    'name': like_kind[2],
+                    'icon': like_kind[3]
                 }
-                try:
-                    like_statistics = LikeStatistics.objects.get(transaction_id=obj.id, like_kind=like_kind[0])
-                    like_info['counter'] = like_statistics.like_counter
-                    like_info['last_changed'] = like_statistics.last_change_at
-                except LikeStatistics.DoesNotExist:
-                    like_info['counter'] = 0
-                    like_info['last_changed'] = None
-                likes.append(like_info)
-            return likes
-        else:
-            for like_kind in fields:
-                like_info = {
-                    'like_kind': {
-                        'id': like_kind[0],
-                        'code': like_kind[1]
-                    }
+            else:
+                like_kind_info = {
+                    'id': like_kind[0],
+                    'code': like_kind[1]
                 }
-                try:
-                    like_statistics = LikeStatistics.objects.get(transaction_id=obj.id, like_kind=like_kind[0])
-                    like_info['counter'] = like_statistics.like_counter
-                    like_info['last_changed'] = like_statistics.last_change_at
-                except LikeStatistics.DoesNotExist:
-                    like_info['counter'] = 0
-                    like_info['last_changed'] = None
+            like_info['like_kind'] = like_kind_info
+            # default values, if statistics doesn't exist
+            like_info['counter'] = 0
+            like_info['last_changed'] = None
+            for statistics in like_statistics:
+                if statistics[0] == like_kind[0]:
+                    like_info['counter'] = statistics[1]
+                    like_info['last_changed'] = statistics[2]
 
-                likes.append(like_info)
-            return likes
+            likes.append(like_info)
+
+        return likes
 
     class Meta:
         model = Like
