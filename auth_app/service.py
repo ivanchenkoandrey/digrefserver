@@ -11,6 +11,7 @@ from django.http import HttpRequest
 from auth_app.models import Transaction, TransactionState, UserStat, Account
 from auth_app.serializers import TransactionCancelSerializer
 from utils.current_period import get_current_period
+from utils.thumbnail_link import get_thumbnail_link
 
 User = get_user_model()
 
@@ -137,7 +138,12 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
     else:
         users_data = User.objects.filter(
             main_search_filters & not_show_myself_filter & not_show_system_filter).distinct()
-    return annotate_search_users_queryset(users_data)
+    users_list = annotate_search_users_queryset(users_data)
+    for user in users_list:
+        photo = user.get('photo')
+        if photo is not None:
+            user['photo'] = get_thumbnail_link(photo)
+    return users_list
 
 
 def annotate_search_users_queryset(users_queryset: QuerySet) -> Dict:

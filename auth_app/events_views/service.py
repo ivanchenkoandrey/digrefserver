@@ -4,13 +4,16 @@ from datetime import timedelta
 from django.db.models import F
 
 from auth_app.models import EventTypes, Transaction, Profile
+from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
 
 TRANSACTION_FIELDS = (
     "id",
+    "sender_id",
     "sender__profile__tg_name",
     "is_public",
+    "recipient_id",
     "recipient__profile__tg_name",
     "recipient__profile__photo",
     "recipient__profile__first_name",
@@ -42,7 +45,6 @@ def get_events_list(request):
         is_public = _transaction.is_public
         sender = _transaction.sender.profile.tg_name
         recipient_photo = _transaction.recipient.profile.photo
-
         event_type = get_event_type(request_user_tg_name, recipient_tg_name, is_public, event_types).to_json()
         sender = 'anonymous' if _transaction.is_anonymous else sender
         del event_type['record_type']
@@ -52,18 +54,24 @@ def get_events_list(request):
             "event_type": event_type,
             "transaction": {
                 "id": _transaction.pk,
+                "sender_id": None if _transaction.is_anonymous else _transaction.sender_id,
                 "sender": sender,
+                "recipient_id": _transaction.recipient_id,
                 "recipient": recipient_tg_name,
-                "recipient_photo": f"/media/{recipient_photo}" if recipient_photo else None,
+                "recipient_photo": f"{get_thumbnail_link(recipient_photo.url)}" if recipient_photo else None,
                 "recipient_first_name": _transaction.recipient.profile.first_name,
                 "recipient_surname": _transaction.recipient.profile.surname,
-                "amount":  _transaction.amount,
-                "status": TRANSACTION_STATUS_DATA.get( _transaction.status),
-                "is_anonymous":  _transaction.is_anonymous,
-                "reason":  _transaction.reason,
-                "photo": f"/media/{ _transaction.photo}" if  _transaction.photo else None,
-                "updated_at":  _transaction.updated_at,
-                "tags":  _transaction._objecttags.values("tag_id", name=F("tag__name"))
+                "amount": _transaction.amount,
+                "status": TRANSACTION_STATUS_DATA.get(_transaction.status),
+                "is_anonymous": _transaction.is_anonymous,
+                "reason": _transaction.reason,
+                "photo": f"{get_thumbnail_link(_transaction.photo.url)}" if _transaction.photo else None,
+                "updated_at": _transaction.updated_at,
+                "tags": _transaction._objecttags.values("tag_id", name=F("tag__name")),
+                "comments": 3,
+                "last_like": "2022-09-13T21:44:42.995430+03:00",
+                "reactions": [{'id': 1, "code": "like", "counter": 10},
+                              {'id': 2, "code": "dislike", "counter": 10}]
             },
             "scope": event_type.get('scope')
         }
@@ -93,5 +101,5 @@ def get_transactions_queryset(request):
                                   .prefetch_related('_objecttags')
                                   .filter(recipient=request.user, status__in=['A', 'R'])
                                   .defer('transaction_class', 'grace_timeout', 'organization_id', 'period', 'scope'))
-    extended_transactions = (public_transactions | transactions_receiver_only).distinct().order_by('-updated_at')
+    extended_transactions = (public_transactions | transactions_receiver_only).distinct().order_by('-updated_at')[:20]
     return extended_transactions

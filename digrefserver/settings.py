@@ -99,7 +99,10 @@ MEDIA_ROOT = os.path.join(
     BASE_DIR, 'media'
 )
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8080',
+    'http://127.0.0.1:8080'
+]
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
@@ -139,6 +142,11 @@ LOGGING = {
             'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
+        },
+        'utils.thumbnail_link': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
         }
     }
 }
@@ -150,11 +158,11 @@ CELERY_BEAT_SCHEDULE = {
     },
     "remove_reports": {
         "task": "auth_app.tasks.remove_reports",
-        "schedule": crontab(minute="*"),
+        "schedule": crontab(minute=0, hour=0, day_of_week='sun'),
     }
 }
 
-GRACE_PERIOD = 60 * 10  # 10 minutes
+GRACE_PERIOD = env.int('GRACE_PERIOD')
 ANONYMOUS_MODE = False
 
 DEFAULT_USER_PASSWORD = env('DEFAULT_USER_PASSWORD')
@@ -182,3 +190,4 @@ DATETIME_INPUT_FORMATS = [
 ]
 
 TELEGRAM_BOT_AUTH_TOKEN = env('TELEGRAM_BOT_AUTH_TOKEN')
+THUMBNAIL_SUFFIX = '_thumb'

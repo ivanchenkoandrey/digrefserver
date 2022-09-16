@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import F
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from utils.query_debugger import query_debugger
@@ -15,6 +16,9 @@ from auth_app.models import (Profile, Account, Transaction,
                              LikeStatistics,
                              LikeCommentStatistics)
 from utils.current_period import get_current_period
+from utils.thumbnail_link import get_thumbnail_link
+from utils.crop_photos import crop_image
+from utils.handle_image import change_transaction_filename
 
 User = get_user_model()
 
@@ -46,6 +50,11 @@ class ProfileSerializer(serializers.ModelSerializer):
     organization = serializers.CharField(source="organization.name")
     department = serializers.CharField(source="department.name")
     status = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+
+    def get_photo(self, obj):
+        if obj.photo:
+            return get_thumbnail_link(obj.photo.url)
 
     def get_status(self, obj):
         return obj.get_status_display()
@@ -497,7 +506,10 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_distr_account.amount
-        if amount >= current_account_amount:
+        if current_account_amount - amount < 0:
+            logger.info(f"Попытка {sender} перевести сумму больше имеющейся на счету распределения")
+            raise ValidationError("Нельзя перевести больше, чем есть на счету")
+        if current_account_amount // 2 < amount and current_account_amount > 50:
             logger.info(f"Попытка {sender} перевести сумму, большую либо равную "
                         f"имеющейся сумме на счету распределения")
             raise ValidationError("Перевести можно до 50% имеющейся "
@@ -505,48 +517,47 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         sender_frozen_account = Account.objects.filter(
             owner=sender, account_type='F').first()
         sender_user_stat = UserStat.objects.get(user=sender, period=current_period)
-        if amount <= current_account_amount // 2:
-            with transaction.atomic():
-                transaction_instance = Transaction.objects.create(
-                    sender=self.context['request'].user,
-                    recipient=recipient,
-                    transaction_class='T',
-                    amount=self.validated_data['amount'],
-                    status='G',
-                    reason=reason,
-                    is_public=True,
-                    is_anonymous=is_anonymous,
-                    period=current_period,
-                    photo=photo,
-                    reason_def_id=reason_def
-                )
-                sender_distr_account.amount -= amount
-                sender_distr_account.transaction = transaction_instance
-                sender_frozen_account.amount += amount
-                sender_frozen_account.transaction = transaction_instance
-                sender_user_stat.distr_thanks += amount
-                sender_distr_account.save(update_fields=['amount', 'transaction'])
-                sender_frozen_account.save(update_fields=['amount', 'transaction'])
-                sender_user_stat.save(update_fields=['distr_thanks'])
-                if tags:
-                    for tag in tags:
-                        ObjectTag.objects.create(
-                            tag_id=tag,
-                            tagged_object=transaction_instance,
-                            created_by_id=request.user.pk
-                        )
-
+        with transaction.atomic():
+            transaction_instance = Transaction.objects.create(
+                sender=self.context['request'].user,
+                recipient=recipient,
+                transaction_class='T',
+                amount=self.validated_data['amount'],
+                status='G',
+                reason=reason,
+                is_public=True,
+                is_anonymous=is_anonymous,
+                period=current_period,
+                photo=photo,
+                reason_def_id=reason_def
+            )
+            sender_distr_account.amount -= amount
+            sender_distr_account.transaction = transaction_instance
+            sender_frozen_account.amount += amount
+            sender_frozen_account.transaction = transaction_instance
+            sender_user_stat.distr_thanks += amount
+            sender_distr_account.save(update_fields=['amount', 'transaction'])
+            sender_frozen_account.save(update_fields=['amount', 'transaction'])
+            sender_user_stat.save(update_fields=['distr_thanks'])
+            if tags:
+                for tag in tags:
+                    ObjectTag.objects.create(
+                        tag_id=tag,
+                        tagged_object=transaction_instance,
+                        created_by_id=request.user.pk
+                    )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
+            if transaction_instance.photo is not None:
+                transaction_instance.photo.name = change_transaction_filename(transaction_instance.photo.name)
+                transaction_instance.save(update_fields=['photo'])
+                crop_image(transaction_instance.photo.name, f"{settings.BASE_DIR}/media/")
             return transaction_instance
-        else:
-            logger.info(f"Попытка {sender} перевести сумму, "
-                        f"меньшую чем полная сумма на счету распределения, "
-                        f"но большую чем её половина")
-            raise ValidationError('Нельзя перевести больше половины '
-                                  'имеющейся под распределение суммы')
 
     @classmethod
     def make_validations(cls, amount, current_period, reason, reason_def, recipient, sender, tags):
+        if amount <= 0:
+            logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
+            raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
         if current_period is None:
             logger.info(f"Попытка создать транзакцию, когда закончился период")
             raise ValidationError('Период отправки транзакций закончился')
@@ -572,9 +583,6 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     return tags_list
                 except ValueError:
                     raise ValidationError(f'Передайте строку в виде "1 2 3"')
-        if amount <= 0:
-            logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
-            raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
 
 
 class TransactionFullSerializer(serializers.ModelSerializer):
@@ -588,6 +596,11 @@ class TransactionFullSerializer(serializers.ModelSerializer):
     can_user_cancel = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
     reason_def = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+
+    def get_photo(self, obj):
+        if obj.photo:
+            return get_thumbnail_link(obj.photo.url)
 
     def get_transaction_status(self, obj):
         return {
@@ -603,6 +616,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_sender(self, obj):
         user_id = self.context.get('user').pk
+        sender_photo_url = obj.sender.profile.get_photo_url()
         if (not obj.is_anonymous
                 or user_id == obj.sender.id):
             return {
@@ -610,7 +624,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
                 'sender_tg_name': obj.sender.profile.tg_name,
                 'sender_first_name': obj.sender.profile.first_name,
                 'sender_surname': obj.sender.profile.surname,
-                'sender_photo': obj.sender.profile.get_photo_url()
+                'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
             }
         return {
             'sender_id': None,
@@ -628,12 +642,13 @@ class TransactionFullSerializer(serializers.ModelSerializer):
         return None
 
     def get_recipient(self, obj):
+        recipient_photo_url = obj.recipient.profile.get_photo_url()
         return {
             'recipient_id': obj.recipient.id,
             'recipient_tg_name': obj.recipient.profile. tg_name,
             'recipient_first_name': obj.recipient.profile.first_name,
             'recipient_surname': obj.recipient.profile.surname,
-            'recipient_photo': obj.recipient.profile.get_photo_url()
+            'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
         }
 
     def get_recipient_id(self, obj):
@@ -646,7 +661,7 @@ class TransactionFullSerializer(serializers.ModelSerializer):
                 and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
 
     def get_tags(self, obj):
-        return obj._objecttags.values('tag__id', 'tag__name')
+        return obj._objecttags.values('tag_id', name=F('tag__name'))
 
     def get_reason_def(self, obj):
         if obj.reason_def is not None:
