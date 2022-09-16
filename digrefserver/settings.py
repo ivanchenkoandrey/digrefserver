@@ -99,7 +99,10 @@ MEDIA_ROOT = os.path.join(
     BASE_DIR, 'media'
 )
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8080',
+    'http://127.0.0.1:8080'
+]
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
