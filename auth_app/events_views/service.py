@@ -101,7 +101,7 @@ def get_events_list(request):
         event_data = {
             "id": 0,
             "time": _transaction.updated_at + timedelta(hours=3),
-            # "event_type": event_type,
+            "event_type": event_type,
             "transaction": transaction_info,
             "scope": event_type.get('scope')
         }
