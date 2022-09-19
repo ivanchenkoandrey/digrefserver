@@ -205,10 +205,10 @@ class CustomTransactionQueryset(models.QuerySet):
                                  last_like_comment_time=F(
                                      'like_comment_statistics__last_like_or_comment_change_at'),
                                  user_liked=ExpressionWrapper(
-                                     (Q(likes__like_kind__code='like') & Q(likes__user=user)),
+                                     (Q(likes__like_kind__code='Like') & Q(likes__user=user) & Q(likes__is_liked=True)),
                                      output_field=BooleanField()),
                                  user_disliked=ExpressionWrapper(
-                                     (Q(likes__like_kind__code='dislike') & Q(likes__user=user)),
+                                     (Q(likes__like_kind__code='Dislike') & Q(likes__user=user) & Q(likes__is_liked=True)),
                                      output_field=BooleanField()))
         return queryset
 
