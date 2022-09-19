@@ -4,8 +4,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
-from django.db.models import Q, F, ExpressionWrapper
-from django.db.models.fields import DateTimeField
+from django.db.models import Q, F, ExpressionWrapper, Value
+from django.db.models.fields import DateTimeField, BooleanField
+from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
@@ -198,6 +199,18 @@ class CustomTransactionQueryset(models.QuerySet):
                             Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
                             ))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
+
+    def feed_version(self, user):
+        queryset = self.annotate(comments_amount=Coalesce(F('like_comment_statistics__comment_counter'), 0),
+                                 last_like_comment_time=F(
+                                     'like_comment_statistics__last_like_or_comment_change_at'),
+                                 user_liked=ExpressionWrapper(
+                                     (Q(likes__like_kind__code='like') & Q(likes__user=user)),
+                                     output_field=BooleanField()),
+                                 user_disliked=ExpressionWrapper(
+                                     (Q(likes__like_kind__code='dislike') & Q(likes__user=user)),
+                                     output_field=BooleanField()))
+        return queryset
 
     @staticmethod
     def add_expire_to_cancel_field(queryset):
@@ -473,9 +486,10 @@ class Comment(models.Model):
     # date_deleted = models.DateTimeField(verbose_name="Дата удаления")
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
     previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.SET_NULL,
-                             verbose_name='Ссылка на предыдущий комментарий')
+                                         verbose_name='Ссылка на предыдущий комментарий')
     text = models.CharField(max_length=50, null=True, blank=True, verbose_name="Текст")
-    picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures', verbose_name='Картинка Комментария')
+    picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures',
+                                verbose_name='Картинка Комментария')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -496,6 +510,9 @@ class LikeKind(models.Model):
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
+    def __str__(self):
+        return self.name
 
     def get_icon_url(self):
         if self.icon:
@@ -543,7 +560,7 @@ class Like(models.Model):
     objects = CustomLikeQueryset.as_manager()
 
     like_kind = models.ForeignKey(LikeKind, related_name='like', on_delete=models.CASCADE,
-                             verbose_name='Тип лайка')
+                                  verbose_name='Тип лайка')
     is_liked = models.BooleanField(default=False, verbose_name="Выставлен")
     date_created = models.DateTimeField(verbose_name="Дата выставления лайка")
     date_deleted = models.DateTimeField(null=True, blank=True, default=None, verbose_name="Дата отзыва лайка")
@@ -567,6 +584,7 @@ class LikeStatistics(models.Model):
                                   null=True, blank=True, verbose_name='Тип лайка')
     last_change_at = models.DateTimeField(verbose_name='Время последнего изменения количества лайков типа Лайк',
                                           null=True, blank=True)
+
     class Meta:
         db_table = 'like_statistics'
 
@@ -582,14 +600,17 @@ class LikeCommentStatistics(models.Model):
     last_event_comment = models.ForeignKey("Comment", related_name='last_event_comment_statistics',
                                            blank=True, on_delete=models.SET_NULL, null=True,
                                            verbose_name='Последний добавленный или измененный комментарий')
-    last_like_or_comment_change_at = models.DateTimeField(verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
-                                                          null=True, blank=True)
+    last_like_or_comment_change_at = models.DateTimeField(
+        verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
+        null=True, blank=True)
     comment_counter = models.IntegerField(verbose_name='Количество комментариев', default=0)
+
     # TODO
     # is_commentable = models.BooleanField(default=True, verbose_name="Разрешение на добавление/изменение/удаления комментариев")
 
     class Meta:
         db_table = 'like_comment_statistics'
+
 
 class Tag(models.Model):
     created_at = models.DateTimeField(verbose_name='Время создания', auto_now_add=True)
@@ -667,7 +688,8 @@ class ObjectTag(models.Model):
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='object_tag_updated_by',
                                    verbose_name='Пользователь, отключивший ценность', null=True, blank=True)
     flags = models.CharField(max_length=10, default="A", verbose_name="Флаги состояния", null=True, blank=True)
-    tagged_object = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='_objecttags', verbose_name='Объект')
+    tagged_object = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='_objecttags',
+                                      verbose_name='Объект')
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='objecttags', verbose_name='Ценность')
 
     class Meta:
