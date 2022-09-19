@@ -78,10 +78,10 @@ def get_events_list(request):
         for i in range(len(comment_statistics)):
             if _transaction.id == comment_statistics[i][0]:
 
-                transaction_info['comments_counter'] = comment_statistics[i][1]
+                transaction_info['comments'] = comment_statistics[i][1]
                 comment_statistics_exists = True
         if not comment_statistics_exists:
-            transaction_info['comments_counter'] = 0
+            transaction_info['comments'] = 0
 
         like_statistics_exists = False
         like_info = []
