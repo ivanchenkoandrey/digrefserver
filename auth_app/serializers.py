@@ -473,6 +473,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             pass
 
     def create(self, validated_data):
+        from_income = False
         current_period = get_current_period()
         request = self.context.get('request')
         tags = request.data.get('tags')
@@ -487,6 +488,11 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_distr_account.amount
+        if current_account_amount == 0:
+            sender_income_account = Account.objects.filter(
+                owner=sender, account_type='I').first()
+            current_account_amount = sender_income_account.amount
+            from_income = True
         if current_account_amount - amount < 0:
             logger.info(f"Попытка {sender} перевести сумму больше имеющейся на счету распределения")
             raise ValidationError("Нельзя перевести больше, чем есть на счету")
@@ -512,14 +518,21 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 photo=photo,
                 reason_def_id=reason_def
             )
-            sender_distr_account.amount -= amount
-            sender_distr_account.transaction = transaction_instance
+            if not from_income:
+                sender_distr_account.amount -= amount
+                sender_distr_account.transaction = transaction_instance
+                sender_user_stat.distr_thanks += amount
+                sender_distr_account.save(update_fields=['amount', 'transaction'])
+                sender_user_stat.save(update_fields=['distr_thanks'])
+            else:
+                sender_income_account.amount -= amount
+                sender_income_account.transaction = transaction_instance
+                sender_user_stat.income_used_for_thanks += amount
+                sender_income_account.save(update_fields=['amount', 'transaction'])
+                sender_user_stat.save(update_fields=['income_used_for_thanks'])
             sender_frozen_account.amount += amount
             sender_frozen_account.transaction = transaction_instance
-            sender_user_stat.distr_thanks += amount
-            sender_distr_account.save(update_fields=['amount', 'transaction'])
             sender_frozen_account.save(update_fields=['amount', 'transaction'])
-            sender_user_stat.save(update_fields=['distr_thanks'])
             if tags:
                 for tag in tags:
                     ObjectTag.objects.create(
@@ -528,7 +541,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                         created_by_id=request.user.pk
                     )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
-            if transaction_instance.photo is not None:
+            if transaction_instance.photo.name is not None:
                 transaction_instance.photo.name = change_transaction_filename(transaction_instance.photo.name)
                 transaction_instance.save(update_fields=['photo'])
                 crop_image(transaction_instance.photo.name, f"{settings.BASE_DIR}/media/")
