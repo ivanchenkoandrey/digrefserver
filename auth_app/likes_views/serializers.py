@@ -42,13 +42,20 @@ class PressLikeSerializer(serializers.ModelSerializer):
             raise ValidationError("Не передана транзакция")
 
         if like_kind.id == like_kinds[0].id:
-            another_like_kind = like_kinds[1].id
+            another_like_kind = like_kinds[1]
         else:
-            another_like_kind = like_kinds[0].id
+            another_like_kind = like_kinds[0]
+
+        try:
+            stat = LikeStatistics.objects.get(transaction_id=transaction.id, like_kind_id=another_like_kind)
+        except LikeStatistics.DoesNotExist:
+            another_like_kind_statistics_object = LikeStatistics(transaction=transaction, like_kind=another_like_kind,
+                                                                 like_counter=0, last_change_at=None)
+            another_like_kind_statistics_object.save()
 
         existing_like_different_like_type = Like.objects.filter(transaction=transaction.id,
                                                                 user=user, is_liked=True,
-                                                                   like_kind=another_like_kind).first()
+                                                                like_kind_id=another_like_kind.id).first()
 
         if existing_like_different_like_type is not None:
 
@@ -60,7 +67,7 @@ class PressLikeSerializer(serializers.ModelSerializer):
 
             # update statistics for prev like_type from which like is retrieved
             another_like_statistics = LikeStatistics.objects.get(transaction_id=transaction.id,
-                                                                 like_kind_id=another_like_kind)
+                                                                 like_kind_id=another_like_kind.id)
             another_like_statistics_data = {'like_counter': another_like_statistics.like_counter - 1,
                                             'last_change_at': datetime.now()}
             super().update(another_like_statistics, another_like_statistics_data)

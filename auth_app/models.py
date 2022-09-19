@@ -472,7 +472,7 @@ class Comment(models.Model):
     date_last_modified = models.DateTimeField(null=True, verbose_name="Дата последнего изменения")
     # date_deleted = models.DateTimeField(verbose_name="Дата удаления")
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
-    previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.CASCADE,
+    previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.SET_NULL,
                              verbose_name='Ссылка на предыдущий комментарий')
     text = models.CharField(max_length=50, null=True, blank=True, verbose_name="Текст")
     picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures', verbose_name='Картинка Комментария')
