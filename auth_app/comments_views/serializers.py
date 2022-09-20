@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import transaction as tr
 from rest_framework import serializers
 from auth_app.models import Comment, Transaction, LikeCommentStatistics
 from rest_framework.exceptions import ValidationError
@@ -22,47 +22,47 @@ class CreateCommentSerializer(serializers.ModelSerializer):
 
         if (content is None or content == "") and image is None:
             raise ValidationError("Не переданы параметры text или picture")
-
-        try:
-            previous_comment = Comment.objects.get(transaction_id=transaction.id, is_last_comment=True)
-        except Comment.DoesNotExist:
-
-            validated_data['is_last_comment'] = True
-            validated_data['previous_comment'] = None
-
-            created_comment_instance = super().create(validated_data)
-            comment = Comment.objects.get(transaction_id=transaction.id, previous_comment=None)
+        with tr.atomic():
             try:
+                previous_comment = Comment.objects.get(transaction_id=transaction.id, is_last_comment=True)
+            except Comment.DoesNotExist:
 
-                like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
-                like_comment_statistics_data = {'first_comment': comment, 'last_comment': comment,
-                                                'last_event_comment': comment,
-                                                'last_like_or_comment_change_at': datetime.now(), 'comment_counter': 1}
-                super().update(like_comment_statistics, like_comment_statistics_data)
-            except LikeCommentStatistics.DoesNotExist:
+                validated_data['is_last_comment'] = True
+                validated_data['previous_comment'] = None
 
-                like_comment_statistics_object = LikeCommentStatistics(transaction_id=transaction.id,
-                                                                       first_comment=comment,
-                                                                       last_comment=comment, last_event_comment=comment,
-                                                                       last_like_or_comment_change_at=datetime.now(),
-                                                                       comment_counter=1)
-                like_comment_statistics_object.save()
+                created_comment_instance = super().create(validated_data)
+                comment = Comment.objects.get(transaction_id=transaction.id, previous_comment=None)
+                try:
+
+                    like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
+                    like_comment_statistics_data = {'first_comment': comment, 'last_comment': comment,
+                                                    'last_event_comment': comment,
+                                                    'last_like_or_comment_change_at': datetime.now(), 'comment_counter': 1}
+                    super().update(like_comment_statistics, like_comment_statistics_data)
+                except LikeCommentStatistics.DoesNotExist:
+
+                    like_comment_statistics_object = LikeCommentStatistics(transaction_id=transaction.id,
+                                                                           first_comment=comment,
+                                                                           last_comment=comment, last_event_comment=comment,
+                                                                           last_like_or_comment_change_at=datetime.now(),
+                                                                           comment_counter=1)
+                    like_comment_statistics_object.save()
+                return created_comment_instance
+
+            data = {'is_last_comment': False}
+            super().update(previous_comment, data)
+            validated_data['previous_comment'] = previous_comment
+            validated_data['is_last_comment'] = True
+            created_comment_instance = super().create(validated_data)
+            comment = Comment.objects.get(transaction_id=transaction.id, is_last_comment=True)
+
+            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
+            comment_counter = like_comment_statistics.comment_counter + 1
+            like_comment_statistics_data = {'last_comment': comment, 'last_event_comment': comment,
+                                            'last_like_or_comment_change_at': datetime.now(),
+                                            'comment_counter': comment_counter}
+            super().update(like_comment_statistics, like_comment_statistics_data)
             return created_comment_instance
-
-        data = {'is_last_comment': False}
-        super().update(previous_comment, data)
-        validated_data['previous_comment'] = previous_comment
-        validated_data['is_last_comment'] = True
-        created_comment_instance = super().create(validated_data)
-        comment = Comment.objects.get(transaction_id=transaction.id, is_last_comment=True)
-
-        like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
-        comment_counter = like_comment_statistics.comment_counter + 1
-        like_comment_statistics_data = {'last_comment': comment, 'last_event_comment': comment,
-                                        'last_like_or_comment_change_at': datetime.now(),
-                                        'comment_counter': comment_counter}
-        super().update(like_comment_statistics, like_comment_statistics_data)
-        return created_comment_instance
 
 
 class UpdateCommentSerializer(serializers.ModelSerializer):
@@ -108,7 +108,7 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
             raise ValidationError("Вы не можете удалить комментарий чужого пользователя")
         transaction_id = comment.transaction_id
         previous_comment = comment.previous_comment
-        with transaction.atomic():
+        with tr.atomic():
             if previous_comment is not None:
                 if comment.is_last_comment:
                     data = {"is_last_comment": True}
