@@ -4,8 +4,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
-from django.db.models import Q, F, ExpressionWrapper, Value
-from django.db.models.fields import DateTimeField, BooleanField
+from django.db.models import Q, F, ExpressionWrapper, Exists, OuterRef
+from django.db.models.fields import DateTimeField
 from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -204,12 +204,18 @@ class CustomTransactionQueryset(models.QuerySet):
         queryset = self.annotate(comments_amount=Coalesce(F('like_comment_statistics__comment_counter'), 0),
                                  last_like_comment_time=F(
                                      'like_comment_statistics__last_like_or_comment_change_at'),
-                                 user_liked=ExpressionWrapper(
-                                     (Q(likes__like_kind__code="Like") & Q(likes__user=user)),
-                                     output_field=BooleanField()),
-                                 user_disliked=ExpressionWrapper(
-                                     (Q(likes__like_kind__code="Dislike") & Q(likes__user=user)),
-                                     output_field=BooleanField()))
+
+                                 user_liked=Exists(Like.objects.filter(
+                                     Q(transaction_id=OuterRef('pk'),
+                                       like_kind__code='like',
+                                       user_id=user.id,
+                                       is_liked=True))),
+                                 user_disliked=Exists(Like.objects.filter(
+                                     Q(transaction_id=OuterRef('pk'),
+                                       like_kind__code='dislike',
+                                       user_id=user.id,
+                                       is_liked=True))))
+
         return queryset
 
     @staticmethod
