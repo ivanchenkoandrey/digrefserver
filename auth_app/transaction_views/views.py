@@ -166,28 +166,19 @@ class TransactionStatisticsAPIView(APIView):
 
         if include_name is None:
             include_name = False
-        # return Response("Параметр include_name передан неверно. Введите True или False",
-        #                         status=status.HTTP_400_BAD_REQUEST)
-
         if include_code is None:
             include_code = False
-        # return Response("Параметр include_code передан неверно. Введите True или False",
-        #                         status=status.HTTP_400_BAD_REQUEST)
-
         if include_first_comment is None:
             include_first_comment = False
-        # return Response("Параметр include_first_comment передан неверно. Введите True или False",
-        #                         status=status.HTTP_400_BAD_REQUEST)
-
         if include_last_comment is None:
             include_last_comment = False
-        # return Response("Параметр include_last_comment передан неверно. Введите True или False",
-        #                         status=status.HTTP_400_BAD_REQUEST)
-
         if include_last_event_comment is None:
             include_last_event_comment = False
-        # return Response("Параметр include_last_event_comment передан неверно. Введите True или False",
-        #                         status=status.HTTP_400_BAD_REQUEST)
+
+        if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(include_last_comment)\
+           != bool or type(include_last_event_comment) != bool:
+            return Response("include_name, is_reverse_order, include_first_comment, include_last_comment и "
+                            "include_last_event_comment должны быть типа bool", status=status.HTTP_400_BAD_REQUEST)
 
         context = {"include_code": include_code, "include_name": include_name,
                    "include_first_comment": include_first_comment,
