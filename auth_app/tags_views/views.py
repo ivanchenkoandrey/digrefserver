@@ -1,5 +1,6 @@
 from rest_framework import authentication
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import (ListAPIView, ListCreateAPIView,
+                                     RetrieveAPIView)
 from rest_framework.permissions import IsAuthenticated
 
 from auth_app.models import Reason, Tag
@@ -12,7 +13,7 @@ class BasicView:
     permission_classes = [IsAuthenticated]
 
 
-class TagListView(BasicView, ListAPIView):
+class TagListView(BasicView, ListCreateAPIView):
     serializer_class = TagSerializer
     queryset = Tag.objects.filter(flags='A')
 
