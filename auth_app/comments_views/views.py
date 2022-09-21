@@ -28,28 +28,16 @@ class CommentListAPIView(APIView):
             offset = 0
         if limit is None:
             limit = 20
-
         if include_name is None:
             include_name = False
-        else:
-            if include_name == "False":
-                include_name = False
-            elif include_name == "True":
-                include_name = True
-            else:
-                return Response("Параметр include_name передан неверно. Введите True или False",
-                                status=status.HTTP_400_BAD_REQUEST)
-
         if is_reverse_order is None:
             is_reverse_order = False
-        else:
-            if is_reverse_order == "False":
-                is_reverse_order = False
-            elif is_reverse_order == "True":
-                is_reverse_order = True
-            else:
-                return Response("Параметр is_reverse_order передан неверно. Введите True или False",
-                                status=status.HTTP_400_BAD_REQUEST)
+
+        if type(offset) != int or type(limit) != int:
+            return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
+        if type(include_name) != bool or type(is_reverse_order) != bool:
+            return Response("include_name и is_reverse_order должны быть типа bool", status=status.HTTP_400_BAD_REQUEST)
+
         context = {"offset": offset, "limit": limit, "include_name": include_name, "is_reverse_order": is_reverse_order}
 
         if transaction_id is not None:
