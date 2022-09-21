@@ -189,7 +189,7 @@ class TransactionStatisticsAPIView(APIView):
             try:
                 transaction = Transaction.objects.get(id=transaction_id)
                 serializer = TransactionStatisticsSerializer([transaction], many=True, context=context)
-                return Response(serializer.data)
+                return Response(serializer.data[0])
             except Transaction.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
                                 "ни к одной транзакции",

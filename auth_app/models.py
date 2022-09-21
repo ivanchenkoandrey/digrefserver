@@ -487,9 +487,8 @@ class Comment(models.Model):
                                     null=True, blank=True, verbose_name="Транзакция")
     user = models.ForeignKey(User, related_name='comment', on_delete=models.CASCADE,
                              verbose_name='Владелец Комментария')
-    date_created = models.DateTimeField(null=True, verbose_name="Дата создания")
-    date_last_modified = models.DateTimeField(null=True, verbose_name="Дата последнего изменения")
-    # date_deleted = models.DateTimeField(verbose_name="Дата удаления")
+    date_created = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Дата создания")
+    date_last_modified = models.DateTimeField(auto_now=True, null=True, verbose_name="Дата последнего изменения")
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
     previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.SET_NULL,
                                          verbose_name='Ссылка на предыдущий комментарий')
@@ -568,8 +567,8 @@ class Like(models.Model):
     like_kind = models.ForeignKey(LikeKind, related_name='like', on_delete=models.CASCADE,
                                   verbose_name='Тип лайка')
     is_liked = models.BooleanField(default=False, verbose_name="Выставлен")
-    date_created = models.DateTimeField(verbose_name="Дата выставления лайка")
-    date_deleted = models.DateTimeField(null=True, blank=True, default=None, verbose_name="Дата отзыва лайка")
+    date_created = models.DateTimeField(auto_now_add=True, verbose_name="Дата выставления лайка")
+    date_deleted = models.DateTimeField(default=None, null=True, blank=True, verbose_name="Дата отзыва лайка")
     user = models.ForeignKey(User, related_name='like', on_delete=models.CASCADE,
                              verbose_name='Владелец Лайка')
     transaction = models.ForeignKey(Transaction, related_name="likes", on_delete=models.CASCADE,
@@ -588,7 +587,7 @@ class LikeStatistics(models.Model):
     like_counter = models.IntegerField(verbose_name='Количество лайков')
     like_kind = models.ForeignKey(LikeKind, related_name='like_statistics', on_delete=models.SET_NULL,
                                   null=True, blank=True, verbose_name='Тип лайка')
-    last_change_at = models.DateTimeField(verbose_name='Время последнего изменения количества лайков типа Лайк',
+    last_change_at = models.DateTimeField(default=None, verbose_name='Время последнего изменения количества лайков',
                                           null=True, blank=True)
 
     class Meta:
@@ -606,13 +605,10 @@ class LikeCommentStatistics(models.Model):
     last_event_comment = models.ForeignKey("Comment", related_name='last_event_comment_statistics',
                                            blank=True, on_delete=models.SET_NULL, null=True,
                                            verbose_name='Последний добавленный или измененный комментарий')
-    last_like_or_comment_change_at = models.DateTimeField(
-        verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
-        null=True, blank=True)
+    last_like_or_comment_change_at = models.DateTimeField(auto_now=True,
+                                                          verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
+                                                          null=True, blank=True)
     comment_counter = models.IntegerField(verbose_name='Количество комментариев', default=0)
-
-    # TODO
-    # is_commentable = models.BooleanField(default=True, verbose_name="Разрешение на добавление/изменение/удаления комментариев")
 
     class Meta:
         db_table = 'like_comment_statistics'

@@ -52,7 +52,7 @@ class PressLikeSerializer(serializers.ModelSerializer):
                 stat = LikeStatistics.objects.get(transaction_id=transaction.id, like_kind_id=another_like_kind)
             except LikeStatistics.DoesNotExist:
                 another_like_kind_statistics_object = LikeStatistics(transaction=transaction, like_kind=another_like_kind,
-                                                                     like_counter=0, last_change_at=None)
+                                                                     like_counter=0)
                 another_like_kind_statistics_object.save()
 
             existing_like_different_like_type = Like.objects.filter(transaction=transaction.id,
@@ -64,7 +64,6 @@ class PressLikeSerializer(serializers.ModelSerializer):
                 validated_data['is_liked'] = False
                 validated_data['like_kind'] = existing_like_different_like_type.like_kind
                 validated_data['date_deleted'] = datetime.now()
-                validated_data['date_created'] = existing_like_different_like_type.date_created
                 super().update(existing_like_different_like_type, validated_data)
 
                 # update statistics for prev like_type from which like is retrieved
@@ -74,10 +73,9 @@ class PressLikeSerializer(serializers.ModelSerializer):
                                                 'last_change_at': datetime.now()}
                 super().update(another_like_statistics, another_like_statistics_data)
 
-                validated_data['date_deleted'] = None
-                validated_data['date_created'] = datetime.now()
                 validated_data['is_liked'] = True
                 validated_data['like_kind'] = like_kind
+                validated_data['date_deleted'] = None
 
                 like_statistics = LikeStatistics.objects.get(transaction_id=transaction.id, like_kind_id=like_kind.id)
                 like_statistics_data['like_counter'] = like_statistics.like_counter + 1
@@ -91,7 +89,6 @@ class PressLikeSerializer(serializers.ModelSerializer):
                 if existing_like_same_type_liked is not None:
                     validated_data['is_liked'] = False
                     validated_data['like_kind'] = like_kind
-                    validated_data['date_created'] = existing_like_same_type_liked.date_created
                     validated_data['date_deleted'] = datetime.now()
 
                     like_statistics = LikeStatistics.objects.get(transaction_id=transaction.id, like_kind_id=like_kind.id)
@@ -104,7 +101,6 @@ class PressLikeSerializer(serializers.ModelSerializer):
 
                     validated_data['is_liked'] = True
                     validated_data['like_kind'] = like_kind
-                    validated_data['date_created'] = datetime.now()
 
                     like_statistics = LikeStatistics.objects.get(transaction_id=transaction.id, like_kind_id=like_kind.id)
                     like_statistics_data['like_counter'] = like_statistics.like_counter + 1
