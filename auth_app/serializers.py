@@ -131,8 +131,7 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         limit = self.context.get('limit')
         include_name = self.context.get('include_name')
         is_reverse_order = self.context.get('is_reverse_order')
-        if type(offset) != int or type(limit) != int:
-            raise ValidationError("offset и limit должны быть типа Int")
+
         if is_reverse_order:
             order_by = "-date_created"
         else:
@@ -185,8 +184,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
         like_kind_id = self.context.get('like_kind')
         offset = self.context.get('offset')
         limit = self.context.get('limit')
-        if type(offset) != int or type(limit) != int:
-            raise ValidationError("offset и limit должны быть типа Int")
+
         likes = []
         if like_kind_id == "all":
             like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in

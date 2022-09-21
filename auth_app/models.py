@@ -204,6 +204,7 @@ class CustomTransactionQueryset(models.QuerySet):
         queryset = self.annotate(comments_amount=Coalesce(F('like_comment_statistics__comment_counter'), 0),
                                  last_like_comment_time=F(
                                      'like_comment_statistics__last_like_or_comment_change_at'),
+
                                  user_liked=Exists(Like.objects.filter(
                                      Q(transaction_id=OuterRef('pk'),
                                        like_kind__code='like',
@@ -214,6 +215,7 @@ class CustomTransactionQueryset(models.QuerySet):
                                        like_kind__code='dislike',
                                        user_id=user.id,
                                        is_liked=True))))
+
         return queryset
 
     @staticmethod
