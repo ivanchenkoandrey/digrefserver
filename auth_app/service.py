@@ -97,7 +97,7 @@ def update_transactions_by_controller(data: Dict,
             reason = transaction_data.get('reason')
             if not reason:
                 reason = 'OK'
-            transaction_instance = waiting_transactions.get()
+            transaction_instance = waiting_transactions.get(transaction_pk)
             TransactionState.objects.create(
                 transaction=transaction_instance,
                 controller=request.user,
@@ -107,13 +107,11 @@ def update_transactions_by_controller(data: Dict,
             transaction_instance.status = transaction_status
             transaction_instance.is_public = True if transaction_status == 'A' else False
             transaction_instance.save(update_fields=['status', 'updated_at', 'is_public'])
-            sender_accounts = transaction_instance.sender.accounts.all()
-            recipient_accounts = transaction_instance.recipient.accounts.all()
-            sender_user_stat = UserStat.objects.get(user=transaction_instance.sender, period=period)
-            recipient_user_stat = UserStat.objects.get(user=transaction_instance.recipient, period=period)
-            recipient_income_account = recipient_accounts.filter(account_type='I').first()
-            sender_frozen_account = sender_accounts.filter(account_type='F').first()
-            sender_distr_account = sender_accounts.filter(account_type='D').first()
+            sender_user_stat = user_stats.get(transaction_instance.sender_id)
+            recipient_user_stat = user_stats.get(transaction_instance.recipient_id)
+            recipient_income_account = accounts.get((transaction_instance.recipient_id, 'I'))
+            sender_frozen_account = accounts.get((transaction_instance.sender_id, 'F'))
+            sender_distr_account = accounts.get((transaction_instance.sender_id, 'D'))
             amount = transaction_instance.amount
             if transaction_status == 'A':
                 recipient_income_account.amount += amount
