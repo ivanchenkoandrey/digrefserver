@@ -591,7 +591,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                         if tag not in possible_tag_ids:
                             logger.info(f"Ценность (тег) с ID {tag} не найдена")
                             raise ValidationError(f'Ценность (тег) с ID {tag} не найдена')
-                    return tags_list
+                    return list(set(tags_list))
                 except ValueError:
                     raise ValidationError(f'Передайте строку в виде "1 2 3"')
 

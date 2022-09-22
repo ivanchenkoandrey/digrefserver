@@ -14,12 +14,13 @@ User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
-ADMIN_REPORT_DATA_CELLS = "BCDEFGHIJK"
+ADMIN_REPORT_DATA_CELLS = "BCDEFGHIJKLM"
 ADMIN_REPORT_DATA_HEADERS = (
     'Доступно', 'Получено', 'Отправлено',
-    'Сгорят', 'Проверка баланса', 'Входящие (ожидание)',
-    'Исходящие (ожидание)', 'Начальный баланс',
-    'Начислений', 'Распределений'
+    'Отправлено с полученных', 'Сумма отправленных',
+    'Сгорят', 'Проверка баланса',
+    'Входящие (ожидание)', 'Исходящие (ожидание)',
+    'Начальный баланс', 'Начислений', 'Распределений'
 )
 
 USER_REPORT_DATA_CELLS = "ABCDEFG"
@@ -114,13 +115,15 @@ def create_admin_report() -> str:
         ws[f'B{index}'].value = stat.distr_initial - stat.distr_thanks
         ws[f'C{index}'].value = stat.income_thanks
         ws[f'D{index}'].value = stat.distr_thanks
-        ws[f'E{index}'].value = stat.distr_initial - stat.distr_thanks + stat.income_thanks
-        ws[f'F{index}'].value = stat.distr_initial - stat.distr_thanks
-        ws[f'G{index}'].value = recipient_waiting_data.get(stat.user_id, 0)
-        ws[f'H{index}'].value = sender_waiting_data.get(stat.user_id, 0)
-        ws[f'I{index}'].value = stat.distr_initial
-        ws[f'J{index}'].value = recipient_counter_data.get(stat.user_id, 0)
-        ws[f'K{index}'].value = sender_counter_data.get(stat.user_id, 0)
+        ws[f'E{index}'].value = stat.income_used_for_thanks
+        ws[f'F{index}'].value = stat.income_used_for_thanks + stat.distr_thanks
+        ws[f'G{index}'].value = stat.distr_initial - stat.distr_thanks + stat.income_thanks
+        ws[f'H{index}'].value = stat.distr_initial - stat.distr_thanks
+        ws[f'I{index}'].value = recipient_waiting_data.get(stat.user_id, 0)
+        ws[f'J{index}'].value = sender_waiting_data.get(stat.user_id, 0)
+        ws[f'K{index}'].value = stat.distr_initial
+        ws[f'L{index}'].value = recipient_counter_data.get(stat.user_id, 0)
+        ws[f'M{index}'].value = sender_counter_data.get(stat.user_id, 0)
     filename = f"{get_admin_report_filename()}.xlsx"
     wb.save(filename)
     return filename
@@ -137,13 +140,13 @@ def make_table_structure_for_admin_report(ws: Workbook.active) -> None:
     ws.merge_cells('A2:A5')
     for i in range(len(ADMIN_REPORT_DATA_CELLS)):
         ws.merge_cells(f'{ADMIN_REPORT_DATA_CELLS[i]}3:{ADMIN_REPORT_DATA_CELLS[i]}5')
-    ws.merge_cells('B2:I2')
-    ws.merge_cells('J2:K2')
+    ws.merge_cells('B2:K2')
+    ws.merge_cells('L2:M2')
     for i in range(len(ADMIN_REPORT_DATA_CELLS)):
         ws[f'{ADMIN_REPORT_DATA_CELLS[i]}3'].value = ADMIN_REPORT_DATA_HEADERS[i]
     surname_name_cell = ws.cell(row=2, column=1)
     thanks_amount_cell = ws['B2']
-    transactions_amount_cell = ws['J2']
+    transactions_amount_cell = ws['L2']
     surname_name_cell.value = 'Фамилия, имя, отчество'
     thanks_amount_cell.value = 'Количество спасибок'
     transactions_amount_cell.value = 'Количество транзакций'
@@ -152,13 +155,13 @@ def make_table_structure_for_admin_report(ws: Workbook.active) -> None:
         ws[f'{ADMIN_REPORT_DATA_CELLS[i]}3'].alignment = Alignment(
             horizontal='center', vertical='center', wrap_text=True)
     ws['B2'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    ws['J2'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    ws['L2'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
 
 def get_transactions_data(period: Period) -> Tuple[Dict, Dict, Dict, Dict, QuerySet[UserStat]]:
     stats = UserStat.objects.select_related('user__profile').filter(period=period).only(
         'user_id', 'distr_thanks', 'distr_initial',
-        'income_thanks', 'user__profile__first_name',
+        'income_thanks', 'income_used_for_thanks', 'user__profile__first_name',
         'user__profile__middle_name', 'user__profile__surname'
     )
     user_id_list = [stat.user_id for stat in stats]
