@@ -61,7 +61,7 @@ class LikesTransactionListAPIView(APIView):
                 transaction = Transaction.objects.get(id=transaction_id)
                 serializer = LikeTransactionSerializer([transaction], many=True, context=context)
 
-                return Response(serializer.data)
+                return Response(serializer.data[0])
 
             except Transaction.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
@@ -122,7 +122,7 @@ class LikesUserListAPIView(APIView):
                 user = User.objects.get(id=user_id)
                 users = [user]
                 serializer = LikeUserSerializer(users, many=True, context=context)
-                return Response(serializer.data)
+                return Response(serializer.data[0])
 
             except User.DoesNotExist:
                 return Response("Переданный идентификатор не относится "

@@ -16,7 +16,6 @@ class CreateCommentSerializer(serializers.ModelSerializer):
 
         user = self.context['request'].user
         validated_data['user'] = user
-        validated_data['date_created'] = datetime.now()
         content = validated_data.get('text')
         image = validated_data.get('picture')
 
@@ -37,14 +36,13 @@ class CreateCommentSerializer(serializers.ModelSerializer):
                     like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
                     like_comment_statistics_data = {'first_comment': comment, 'last_comment': comment,
                                                     'last_event_comment': comment,
-                                                    'last_like_or_comment_change_at': datetime.now(), 'comment_counter': 1}
+                                                    'comment_counter': 1}
                     super().update(like_comment_statistics, like_comment_statistics_data)
                 except LikeCommentStatistics.DoesNotExist:
 
                     like_comment_statistics_object = LikeCommentStatistics(transaction_id=transaction.id,
                                                                            first_comment=comment,
                                                                            last_comment=comment, last_event_comment=comment,
-                                                                           last_like_or_comment_change_at=datetime.now(),
                                                                            comment_counter=1)
                     like_comment_statistics_object.save()
                 return created_comment_instance
@@ -59,7 +57,6 @@ class CreateCommentSerializer(serializers.ModelSerializer):
             like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
             comment_counter = like_comment_statistics.comment_counter + 1
             like_comment_statistics_data = {'last_comment': comment, 'last_event_comment': comment,
-                                            'last_like_or_comment_change_at': datetime.now(),
                                             'comment_counter': comment_counter}
             super().update(like_comment_statistics, like_comment_statistics_data)
             return created_comment_instance
@@ -85,12 +82,9 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
         if comment.user_id != self.context['request'].user.id:
             raise ValidationError("Вы не можете изменить комментарий чужого пользователя")
 
-        validated_data['date_last_modified'] = datetime.now()
-
         transaction_id = comment.transaction_id
         like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction_id)
-        like_comment_statistics_data = {'last_event_comment': comment,
-                                        'last_like_or_comment_change_at': datetime.now()}
+        like_comment_statistics_data = {'last_event_comment': comment}
         super().update(like_comment_statistics, like_comment_statistics_data)
         return validated_data
 
@@ -148,8 +142,7 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
 
             like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=comment.transaction_id)
             comment_counter = like_comment_statistics.comment_counter - 1
-            like_comment_statistics_data = {'last_like_or_comment_change_at': datetime.now(),
-                                            'comment_counter': comment_counter}
+            like_comment_statistics_data = {'comment_counter': comment_counter}
             if last_comment_created is not None:
                 if last_comment_modified.date_last_modified != '' and last_comment_modified.date_last_modified is not None:
                     if last_comment_modified.date_last_modified > last_comment_created.date_created:
