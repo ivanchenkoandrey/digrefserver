@@ -188,8 +188,8 @@ class TransactionStatisticsAPIView(APIView):
         if transaction_id is not None:
             try:
                 transaction = Transaction.objects.get(id=transaction_id)
-                serializer = TransactionStatisticsSerializer([transaction], many=True, context=context)
-                return Response(serializer.data[0])
+                serializer = TransactionStatisticsSerializer(transaction, context=context)
+                return Response(serializer.data)
             except Transaction.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
                                 "ни к одной транзакции",

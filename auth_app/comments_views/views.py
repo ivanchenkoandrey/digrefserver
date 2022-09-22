@@ -44,11 +44,10 @@ class CommentListAPIView(APIView):
 
         if transaction_id is not None:
             try:
-                # transaction = Organization.objects.get(pk=organization_id)
                 transaction = Transaction.objects.get(id=transaction_id)
-                serializer = CommentTransactionSerializer([transaction], many=True, context=context)
+                serializer = CommentTransactionSerializer(transaction, context=context)
 
-                return Response(serializer.data[0])
+                return Response(serializer.data)
 
             except Transaction.DoesNotExist:
                 return Response("Переданный идентификатор не относится "

@@ -47,9 +47,9 @@ def get_events_list(request):
         is_public = _transaction.is_public
         sender = _transaction.sender.profile.tg_name
         recipient_photo = _transaction.recipient.profile.photo
-        # event_type = get_event_type(request_user_tg_name, recipient_tg_name, is_public, event_types).to_json()
+        event_type = get_event_type(request_user_tg_name, recipient_tg_name, is_public, event_types).to_json()
         sender = 'anonymous' if _transaction.is_anonymous else sender
-        # del event_type['record_type']
+        del event_type['record_type']
         transaction_info = {
             "id": _transaction.pk,
             "sender_id": None if _transaction.is_anonymous else _transaction.sender_id,
@@ -70,16 +70,14 @@ def get_events_list(request):
             "last_like_comment_time": _transaction.last_like_comment_time,
             "user_liked": _transaction.user_liked,
             "user_disliked": _transaction.user_disliked,
-            "reactions": _transaction.like_statistics.values('id', code=F('like_kind__code'), counter=F('like_counter')),
-            "comments": _transaction.comments.values(name=F('user__profile__first_name'), surname=F('user__profile__surname'), content=F('text'),
-                                                     image=F('picture'), date=F('date_created'))
+            "reactions": _transaction.like_statistics.values('id', code=F('like_kind__code'), counter=F('like_counter'))
         }
         event_data = {
             "id": 0,
             "time": _transaction.updated_at + timedelta(hours=3),
-            # "event_type": event_type,
+            "event_type": event_type,
             "transaction": transaction_info,
-            # "scope": event_type.get('scope')
+            "scope": event_type.get('scope')
         }
         feed_data.append(event_data)
     return feed_data
@@ -98,7 +96,7 @@ def get_request_user_tg_name(request):
 def get_transactions_queryset(request):
     public_transactions = (Transaction.objects
                            .select_related('sender__profile', 'recipient__profile')
-                           .prefetch_related('_objecttags', 'likes', 'comments',
+                           .prefetch_related('_objecttags', 'likes',
                                              'like_statistics', 'like_comment_statistics')
                            .filter(is_public=True, status__in=['A', 'R'])
                            .exclude(recipient=request.user)
@@ -106,7 +104,7 @@ def get_transactions_queryset(request):
                            .only(*TRANSACTION_FIELDS))
     transactions_receiver_only = (Transaction.objects
                                   .select_related('sender__profile', 'recipient__profile')
-                                  .prefetch_related('_objecttags', 'likes', 'comments',
+                                  .prefetch_related('_objecttags', 'likes',
                                                     'like_statistics', 'like_comment_statistics')
                                   .filter(recipient=request.user, status__in=['A', 'R'])
                                   .feed_version(request.user)

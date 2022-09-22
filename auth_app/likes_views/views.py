@@ -59,9 +59,9 @@ class LikesTransactionListAPIView(APIView):
         if transaction_id is not None:
             try:
                 transaction = Transaction.objects.get(id=transaction_id)
-                serializer = LikeTransactionSerializer([transaction], many=True, context=context)
+                serializer = LikeTransactionSerializer(transaction, context=context)
 
-                return Response(serializer.data[0])
+                return Response(serializer.data)
 
             except Transaction.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
@@ -120,9 +120,8 @@ class LikesUserListAPIView(APIView):
         if user_id is not None:
             try:
                 user = User.objects.get(id=user_id)
-                users = [user]
-                serializer = LikeUserSerializer(users, many=True, context=context)
-                return Response(serializer.data[0])
+                serializer = LikeUserSerializer(user, context=context)
+                return Response(serializer.data)
 
             except User.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
