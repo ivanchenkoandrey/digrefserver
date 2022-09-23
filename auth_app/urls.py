@@ -85,6 +85,7 @@ urlpatterns = [
     path('tg-balance/', tg_bot_views.ExportUserBalance.as_view()),
 
     path('burn-thanks/', views.BurnThanksView.as_view()),
+    path('burn-income-thanks/', views.BurnIncomeThanksView.as_view()),
     path('create-user-stats/', stat_views.CreateUserStats.as_view()),
     path('logout/', LogoutView.as_view()),
     # comments

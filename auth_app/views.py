@@ -190,3 +190,45 @@ class BurnThanksView(APIView):
                 burnt_account.amount += overall_burnt
                 burnt_account.save(update_fields=['amount'])
         return Response(data)
+
+
+class BurnIncomeThanksView(APIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsSystemAdmin]
+
+    @classmethod
+    def get(cls, request, *args, **kwargs):
+        today = datetime.date.today()
+        bonus_account = Account.objects.get(account_type='O')
+        system = User.objects.get(username='system')
+        previous_period = Period.objects.filter(end_date__lt=today).order_by('-end_date').first()
+        stats = {stat.user_id: stat for stat in UserStat.objects.select_related('user')
+                                                                .filter(period=previous_period)
+                                                                .only('user_id', 'period_id', 'income_at_end')}
+        accounts = {account.owner_id: account for account in Account.objects.select_related('owner')
+                                                                .filter(account_type='I', owner_id__in=stats.keys())
+                                                                .only('owner_id', 'amount', 'account_type')}
+        with transaction.atomic():
+            overall_burnt = 0
+            for stat_user_id in stats:
+                if stats[stat_user_id].income_at_end == 0 and accounts[stat_user_id].amount != 0:
+                    Transaction.objects.create(
+                        sender_id=stat_user_id,
+                        recipient=system,
+                        amount=accounts[stat_user_id].amount,
+                        reason='burnt from incomes',
+                        status='R',
+                        is_anonymous=True,
+                        is_public=False
+                    )
+                    stats[stat_user_id].income_at_end = accounts[stat_user_id].amount
+                    overall_burnt += accounts[stat_user_id].amount
+                    accounts[stat_user_id].amount = 0
+            if overall_burnt:
+                UserStat.objects.bulk_update(stats.values(), ['income_at_end'])
+                Account.objects.bulk_update(accounts.values(), ['amount'])
+                bonus_account.amount = F('amount') + overall_burnt
+                bonus_account.save(update_fields=['amount'])
+                return Response(status=status.HTTP_201_CREATED)
+        return Response()

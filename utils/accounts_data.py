@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 
 from auth_app.models import Account, UserStat, Period
-from utils.current_period import get_current_period
+from utils.current_period import get_period
 
 User = get_user_model()
 
@@ -18,7 +18,7 @@ def processing_accounts_data(user: User, period_id=None):
     if period_id is not None:
         period = get_object_or_404(Period, pk=period_id)
     else:
-        period = get_current_period()
+        period = get_period()
     queryset = Account.objects.filter(account_type__in=['I', 'D', 'F'], owner=user)
     accounts_data = {f"{item.to_json().get('account_type')}": item.to_json() for item in queryset}
     user_stat = UserStat.objects.filter(user=user, period=period).first()

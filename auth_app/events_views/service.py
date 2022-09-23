@@ -70,7 +70,8 @@ def get_events_list(request):
             "last_like_comment_time": _transaction.last_like_comment_time,
             "user_liked": _transaction.user_liked,
             "user_disliked": _transaction.user_disliked,
-            "reactions": _transaction.like_statistics.values('id', code=F('like_kind__code'), counter=F('like_counter'))
+            "reactions": _transaction.like_statistics.values('id', code=F('like_kind__code'),
+                                                             counter=F('like_counter'))
         }
         event_data = {
             "id": 0,
