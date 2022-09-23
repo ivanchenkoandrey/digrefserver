@@ -143,7 +143,6 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         for i in range(len(comments_on_transaction_cut)):
             comment_info = {
                 "id": comments_on_transaction_cut[i].id,
-
                 "text": comments_on_transaction_cut[i].text,
                 "picture": comments_on_transaction_cut[i].picture,
                 "created": comments_on_transaction_cut[i].date_created,
@@ -157,6 +156,7 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
                 user_info = {
                     "id": comments_on_transaction_cut[i].user_id,
                     "name": comments_on_transaction_cut[i].user.profile.first_name,
+                    "surname": comments_on_transaction_cut[i].user.profile.surname,
                     "avatar": comments_on_transaction_cut[i].user.profile.get_photo_url()
                 }
 
