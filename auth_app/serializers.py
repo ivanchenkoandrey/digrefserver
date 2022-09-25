@@ -213,6 +213,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
                             this_user = {
                                     'id': users_liked[i][1].id,
                                     'name': users_liked[i][1].profile.first_name,
+                                    'surname': users_liked[i][1].profile.surname,
                                     'avatar': users_liked[i][1].profile.get_photo_url()
                                 }
 
