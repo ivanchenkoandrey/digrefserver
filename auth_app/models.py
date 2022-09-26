@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
 from django.db.models import Q, F, ExpressionWrapper, Exists, OuterRef
@@ -492,7 +493,7 @@ class Comment(models.Model):
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
     previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.SET_NULL,
                                          verbose_name='Ссылка на предыдущий комментарий')
-    text = models.CharField(max_length=50, null=True, blank=True, verbose_name="Текст")
+    text = models.TextField(default='', blank=True, verbose_name="Текст")
     picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures',
                                 verbose_name='Картинка Комментария')
 
@@ -719,6 +720,174 @@ class TagLink(models.Model):
     class Meta:
         db_table = 'tag_links'
         verbose_name = "Синонимы ценностей"
+
+
+class ChallengeState(models.TextChoices):
+    PUBLISHED = 'P', 'Опубликован'
+    REGISTRATION = 'R', 'Идёт регистрация'
+    GET_REPORTS = 'G', 'Идёт приём отчётов'
+    FINALIZING = 'F', 'Подводятся итоги'
+    COMPLETED = 'C', 'Завершен'
+
+
+class ChallengeMode(models.TextChoices):
+    FROM_ORGANIZATION = 'O', 'От имени организации'
+    FROM_USER = 'U', 'От имени пользователя'
+    IS_PUBLIC = 'P', 'Является публичным'
+    IS_TEAM = 'C', 'Является командным'
+    WITH_REGISTER = 'R', 'Нужна регистрация'
+    WITH_IMAGE = 'G', 'Нужна картинка'
+    NO_COMMENTS = 'M', 'Запрет комментариев'
+    ONLY_PARTICIPANTS_COMMENTS = 'E', 'Разрешить комментарии только для участников'
+    NO_LIKES = 'L', 'Лайки запрещены'
+    ONLY_PARTICIPANTS_LIKES = 'T', 'Разрешить лайки только для участников'
+    REPORTS_COMMENTS_EXCEPT_GROUPS = 'X', 'Комментарии отчетов разрешены только автору отчета, организатору и судьям'
+    REPORTS_COMMENTS_PARTICIPANTS_ONLY = 'W', 'Комментарии отчетов разрешены только участникам'
+    REPORTS_LIKES_PARTICIPANTS_ONLY = 'I', 'Лайки отчетов разрешены только участникам'
+    CAN_USE_NICKNAME = 'N', 'Участник может использовать никнейм'
+    CAN_MAKE_PRIVATE = 'H', 'Участник может сделать отчёт приватным'
+    ANONYMOUS_MODE = 'A', 'Отчеты анонимизированы до подведения итогов, не видны ни имена пользователей, ни псевдонимы'
+    CAN_SEND_INVITES = 'Q', 'Участник может рассылать приглашения'
+    CONFIRMATION_RULE = 'Y', 'Подтверждение будет выполняться судейской коллегией (через выдачу ими баллов)'
+
+
+class ChallengeParticipants(models.TextChoices):
+    NOT_A_PARTICIPANT = 'X', 'Сторонний наблюдатель'
+    INVITED = 'I', 'Приглашённый участник'
+    REGISTERED = 'R', 'Записавшийся участник'
+    SEND_REPORT = 'S', 'Участник, приславший отчет о выполнении задания'
+    CONFIRM_REPORT = 'C', 'Участник, отчет которого подтвержден'
+    HAS_REWARD = 'M', 'Участник, которому назначено вознаграждение'
+    JUDGE = 'J', 'Член судейской комиссии'
+    HEAD = 'H', 'Руководители подразделения или организации, на уровне которой объявлен челлендж'
+
+
+class Challenge(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengecreators',
+                                verbose_name='Создатель')
+    organized_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengeorganizers',
+                                     verbose_name='Организатор')
+    published_at = models.DateTimeField(null=True, blank=True, verbose_name='Время публикации в ленте')
+    registration_start_at = models.DateTimeField(null=True, blank=True,
+                                                 verbose_name='Время начала регистрации участников')
+    registration_end_at = models.DateTimeField(null=True, blank=True,
+                                               verbose_name='Время окончания регистрации участников')
+    reports_start_at = models.DateTimeField(null=True, blank=True,
+                                            verbose_name='Время начала приема отчетов о выполнении задания участниками')
+    reports_end_at = models.DateTimeField(null=True, blank=True,
+                                          verbose_name='Время завершения приема отчетов о '
+                                                       'выполнении задания участниками')
+    end_at = models.DateTimeField(null=True, blank=True, verbose_name='Время завершения вызова')
+    states = ArrayField(models.CharField(max_length=1, choices=ChallengeState.choices), size=5)
+    to_hold = models.ForeignKey(Organization, related_name='challengestohold', on_delete=models.CASCADE,
+                                null=True, blank=True,
+                                verbose_name='Организация, от имени которой проводится вызов')
+    to_level_publicity = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
+                                           related_name='challengestopublic',
+                                           verbose_name='Организация, определяющая уровень публичности'
+                                                        ' вызова')
+    name = CICharField(max_length=200, verbose_name='Название вызова')
+    description = CITextField(default='', blank=True, verbose_name='Описание вызова')
+    photo = models.ImageField(null=True, blank=True, upload_to='challenges', verbose_name='Эмблема')
+    min_contribution = models.PositiveIntegerField(null=True, blank=True, default=0,
+                                                   verbose_name='')
+    max_contribution = models.PositiveIntegerField(null=True, blank=True, default=0,
+                                                   verbose_name='')
+    challenge_mode = ArrayField(models.CharField(max_length=1, choices=ChallengeMode.choices),
+                                size=20, null=True, blank=True)
+    parameters = models.JSONField(verbose_name='Параметры алгоритма', null=True, blank=True)
+    distribution_type = CICharField(max_length=100, verbose_name='Тип распределения вознаграждений',
+                                    null=True, blank=True)
+    return_period = models.CharField(max_length=50,
+                                     verbose_name='Период для отзыва подтверждений выполнения заданий и вознаграждений',
+                                     null=True, blank=True)
+    start_balance = models.PositiveIntegerField(verbose_name='Начальный объём фонда от организатора')
+    full_incomes = models.PositiveIntegerField(null=True, blank=True,
+                                               verbose_name='Общий объем поступлений фонда')
+    full_distributions = models.PositiveIntegerField(null=True, blank=True,
+                                                     verbose_name='Общий объем выданных из фонда вознаграждений')
+    next_reward_size = models.PositiveIntegerField(null=True, blank=True,
+                                                   verbose_name='Размер очередного вознаграждения')
+    list_visibility = models.JSONField(null=True, blank=True, verbose_name='Видимость списков')
+    
+    class Meta:
+        db_table = 'challenges'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def get_photo_url(self):
+        if self.photo:
+            return self.photo.url
+
+
+class ParticipantModes(models.TextChoices):
+    IS_RELEVANT = 'A', 'Запись актуальна'
+    INVITE = 'Q', 'Приглашение'
+    ACCEPT = 'P', 'Пользователь подтвердил участие'
+    HIDDEN = 'H', 'Скрыть связь с пользователем'
+    JUDGE = 'R', 'Судья'
+    ORGANIZER = 'O', 'Организатор'
+
+
+class ChallengeParticipant(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания записи')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления записи')
+    register_time = models.DateTimeField(null=True, blank=True, verbose_name='Время регистрации')
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='participants',
+                                  verbose_name='Челлендж')
+    user_participant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengeuserparticipants',
+                                         verbose_name='Пользователь-участник')
+    team_participant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengeteamparticipants',
+                                         verbose_name='Команда-участник', null=True, blank=True)
+    invite_from = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengeinvitors',
+                                    verbose_name='Команда-участник', null=True, blank=True)
+    nickname = CICharField(max_length=100, verbose_name='Никнейм', null=True, blank=True)
+    contribution = models.PositiveIntegerField(verbose_name='Взнос участника')
+    points_received = models.PositiveIntegerField(null=True, blank=True,
+                                                  verbose_name='Количество присужденных баллов')
+    place = models.PositiveIntegerField(null=True, blank=True, verbose_name='Место в списке победителей')
+    total_received = models.PositiveIntegerField(default=0, verbose_name='Сумма полученного выигрыша или возврата')
+    mode = ArrayField(models.CharField(max_length=1, choices=ParticipantModes.choices), size=6)
+    
+    class Meta:
+        db_table = 'challenge_participants'
+
+
+class ReportTypes(models.TextChoices):
+    SENT_TO_APPROVE = 'S', 'Направлен организатору для подтверждения'
+    IN_PROCESS = 'F', 'В процессе оценки судьями'
+    APPROVED = 'A', 'Подтверждено'
+    DECLINED = 'D', 'Отклонено'
+    DOUBLE_CHECK = 'R', 'Повторно направлено организатору'
+    REWARD_RECEIVED = 'W', 'Получено вознаграждение'
+
+
+class ChallengeReport(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
+    content_updated_at = models.DateTimeField(auto_now=True,
+                                              verbose_name='Время последнего обновления текста или картинки')
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='reports',
+                                  verbose_name='Челлендж')
+    participant = models.ForeignKey(ChallengeParticipant, on_delete=models.CASCADE, related_name='challengereports',
+                                    verbose_name='Запись участника')
+    text = models.TextField(default='', blank=True, verbose_name='Текст')
+    photo = models.ImageField(null=True, blank=True, upload_to='reports', verbose_name='Картинка/скриншот')
+    points = models.PositiveIntegerField(null=True, blank=True, verbose_name='Количество присуждённых баллов')
+    state = models.CharField(max_length=1, choices=ReportTypes.choices, verbose_name='Состояние отчёта')
+    is_public = models.BooleanField(default=True, verbose_name='Публичность')
+
+    class Meta:
+        db_table = 'challenge_reports'
+
+    @property
+    def get_photo_url(self):
+        if self.photo:
+            return self.photo.url
 
 
 @receiver(post_save, sender=User)

@@ -140,7 +140,7 @@ class UsersList(APIView):
                 tg_name=F('profile__tg_name'),
                 name=F('profile__first_name'),
                 surname=F('profile__surname'),
-                photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:10])
+                photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:100])
             for user in users_list:
                 photo = user.get('photo')
                 if photo is not None:

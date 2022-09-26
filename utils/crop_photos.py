@@ -7,7 +7,7 @@ _SIZE = (256, 256)
 SUFFIX = settings.THUMBNAIL_SUFFIX
 
 
-def crop_image(item, path):
+def crop_image(item, path, to_square=True):
     image = Image.open(f"{path}{item}")
     filename, extension = os.path.splitext(item)
     if extension in ('.jpg', '.JPG', '.jpeg', '.JPEG'):
@@ -28,10 +28,11 @@ def crop_image(item, path):
         return
     image.thumbnail(_SIZE)
     image.save(f"{path}{filename}{SUFFIX}{extension}")
-    thumb_image = Image.open(f"{path}{filename}{SUFFIX}{extension}")
-    need_width = need_height = 128
-    cropped = crop_center(thumb_image, need_width, need_height)
-    cropped.save(f"{path}{filename}{SUFFIX}{extension}")
+    if to_square:
+        thumb_image = Image.open(f"{path}{filename}{SUFFIX}{extension}")
+        need_width = need_height = 128
+        cropped = crop_center(thumb_image, need_width, need_height)
+        cropped.save(f"{path}{filename}{SUFFIX}{extension}")
 
 
 def crop_center(pil_img, crop_width, crop_height):
