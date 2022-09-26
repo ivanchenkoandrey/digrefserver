@@ -75,16 +75,33 @@ class LikeAdmin(admin.ModelAdmin):
     list_select_related = ['user', 'like_kind']
     list_filter = ['transaction', 'user']
 
+
 @admin.register(LikeKind)
 class LikeKindAdmin(admin.ModelAdmin):
     list_display = ['id', 'code', 'name', 'icon']
 
+
 @admin.register(LikeStatistics)
 class LikeStatisticsAdmin(admin.ModelAdmin):
     list_display = ['transaction_id', 'like_kind_id', 'last_change_at', 'like_counter']
+
 
 @admin.register(LikeCommentStatistics)
 class LikeCommentStatisticsAdmin(admin.ModelAdmin):
     list_display = ['transaction_id', 'first_comment_id', 'last_comment_id', 'last_event_comment_id',
                     'comment_counter', 'last_like_or_comment_change_at']
 
+
+@admin.register(Challenge)
+class ChallengeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'created_at', 'updated_at']
+
+
+@admin.register(ChallengeParticipant)
+class ChallengeParticipantAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(ChallengeReport)
+class ChallengeReportAdmin(admin.ModelAdmin):
+    pass

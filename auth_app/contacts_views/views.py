@@ -101,4 +101,5 @@ class CreateFewContactsByUser(APIView):
         contact_item.update({'profile': request.user.profile.pk})
         serializer = UserMakesContactSerializer(context={'user': request.user}, data=contact_item)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            instance = serializer.save()
+            contact_item.update({'id': instance.pk})
