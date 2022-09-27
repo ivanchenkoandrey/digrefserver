@@ -501,7 +501,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         reason_def = self.data.get('reason_def')
         amount = self.validated_data['amount']
         is_anonymous = self.validated_data['is_anonymous']
-        tags = self.make_validations(amount, current_period, reason, reason_def, recipient, sender, tags)
+        tags = self.make_validations(amount, current_period, reason, recipient, sender, tags)
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
         current_account_amount = sender_distr_account.amount
@@ -565,17 +565,17 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             return transaction_instance
 
     @classmethod
-    def make_validations(cls, amount, current_period, reason, reason_def, recipient, sender, tags):
+    def make_validations(cls, amount, current_period, reason, recipient, sender, tags):
         if amount <= 0:
             logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
             raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
         if current_period is None:
             logger.info(f"Попытка создать транзакцию, когда закончился период")
             raise ValidationError('Период отправки транзакций закончился')
-        if reason is None and reason_def is None:
-            logger.error(f"Не переданы ни своё обоснование, ни готовое обоснование")
+        if reason is None and tags is None:
+            logger.error(f"Не переданы ни своё обоснование, ни ценность")
             raise ValidationError("Нужно либо заполнить поле обоснования, "
-                                  "либо указать ID уже существующего обоснования (благодарности)")
+                                  "либо указать ID существующего тега (ценности)")
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             logger.info(f"Попытка отправить спасибки на системный аккаунт")
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
