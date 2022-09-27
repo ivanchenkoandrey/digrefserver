@@ -101,9 +101,11 @@ class PressLikeSerializer(serializers.ModelSerializer):
 
                     validated_data['is_liked'] = True
                     validated_data['like_kind'] = like_kind
-
                     like_statistics = LikeStatistics.objects.get(transaction_id=transaction.id, like_kind_id=like_kind.id)
                     like_statistics_data['like_counter'] = like_statistics.like_counter + 1
                     like_statistics_data['last_change_at'] = datetime.now()
                     super().update(like_statistics, like_statistics_data)
-                    return super().create(validated_data)
+
+                    like = Like(content_object=transaction, user=user, is_liked=True, like_kind=like_kind)
+                    like.save()
+                    return validated_data

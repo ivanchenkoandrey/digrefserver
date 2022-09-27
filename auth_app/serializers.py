@@ -8,6 +8,7 @@ from django.db.models import F
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from utils.query_debugger import query_debugger
+from django.contrib.contenttypes.models import ContentType
 
 from auth_app.models import (Profile, Account, Transaction,
                              UserStat, Period, Contact,
@@ -137,7 +138,8 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        comments_on_transaction = Comment.objects.filter_by_transaction(obj.id).select_related('user__profile').\
+        ctype = ContentType.objects.get(model='transactions')
+        comments_on_transaction = Comment.objects.filter_by_ctype(ctype).select_related('user__profile').\
             only('user__profile__first_name', 'user__profile__photo').order_by(order_by)
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
@@ -193,11 +195,12 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
             like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
                           [LikeKind.objects.get(id=like_kind_id)]]
 
+        ctype = ContentType.objects.get(model='transactions')
         users_liked = [(like.date_created, like.user, like.like_kind_id)
                        for like in Like.objects.select_related('user__profile', 'like_kind', 'transaction')
                        .only("id", "date_created", 'user__profile__first_name', 'user__profile__photo', 'like_kind',
                              'transaction__id').
-                       filter(transaction_id=obj.id, is_liked=True).order_by('-date_created')]
+                       filter(content_type=ctype, is_liked=True).order_by('-date_created')]
 
         for like_kind in like_kinds:
             items = []
@@ -286,8 +289,8 @@ class LikeUserSerializer(serializers.ModelSerializer):
         if like_kind_id != 'all':
             like_kind = LikeKind.objects.get(id=like_kind_id)
 
-            transactions_liked = [(like.transaction_id, like.date_created)
-                                  for like in Like.objects.filter_by_user_and_like_kind(obj.id, like_kind).
+            transactions_liked = [(like.object_id, like.date_created)
+                                  for like in Like.objects.filter_by_user_and_like_kind(ctype, like_kind).
                                   order_by('date_created')]
 
             transactions_liked_cut = transactions_liked[offset:offset + limit]
@@ -306,7 +309,7 @@ class LikeUserSerializer(serializers.ModelSerializer):
             return likes
 
         else:
-            transactions_liked = [(like.transaction_id, like.date_created, like.like_kind_id)
+            transactions_liked = [(like.object_id, like.date_created, like.like_kind_id)
                                   for like in Like.objects.filter_by_user(obj.id).order_by('-date_created')]
             transactions_liked_cut = transactions_liked[offset: offset + limit]
             for i in range(len(transactions_liked_cut)):

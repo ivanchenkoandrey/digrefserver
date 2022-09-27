@@ -11,6 +11,9 @@ from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericRelation
 
 User = get_user_model()
 
@@ -259,6 +262,9 @@ class Transaction(models.Model):
     is_commentable = models.BooleanField(default=True,
                                          verbose_name="Разрешение на добавление/изменение/удаления комментариев")
 
+    comments = GenericRelation('Comment')
+    likes = GenericRelation('Like')
+
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
@@ -473,19 +479,23 @@ class CustomCommentQueryset(models.QuerySet):
     в рамках менеджера objects в инстансах модели Comment
     """
 
-    def filter_by_transaction(self, transaction):
+    def filter_by_ctype(self, ctype):
         """
         Возвращает список комментариев заданной транзакции
         """
-        return Comment.objects.filter(transaction=transaction)
+        return Comment.objects.filter(content_type=ctype)
 
 
 class Comment(models.Model):
     objects = CustomCommentQueryset.as_manager()
 
     # id: идентификатор - создается автоматически
-    transaction = models.ForeignKey(Transaction, related_name="comments", on_delete=models.SET_NULL,
-                                    null=True, blank=True, verbose_name="Транзакция")
+    # transaction = models.ForeignKey(Transaction, related_name="comments", on_delete=models.SET_NULL,
+    #                                 null=True, blank=True, verbose_name="Транзакция")
+    content_type = models.ForeignKey(ContentType, null=True, blank=True, on_delete=models.SET_NULL)
+    object_id = models.PositiveIntegerField(null=True)
+    content_object = GenericForeignKey()
+
     user = models.ForeignKey(User, related_name='comment', on_delete=models.CASCADE,
                              verbose_name='Владелец Комментария')
     date_created = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Дата создания")
@@ -564,6 +574,11 @@ class Like(models.Model):
     # id: идентификатор - создается автоматически
 
     objects = CustomLikeQueryset.as_manager()
+    # transaction = models.ForeignKey(Transaction, related_name="likes", on_delete=models.CASCADE,
+    #                                 verbose_name="Транзакция")
+    content_type = models.ForeignKey(ContentType, null=True, blank=True, on_delete=models.SET_NULL)
+    object_id = models.PositiveIntegerField(null=True)
+    content_object = GenericForeignKey()
 
     like_kind = models.ForeignKey(LikeKind, related_name='like', on_delete=models.CASCADE,
                                   verbose_name='Тип лайка')
@@ -572,8 +587,7 @@ class Like(models.Model):
     date_deleted = models.DateTimeField(default=None, null=True, blank=True, verbose_name="Дата отзыва лайка")
     user = models.ForeignKey(User, related_name='like', on_delete=models.CASCADE,
                              verbose_name='Владелец Лайка')
-    transaction = models.ForeignKey(Transaction, related_name="likes", on_delete=models.CASCADE,
-                                    verbose_name="Транзакция")
+
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}

@@ -64,16 +64,16 @@ class UserRoleAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ['transaction', 'user', 'text', 'picture', 'date_created']
+    list_display = ['content_object', 'user', 'text', 'picture', 'date_created']
     list_select_related = ['user']
-    list_filter = ['transaction', 'user']
+    list_filter = ['content_object', 'user']
 
 
 @admin.register(Like)
 class LikeAdmin(admin.ModelAdmin):
-    list_display = ['like_kind', 'user', 'transaction', 'is_liked', 'date_created']
+    list_display = ['content_object', 'like_kind', 'user', 'is_liked', 'date_created']
     list_select_related = ['user', 'like_kind']
-    list_filter = ['transaction', 'user']
+    list_filter = ['content_object', 'user']
 
 
 @admin.register(LikeKind)
