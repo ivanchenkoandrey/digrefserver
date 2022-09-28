@@ -15,6 +15,7 @@ from auth_app.tg_bot_views import views as tg_bot_views
 from auth_app.comments_views import views as comment_views
 from auth_app.likes_views import views as likes_views
 from auth_app.comments_views import views as comments_views
+from auth_app.challenges_views import views as challenges_views
 
 from . import views
 
@@ -99,4 +100,6 @@ urlpatterns = [
     path('get-likes-by-user/', likes_views.LikesUserListAPIView.as_view()),
     # statistics
     path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
+    # challenges
+    path('create-challenge/', challenges_views.CreateChallengeView.as_view()),
 ]
