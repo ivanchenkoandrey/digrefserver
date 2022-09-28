@@ -3,21 +3,20 @@ from django.urls import path
 
 from auth_app.accounts_views import views as account_views
 from auth_app.auth_views import views as auth_views
+from auth_app.challenges_views import views as challenge_views
+from auth_app.comments_views import views as comment_views
+from auth_app.comments_views import views as comments_views
+from auth_app.contacts_views import views as contact_views
 from auth_app.events_views import views as events_views
+from auth_app.likes_views import views as likes_views
 from auth_app.organization_views import views as organization_views
 from auth_app.periods_views import views as periods_views
 from auth_app.profile_views import views as profile_views
-from auth_app.transaction_views import views as transaction_views
-from auth_app.user_stat_views import views as stat_views
-from auth_app.contacts_views import views as contact_views
 from auth_app.tags_views import views as tag_views
 from auth_app.tg_bot_views import views as tg_bot_views
-from auth_app.comments_views import views as comment_views
-from auth_app.likes_views import views as likes_views
-from auth_app.comments_views import views as comments_views
-
+from auth_app.transaction_views import views as transaction_views
+from auth_app.user_stat_views import views as stat_views
 from . import views
-
 
 urlpatterns = [
     # authentication
@@ -48,6 +47,13 @@ urlpatterns = [
     path('create-few-contacts/', contact_views.CreateFewContactsByUser.as_view()),
     path('profile/<int:pk>/', views.GetProfileView.as_view()),
     path('get-user-profile-for-admin/<int:pk>/', views.GetProfileViewAdmin.as_view()),
+
+    # challenges
+    path('challenges/', challenge_views.ChallengeListView.as_view()),
+    path('challenges/<int:pk>/', challenge_views.ChallengeDetailView.as_view()),
+    path('challenge-winners/<int:pk>/', challenge_views.ChallengeWinnersList.as_view()),
+    path('challenge-participants/<int:pk>/', challenge_views.ChallengeCandidatesList.as_view()),
+    path('check-if-new-reports-exists/', challenge_views.CheckIfNewReportsExistsView.as_view()),
 
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view()),
