@@ -138,7 +138,6 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        ctype = ContentType.objects.get(model='transactions')
         comments_on_transaction = Comment.objects.filter_by_ctype(ctype).select_related('user__profile').\
             only('user__profile__first_name', 'user__profile__photo').order_by(order_by)
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]

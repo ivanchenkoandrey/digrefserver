@@ -6,6 +6,7 @@ from auth_app.models import Comment, Transaction
 from auth_app.serializers import CommentTransactionSerializer
 from rest_framework.response import Response
 from .serializers import CreateCommentSerializer, UpdateCommentSerializer, DeleteCommentSerializer
+from django.contrib.contenttypes.models import ContentType
 
 
 class CommentListAPIView(APIView):
@@ -58,11 +59,13 @@ class CommentListAPIView(APIView):
 
 
 class CreateCommentView(CreateAPIView):
+
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
     queryset = Comment.objects.all()
     serializer_class = CreateCommentSerializer
+
 
 
 class UpdateCommentView(UpdateAPIView):

@@ -4,43 +4,46 @@ from auth_app.models import Comment, Transaction, LikeCommentStatistics
 from rest_framework.exceptions import ValidationError
 from datetime import datetime
 from django.shortcuts import get_object_or_404
+from django.contrib.contenttypes.models import ContentType
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ['transaction', 'text', 'picture']
+        fields = ['content_type', 'object_id', 'text', 'picture']
 
     def create(self, validated_data):
-        transaction = validated_data['transaction']
 
         user = self.context['request'].user
         validated_data['user'] = user
+        content_type = validated_data['content_type']
+        object_id = validated_data['object_id']
         content = validated_data.get('text')
         image = validated_data.get('picture')
-
+        ctype = ContentType.objects.get(model='Transaction')
+        print("con_type:", ctype)
         if (content is None or content == "") and image is None:
             raise ValidationError("Не переданы параметры text или picture")
         with tr.atomic():
             try:
-                previous_comment = Comment.objects.get(transaction_id=transaction.id, is_last_comment=True)
+                previous_comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
             except Comment.DoesNotExist:
 
                 validated_data['is_last_comment'] = True
                 validated_data['previous_comment'] = None
 
                 created_comment_instance = super().create(validated_data)
-                comment = Comment.objects.get(transaction_id=transaction.id, previous_comment=None)
+                comment = Comment.objects.get(content_type=content_type, object_id=object_id, previous_comment=None)
                 try:
 
-                    like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
+                    like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=object_id)
                     like_comment_statistics_data = {'first_comment': comment, 'last_comment': comment,
                                                     'last_event_comment': comment,
                                                     'comment_counter': 1}
                     super().update(like_comment_statistics, like_comment_statistics_data)
                 except LikeCommentStatistics.DoesNotExist:
 
-                    like_comment_statistics_object = LikeCommentStatistics(transaction_id=transaction.id,
+                    like_comment_statistics_object = LikeCommentStatistics(transaction_id=object_id,
                                                                            first_comment=comment,
                                                                            last_comment=comment, last_event_comment=comment,
                                                                            comment_counter=1)
@@ -52,9 +55,9 @@ class CreateCommentSerializer(serializers.ModelSerializer):
             validated_data['previous_comment'] = previous_comment
             validated_data['is_last_comment'] = True
             created_comment_instance = super().create(validated_data)
-            comment = Comment.objects.get(transaction_id=transaction.id, is_last_comment=True)
+            comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
 
-            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction.id)
+            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=object_id)
             comment_counter = like_comment_statistics.comment_counter + 1
             like_comment_statistics_data = {'last_comment': comment, 'last_event_comment': comment,
                                             'comment_counter': comment_counter}
