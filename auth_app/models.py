@@ -12,6 +12,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
+from auth_app.managers import CustomChallengeQueryset, CustomChallengeParticipantQueryset
+
 User = get_user_model()
 
 
@@ -763,6 +765,8 @@ class ChallengeParticipants(models.TextChoices):
 
 
 class Challenge(models.Model):
+    objects = CustomChallengeQueryset.as_manager()
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengecreators',
@@ -811,7 +815,7 @@ class Challenge(models.Model):
     next_reward_size = models.PositiveIntegerField(null=True, blank=True,
                                                    verbose_name='Размер очередного вознаграждения')
     list_visibility = models.JSONField(null=True, blank=True, verbose_name='Видимость списков')
-    
+
     class Meta:
         db_table = 'challenges'
 
@@ -834,6 +838,8 @@ class ParticipantModes(models.TextChoices):
 
 
 class ChallengeParticipant(models.Model):
+    objects = CustomChallengeParticipantQueryset.as_manager()
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания записи')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления записи')
     register_time = models.DateTimeField(null=True, blank=True, verbose_name='Время регистрации')
@@ -852,7 +858,7 @@ class ChallengeParticipant(models.Model):
     place = models.PositiveIntegerField(null=True, blank=True, verbose_name='Место в списке победителей')
     total_received = models.PositiveIntegerField(default=0, verbose_name='Сумма полученного выигрыша или возврата')
     mode = ArrayField(models.CharField(max_length=1, choices=ParticipantModes.choices), size=6)
-    
+
     class Meta:
         db_table = 'challenge_participants'
 
