@@ -110,7 +110,7 @@ class ChallengeCandidatesList(APIView):
         return Response(data=participants)
 
 
-class CheckIfNewReportsExistsView(APIView):
+class CheckIfNewReportsExistView(APIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]

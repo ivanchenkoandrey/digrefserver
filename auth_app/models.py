@@ -234,8 +234,18 @@ class CustomTransactionQueryset(models.QuerySet):
 class Transaction(models.Model):
     objects = CustomTransactionQueryset.as_manager()
 
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outcomes', verbose_name='Отправитель')
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incomes', verbose_name='Получатель')
+    sender = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='outcomes', verbose_name='Отправитель')
+    sender_account = models.ForeignKey('Account', on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='sendertransactions', verbose_name='Счёт отправителя')
+    recipient = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='incomes', verbose_name='Получатель')
+    recipient_account = models.ForeignKey('Account', on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='recipienttransactions', verbose_name='Счёт получателя')
+    from_challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, related_name='fromtransactions',
+                                       null=True, blank=True, verbose_name='От челленджа')
+    to_challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, related_name='totransactions',
+                                     null=True, blank=True, verbose_name='Челленджу')
     transaction_class = models.CharField(max_length=1, choices=TransactionClass.choices, verbose_name='Вид транзакции')
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
@@ -313,12 +323,15 @@ class AccountTypes(models.TextChoices):
 
 class Account(models.Model):
     account_type = models.CharField(max_length=1, choices=AccountTypes.choices, verbose_name='Тип счета')
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts', verbose_name='Владелец')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts',
+                              null=True, blank=True, verbose_name='Владелец')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='accounts',
                                      verbose_name='Подразделение', null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
+    challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='challengeaccount', verbose_name='Челлендж')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -384,8 +397,14 @@ class UserStat(models.Model):
     # account [DISTR] -> transaction [THANKS]
     distr_declined = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                          verbose_name='Сгоревшие (отклоненные транзакции из распределяемых)')
-
-    # account [DISTR] -> transaction [THANKS][DECLINED]
+    manager_redist = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                         verbose_name='Менеджер отправил для перераспределения другим')
+    sent_to_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                             verbose_name='Пользователь отправил в фонды челленджей')
+    awarded_from_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                                  verbose_name='Пользователь получил из фондов в качестве награды')
+    returned_from_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                                   verbose_name='Пользователь получил из фондов в качестве возврата')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -447,7 +466,6 @@ class EventTypes(models.Model):
 
 
 class Event(models.Model):
-    # id: идентификатор - создается автоматически
     # тип события - транзакция, лайк и тп
     event_type = models.ForeignKey(EventTypes, on_delete=models.PROTECT, verbose_name='Тип события')
     # объект, с которым произошло событие

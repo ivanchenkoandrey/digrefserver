@@ -177,20 +177,24 @@ def cancel_transaction_by_user(instance: Transaction,
     """
     with transaction.atomic():
         period = get_current_period()
-        sender_accounts = instance.sender.accounts.all()
         amount = instance.amount
+        account_to_return = instance.sender_account
         sender_user_stat = UserStat.objects.get(user=request.user, period=period)
-        sender_distr_account = sender_accounts.filter(account_type='D').first()
-        sender_frozen_account = sender_accounts.filter(account_type='F').first()
-        sender_distr_account.amount += amount
+        sender_frozen_account = instance.sender.accounts.filter(account_type='F').only('amount').first()
+        account_to_return.amount += amount
         sender_frozen_account.amount -= amount
-        sender_user_stat.distr_thanks -= amount
-        sender_user_stat.distr_declined += amount
+        if account_to_return.account_type == 'D':
+            sender_user_stat.distr_thanks -= amount
+            sender_user_stat.distr_declined += amount
+            sender_user_stat.save(update_fields=['distr_thanks', 'distr_declined'])
+        elif account_to_return.account_type == 'I':
+            sender_user_stat.income_declined += amount
+            sender_user_stat.income_used_for_thanks -= amount
+            sender_user_stat.save(update_fields=['income_declined', 'income_used_for_thanks'])
         instance.status = 'C'
         instance.save(update_fields=['status'])
-        sender_distr_account.save(update_fields=['amount'])
+        account_to_return.save(update_fields=['amount'])
         sender_frozen_account.save(update_fields=['amount'])
-        sender_user_stat.save(update_fields=['distr_thanks', 'distr_declined'])
         serializer.save()
 
 

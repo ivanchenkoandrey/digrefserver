@@ -27,7 +27,7 @@ class CustomChallengeQueryset(models.QuerySet):
                               ChallengeReport.objects.filter(
                                   Q(challenge_id=OuterRef('pk')) &
                                   Q(challenge__creator_id=user_id) &
-                                  Q(state__in=['S', 'F']))
+                                  Q(state__in=['S', 'F', 'R']))
                           ),
                           winners_count=Count('reports', filter=Q(reports__state__exact='W'))
                           )

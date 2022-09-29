@@ -136,6 +136,6 @@ def check_if_new_reports_exists(user_id: int) -> bool:
     from auth_app.models import ChallengeReport
 
     new_reports_exists = (ChallengeReport.objects
-                          .filter(Q(challenge__creator_id=user_id) & Q(state__in=['S', 'F']))
+                          .filter(Q(challenge__creator_id=user_id) & Q(state__in=['S', 'F', 'R']))
                           .exists())
     return new_reports_exists

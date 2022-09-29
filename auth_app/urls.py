@@ -52,7 +52,7 @@ urlpatterns = [
     path('challenges/<int:pk>/', challenges_views.ChallengeDetailView.as_view()),
     path('challenge-winners/<int:pk>/', challenges_views.ChallengeWinnersList.as_view()),
     path('challenge-participants/<int:pk>/', challenges_views.ChallengeCandidatesList.as_view()),
-    path('check-if-new-reports-exists/', challenges_views.CheckIfNewReportsExistsView.as_view()),
+    path('check-new-reports/', challenges_views.CheckIfNewReportsExistView.as_view()),
     path('create-challenge/', challenges_views.CreateChallengeView.as_view()),
 
     # transactions
