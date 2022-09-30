@@ -504,12 +504,14 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         tags = self.make_validations(amount, current_period, reason, recipient, sender, tags)
         sender_distr_account = Account.objects.filter(
             owner=sender, account_type='D').first()
+        account_to_save = sender_distr_account
         current_account_amount = sender_distr_account.amount
         if current_account_amount == 0:
             sender_income_account = Account.objects.filter(
                 owner=sender, account_type='I').first()
             current_account_amount = sender_income_account.amount
             from_income = True
+            account_to_save = sender_income_account
         if current_account_amount - amount < 0:
             logger.info(f"Попытка {sender} перевести сумму больше имеющейся на счету распределения")
             raise ValidationError("Нельзя перевести больше, чем есть на счету")
@@ -524,6 +526,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             transaction_instance = Transaction.objects.create(
                 sender=self.context['request'].user,
+                sender_account=account_to_save,
                 recipient=recipient,
                 transaction_class='T',
                 amount=self.validated_data['amount'],
