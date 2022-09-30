@@ -22,8 +22,8 @@ class IsController(BasePermission):
     message = 'Вы не являетесь контроллером или администратором'
 
     def has_permission(self, request, view):
-        return bool(request.user.is_staff or (request.user.is_authenticated
-                                              and request.user.privileged.filter(role__in=['A', 'C'])))
+        return bool(request.user.is_authenticated and request.user.is_staff or (request.user.is_authenticated
+                    and request.user.privileged.filter(role__in=['A', 'C'])))
 
 
 class IsAnonymous(BasePermission):
@@ -43,11 +43,12 @@ class IsOrganizationAdmin(BasePermission):
     message = 'Вы не являетесь администратором организации'
 
     def has_permission(self, request, view):
-        user_organization_pk = request.user.profile.organization.pk
-        user_privileged_organization = request.user.privileged.filter(
-            role='A', organization__top_id=user_organization_pk).first()
-        if user_privileged_organization is not None:
-            return True
+        if request.user.is_authenticated:
+            user_organization_pk = request.user.profile.organization.pk
+            user_privileged_organization = request.user.privileged.filter(
+                role='A', organization__top_id=user_organization_pk).first()
+            if user_privileged_organization is not None:
+                return True
         return False
 
 
@@ -58,11 +59,12 @@ class IsDepartmentAdmin(BasePermission):
     message = 'Вы не являетесь администратором подразделения'
 
     def has_permission(self, request, view):
-        users_department_pk = request.user.profile.department.pk
-        users_privileged_department = request.user.privileged.filter(
-            role='A', organization_id=users_department_pk).first()
-        if users_privileged_department is not None:
-            return True
+        if request.user.is_authenticated:
+            users_department_pk = request.user.profile.department.pk
+            users_privileged_department = request.user.privileged.filter(
+                role='A', organization_id=users_department_pk).first()
+            if users_privileged_department is not None:
+                return True
         return False
 
 

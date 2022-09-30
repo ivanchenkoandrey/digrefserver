@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from auth_app.models import Challenge, Organization
 from rest_framework.exceptions import ValidationError
+
+from auth_app.models import Challenge
 
 
 class CreateChallengeSerializer(serializers.ModelSerializer):

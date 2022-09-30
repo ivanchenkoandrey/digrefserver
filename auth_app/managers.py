@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from django.db import models
 from django.db.models import Q, F, Exists, OuterRef, Count, When, Value, Case
 
@@ -44,12 +42,11 @@ class CustomChallengeQueryset(models.QuerySet):
         )
 
     def get_active_only(self, user_id):
-        now = datetime.now()
         return (self.get_challenges_list(user_id)
-                .filter(end_date__gte=now)).values(
+                .filter(~Q(states__contains=['C'])).values(
             'id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount',
             'creator_id', 'status', 'parameters', 'is_new_reports', fund=F('start_balance')
-        )
+        ))
 
     def get_challenge_by_pk(self, user_id, pk):
         return (self.get_challenges_list(user_id)
