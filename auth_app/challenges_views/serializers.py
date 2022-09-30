@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from auth_app.models import Challenge, Organization, Account
+from auth_app.models import Challenge, Organization, Account, UserStat
 from rest_framework.exceptions import ValidationError
 from utils.thumbnail_link import get_thumbnail_link
 from utils.crop_photos import crop_image
@@ -22,7 +22,6 @@ class CreateChallengeSerializer(serializers.ModelSerializer):
         parameters = validated_data['parameters']
         request = self.context.get('request')
         photo = request.FILES.get('photo')
-
         if parameters is None:
             parameters = [{"id": 2, "value": 5},
                           {"id": 1, "value": start_balance // 5, "is_calc": True}]
@@ -47,16 +46,17 @@ class CreateChallengeSerializer(serializers.ModelSerializer):
         if current_account_amount - start_balance < 0:
             logger.info(f"Попытка {creator} создать челлендж с фондом на сумму больше имеющейся на счету")
             raise ValidationError("Нельзя добавить в фонд больше, чем есть на счету")
+
         if not from_income:
             sender_distr_account.amount -= start_balance
-            # sender_user_stat.distr_thanks += start_balance
             sender_distr_account.save(update_fields=['amount'])
-            # sender_user_stat.save(update_fields=['distr_thanks'])
         else:
             sender_income_account.amount -= start_balance
-            # sender_user_stat.income_used_for_thanks += amount
             sender_income_account.save(update_fields=['amount'])
-            # sender_user_stat.save(update_fields=['income_used_for_thanks'])
+        user_stat = UserStat.objects.get(user=creator)
+        user_stat.sent_to_challenges += start_balance
+        user_stat.save(update_fields=['sent_to_challenges'])
+
         challenge_instance = Challenge.objects.create(
             creator=creator,
             organized_by=creator,
