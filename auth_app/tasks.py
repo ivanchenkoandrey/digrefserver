@@ -47,7 +47,8 @@ def validate_transactions_after_grace_period():
                              .only('sender_id', 'recipient_id', 'status', 'amount',
                              'period', 'created_at', 'sender_account', 'recipient_account')]
     with transaction.atomic():
-        accounts = Account.objects.only('owner_id', 'amount', 'account_type', 'transaction')
+        accounts = (Account.objects.filter(organization_id=None, challenge_id=None)
+                    .only('owner_id', 'amount', 'account_type', 'transaction'))
         user_stats = (UserStat.objects
                       .filter(period=period)
                       .only('period', 'income_thanks'))

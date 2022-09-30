@@ -503,12 +503,12 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         is_anonymous = self.validated_data['is_anonymous']
         tags = self.make_validations(amount, current_period, reason, recipient, sender, tags)
         sender_distr_account = Account.objects.filter(
-            owner=sender, account_type='D').first()
+            owner=sender, account_type='D', organization_id=None, challenge_id=None).first()
         account_to_save = sender_distr_account
         current_account_amount = sender_distr_account.amount
         if current_account_amount == 0:
             sender_income_account = Account.objects.filter(
-                owner=sender, account_type='I').first()
+                owner=sender, account_type='I', organization_id=None, challenge_id=None).first()
             current_account_amount = sender_income_account.amount
             from_income = True
             account_to_save = sender_income_account
@@ -521,7 +521,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             raise ValidationError("Перевести можно до 50% имеющейся "
                                   "суммы на счету распределения")
         sender_frozen_account = Account.objects.filter(
-            owner=sender, account_type='F').first()
+            owner=sender, account_type='F', organization_id=None, challenge_id=None).first()
         sender_user_stat = UserStat.objects.get(user=sender, period=current_period)
         with transaction.atomic():
             transaction_instance = Transaction.objects.create(

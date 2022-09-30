@@ -22,8 +22,8 @@ class EmitDistributionThanks(APIView):
         if period:
             emit_user = User.objects.get(username='system')
             organization = Organization.objects.get(pk=1)
-            emit_account = Account.objects.get(account_type='T')
-            accounts = Account.objects.filter(account_type='D', amount=0)
+            emit_account = Account.objects.get(account_type='T', challenge_id=None, organization_id=None)
+            accounts = Account.objects.filter(account_type='D', amount=0, challenge_id=None, organization_id=None)
             users_pk = list(accounts.values_list('owner_id', flat=True))
             users = User.objects.filter(pk__in=users_pk)
             user_stats = UserStat.objects.filter(period=period, user_id__in=users_pk)

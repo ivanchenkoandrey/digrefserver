@@ -4,7 +4,6 @@ from datetime import timedelta
 from django.db.models import F
 
 from auth_app.models import EventTypes, Transaction, Profile
-from utils.query_debugger import query_debugger
 from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,6 @@ def get_event_type(user, recipient, is_public, event_types):
     return event_types.get('Входящая транзакция')
 
 
-@query_debugger
 def get_events_list(request):
     request_user_tg_name = get_request_user_tg_name(request)
     transactions = get_transactions_queryset(request)
