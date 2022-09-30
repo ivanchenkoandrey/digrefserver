@@ -1,10 +1,7 @@
 from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView, UpdateAPIView, DestroyAPIView
+from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
 from auth_app.models import Challenge
-from auth_app.serializers import CommentTransactionSerializer
-from rest_framework.response import Response
 from .serializers import CreateChallengeSerializer
 
 

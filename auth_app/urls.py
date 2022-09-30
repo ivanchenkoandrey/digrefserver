@@ -16,6 +16,8 @@ from auth_app.comments_views import views as comment_views
 from auth_app.likes_views import views as likes_views
 from auth_app.comments_views import views as comments_views
 from auth_app.challenges_views import views as challenges_views
+from auth_app.challenge_reports_views import views as challenge_reports_views
+
 
 from . import views
 
@@ -102,4 +104,6 @@ urlpatterns = [
     path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
     # challenges
     path('create-challenge/', challenges_views.CreateChallengeView.as_view()),
+    path('create-challenge-report/', challenge_reports_views.CreateChallengeReportView.as_view()),
+    path('check-challenge-report/<int:pk>/', challenge_reports_views.CheckChallengeReportView.as_view()),
 ]
