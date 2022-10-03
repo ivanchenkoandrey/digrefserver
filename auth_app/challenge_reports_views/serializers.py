@@ -1,11 +1,13 @@
 from rest_framework import serializers
-from auth_app.models import ChallengeReport, Organization, ChallengeParticipant
+from auth_app.models import ChallengeReport, Organization, ChallengeParticipant, Account, Transaction, UserStat
 from rest_framework.exceptions import ValidationError
 from utils.thumbnail_link import get_thumbnail_link
 from utils.crop_photos import crop_image
 from django.conf import settings
 from utils.handle_image import change_challenge_report_filename
-
+from utils.current_period import get_current_period
+from django.db import transaction as tr
+from utils.challenges_logic import check_if_new_reports_exists
 
 class CreateChallengeReportSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,7 +29,6 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
         except ChallengeReport.DoesNotExist:
             challenge.participants_count += 1
             challenge.save(update_fields=["participants_count"])
-            pass
 
         challenge_report_instance = ChallengeReport.objects.create(
             participant=participant,
@@ -36,7 +37,7 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
             state='S',
             photo=photo
         )
-        is_new_reports = True
+        # is_new_reports = check_if_new_reports_exists()
         if challenge_report_instance.photo.name is not None:
             challenge_report_instance.photo.name = change_challenge_report_filename(challenge_report_instance.photo.name)
             challenge_report_instance.save(update_fields=['photo'])
@@ -53,6 +54,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         id = self.instance.id
         state = validated_data['state']
         challenge_report = ChallengeReport.objects.get(id=id)
+        user_participant = challenge_report.participant.user_participant
         reviewer = self.context['request'].user
         challenge_creator = challenge_report.challenge.creator
         text = 'Причина'
@@ -63,20 +65,47 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         if (text is None or text == '') and state == 'D':
             raise ValidationError("Не указана причина отклонения")
         if state == 'W':
-            challenge = challenge_report.challenge
-            winners_count = challenge.winners_count
-            challenge.winners_count = winners_count + 1
-            challenge.save(update_fields=["winners_count"])
+            with tr.atomic():
+                challenge = challenge_report.challenge
+                winners_count = challenge.winners_count
+                challenge.winners_count = winners_count + 1
+                challenge.save(update_fields=["winners_count"])
 
-            if challenge.parameters[0]["id"] == 2:
-                max_winners = challenge.parameters[0]["value"]
-            else:
-                max_winners = challenge.parameters[1]["value"]
-            if max_winners == winners_count + 1:
-                challenge.states = ['P', 'C']
-                challenge.save(update_fields=["states"])
+                if challenge.parameters[0]["id"] == 2:
+                    max_winners = challenge.parameters[0]["value"]
+                    prize = challenge.parameters[1]["value"]
+                else:
+                    max_winners = challenge.parameters[1]["value"]
+                    prize = challenge.parameters[0]["value"]
+                sender_account = Account.objects.get(challenge=challenge, account_type='D')
+                sender_account.amount -= prize
+                recipient_account = Account.objects.get(owner=user_participant, account_type='I')
+                recipient_account.amount += prize
 
-        #  TODO send 2) bool
-        # is_new_reports = True
-        return validated_data
+                current_period = get_current_period()
+                transaction = Transaction.objects.create(
+                    is_anonymous=False,
+                    sender_account=sender_account,
+                    from_challenge=challenge,
+                    recipient_account=recipient_account,
+                    amount=prize,
+                    status='R',
+                    period=current_period,
+                )
 
+                sender_account.transaction = transaction
+                sender_account.save(update_fields=['amount', 'transaction'])
+                recipient_account.transaction = transaction
+                recipient_account.save(update_fields=['amount', 'transaction'])
+
+                receiver_user_stat = UserStat.objects.get(user=user_participant, period=current_period)
+                receiver_user_stat.income_thanks += prize
+                receiver_user_stat.save(update_fields=['income_thanks'])
+
+                if max_winners == winners_count + 1:
+                    challenge.states = ['P', 'C']
+                    challenge.save(update_fields=["states"])
+
+        new_reports_exists = check_if_new_reports_exists(reviewer)
+        validated_data['new_reports_exists'] = new_reports_exists
+        return {"state": state, 'new_reports_exists': new_reports_exists}

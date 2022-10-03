@@ -3,6 +3,8 @@ from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from auth_app.models import ChallengeReport
 from rest_framework.response import Response
+
+from utils.challenges_logic import check_if_new_reports_exists
 from .serializers import CreateChallengeReportSerializer, CheckChallengeReportSerializer
 
 
@@ -26,6 +28,7 @@ class CheckChallengeReportView(UpdateAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            new_reports_exists = check_if_new_reports_exists(request.user)
+            return Response({"state": request.data['state'], "new_reports_exists": new_reports_exists})
         return Response(serializer.errors,
                         status=status.HTTP_400_BAD_REQUEST)
