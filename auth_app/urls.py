@@ -13,6 +13,7 @@ from auth_app.periods_views import views as periods_views
 from auth_app.profile_views import views as profile_views
 from auth_app.tags_views import views as tag_views
 from auth_app.tg_bot_views import views as tg_bot_views
+from auth_app.challenge_reports_views import views as challenge_reports_views
 from auth_app.transaction_views import views as transaction_views
 from auth_app.user_stat_views import views as stat_views
 from . import views
@@ -53,7 +54,10 @@ urlpatterns = [
     path('challenge-winners/<int:pk>/', challenges_views.ChallengeWinnersList.as_view()),
     path('challenge-participants/<int:pk>/', challenges_views.ChallengeCandidatesList.as_view()),
     path('check-new-reports/', challenges_views.CheckIfNewReportsExistView.as_view()),
+
     path('create-challenge/', challenges_views.CreateChallengeView.as_view()),
+    path('create-challenge-report/', challenge_reports_views.CreateChallengeReportView.as_view()),
+    path('check-challenge-report/<int:pk>/', challenge_reports_views.CheckChallengeReportView.as_view()),
 
     # transactions
     path('send-coins/', transaction_views.SendCoinView.as_view()),
@@ -105,4 +109,6 @@ urlpatterns = [
     path('get-likes-by-user/', likes_views.LikesUserListAPIView.as_view()),
     # statistics
     path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
+
+
 ]

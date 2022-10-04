@@ -2,10 +2,10 @@ import logging
 
 from django.shortcuts import get_object_or_404
 from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from .service import create_challenge
 from utils.challenges_logic import (get_challenge_state_values, add_annotated_fields_to_challenges,
                                     update_challenge_photo_link_to_thumbnail,
                                     update_participant_photo_link_to_thumbnail,
@@ -16,17 +16,40 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
                                     check_if_new_reports_exists, update_challenge_creator_photo_link_to_thumbnail)
 
 from auth_app.models import Challenge, ChallengeParticipant
-from .serializers import CreateChallengeSerializer
 
 logger = logging.getLogger(__name__)
 
 
-class CreateChallengeView(CreateAPIView):
+class CreateChallengeView(APIView):
+    """
+    Создание челленджа
+    """
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    queryset = Challenge.objects.all()
-    serializer_class = CreateChallengeSerializer
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        creator = request.user
+        name = request.data.get('name')
+        description = request.data.get('description')
+        start_balance = int(request.data.get('start_balance'))
+        parameter_id = request.data.get('parameter_id')
+        parameter_value = request.data.get('parameter_value')
+        photo = request.FILES.get('photo')
+
+        response = create_challenge(creator, name, start_balance, description=description, photo=photo,
+                                    parameter_id=parameter_id, parameter_value=parameter_value)
+
+        return Response(response)
+
+    @classmethod
+    def get_boolean_parameter(cls, parameter):
+        if parameter is None:
+            return False
+        elif parameter in [1, '1', 'True', 'true']:
+            return True
+        return False
 
 
 class ChallengeListView(APIView):

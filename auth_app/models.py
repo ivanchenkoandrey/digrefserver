@@ -769,6 +769,7 @@ class ChallengeMode(models.TextChoices):
     ANONYMOUS_MODE = 'A', 'Отчеты анонимизированы до подведения итогов, не видны ни имена пользователей, ни псевдонимы'
     CAN_SEND_INVITES = 'Q', 'Участник может рассылать приглашения'
     CONFIRMATION_RULE = 'Y', 'Подтверждение будет выполняться судейской коллегией (через выдачу ими баллов)'
+    ONE_REPORT_MAX = 'K', 'Максимум 1 отчет для отправки для каждого участника'
 
 
 class ChallengeParticipants(models.TextChoices):
@@ -833,7 +834,8 @@ class Challenge(models.Model):
     next_reward_size = models.PositiveIntegerField(null=True, blank=True,
                                                    verbose_name='Размер очередного вознаграждения')
     list_visibility = models.JSONField(null=True, blank=True, verbose_name='Видимость списков')
-
+    participants_count = models.PositiveIntegerField(default=0, verbose_name='Текущее количество участников')
+    winners_count = models.PositiveIntegerField(default=0, verbose_name='Текущее количество победителей')
     class Meta:
         db_table = 'challenges'
 
