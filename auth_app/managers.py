@@ -32,7 +32,7 @@ class CustomChallengeQueryset(models.QuerySet):
                 .only('id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount', 'description',
                       'start_balance', 'creator_id', 'status', 'parameters', 'is_new_reports', 'winners_count',
                       'creator__profile__first_name', 'creator__profile__surname', 'creator__profile__organization_id',
-                      'end_at')
+                      'creator__profile__photo', 'creator__profile__tg_name', 'end_at')
                 .order_by('-pk'))
 
     def get_all_challenges(self, user_id):
@@ -55,6 +55,7 @@ class CustomChallengeQueryset(models.QuerySet):
             'creator_id', 'status', 'parameters', 'is_new_reports', 'winners_count', 'end_at',
             creator_organization_id=F('creator__profile__organization_id'), fund=F('start_balance'),
             creator_name=F('creator__profile__first_name'), creator_surname=F('creator__profile__surname'),
+            creator_photo=F('creator__profile__photo'), creator_tg_name=F('creator__profile__tg_name')
         )
 
 

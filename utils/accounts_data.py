@@ -20,7 +20,6 @@ def processing_accounts_data(user: User, period_id=None):
     else:
         period = get_period()
     queryset = Account.objects.filter(owner=user, challenge_id=None, organization_id=None)
-    logger.info(f"{queryset=}")
     accounts_data = {f"{item.to_json().get('account_type')}": item.to_json() for item in queryset}
     user_stat = UserStat.objects.filter(user=user, period=period).first()
     user_profile_data = {

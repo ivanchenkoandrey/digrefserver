@@ -52,6 +52,15 @@ def update_challenge_photo_link_to_thumbnail(challenges: List[Dict]) -> None:
             challenge.update({'photo': None})
 
 
+def update_challenge_creator_photo_link_to_thumbnail(challenges: List[Dict]) -> None:
+    for challenge in challenges:
+        if photo := challenge.get('creator_photo'):
+            link = '/media/{photo}'.format(photo=get_thumbnail_link(photo)).replace("//", "/")
+            challenge.update({'creator_photo': link})
+        else:
+            challenge.update({'creator_photo': None})
+
+
 def update_participant_photo_link_to_thumbnail(participants: List[Dict]) -> None:
     for participant in participants:
         if photo := participant.get('participant_photo'):
