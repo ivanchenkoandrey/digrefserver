@@ -13,7 +13,8 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
                                     update_challenge_photo_link, set_active_field, set_completed_field,
                                     calculate_remaining_top_places, update_time_in_challenges,
                                     update_time_in_winners_list, update_time_in_participants_list,
-                                    check_if_new_reports_exists)
+                                    check_if_new_reports_exists, update_challenge_creator_photo_link_to_thumbnail)
+
 from auth_app.models import Challenge, ChallengeParticipant
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class ChallengeListView(APIView):
             challenges = Challenge.objects.get_all_challenges(request.user.id)
         update_time_in_challenges(challenges)
         add_annotated_fields_to_challenges(challenges)
+        set_active_field(challenges)
         get_challenge_state_values(challenges)
         update_challenge_photo_link_to_thumbnail(challenges)
         return Response(data=challenges)
@@ -88,10 +90,11 @@ class ChallengeDetailView(APIView):
         if challenges:
             update_time_in_challenges(challenges)
             add_annotated_fields_to_challenges(challenges)
-            set_active_field(challenges),
-            set_completed_field(challenges),
+            set_active_field(challenges)
+            set_completed_field(challenges)
             get_challenge_state_values(challenges)
             update_challenge_photo_link(challenges)
+            update_challenge_creator_photo_link_to_thumbnail(challenges)
             calculate_remaining_top_places(challenges)
             return Response(challenges[0])
         return Response('Челлендж не найден', status=status.HTTP_404_NOT_FOUND)
