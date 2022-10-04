@@ -1,13 +1,12 @@
 from rest_framework.exceptions import ValidationError
 from datetime import datetime
-
 from auth_app.models import Account, Challenge, UserStat, ChallengeParticipant, Transaction
 from digrefserver import settings
 from utils.crop_photos import crop_image
 from utils.handle_image import change_challenge_filename
-# from .serializers import CreateChallengeSerializer
 from utils.current_period import get_current_period
 from django.db import transaction as tr
+
 import logging
 logger = logging.getLogger(__name__)
 

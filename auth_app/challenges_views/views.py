@@ -2,14 +2,10 @@ import logging
 
 from django.shortcuts import get_object_or_404
 from rest_framework import authentication, status
-# from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
-from datetime import datetime
-from digrefserver import settings
-from .challenge_service import create_challenge
+from .service import create_challenge
 from utils.challenges_logic import (get_challenge_state_values, add_annotated_fields_to_challenges,
                                     update_challenge_photo_link_to_thumbnail,
                                     update_participant_photo_link_to_thumbnail,
@@ -21,14 +17,6 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
 from auth_app.models import Challenge, ChallengeParticipant
 
 logger = logging.getLogger(__name__)
-
-
-# class CreateChallengeView(CreateAPIView):
-#     permission_classes = [IsAuthenticated]
-#     authentication_classes = [authentication.SessionAuthentication,
-#                               authentication.TokenAuthentication]
-#     queryset = Challenge.objects.all()
-#     serializer_class = CreateChallengeSerializer
 
 
 class CreateChallengeView(APIView):
@@ -48,6 +36,7 @@ class CreateChallengeView(APIView):
         parameter_id = request.data.get('parameter_id')
         parameter_value = request.data.get('parameter_value')
         photo = request.FILES.get('photo')
+
         response = create_challenge(creator, name, start_balance, description=description, photo=photo,
                                     parameter_id=parameter_id, parameter_value=parameter_value)
 
