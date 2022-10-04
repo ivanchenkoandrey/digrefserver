@@ -9,18 +9,24 @@ from utils.current_period import get_current_period
 from django.db import transaction as tr
 from utils.challenges_logic import check_if_new_reports_exists
 
+
 class CreateChallengeReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChallengeReport
         fields = ['challenge', 'text', 'photo']
 
     def create(self, validated_data):
-        participant = ChallengeParticipant.objects.get(user_participant=self.context['request'].user)
-
+        request = self.context.get('request')
+        user = request.user
         challenge = validated_data['challenge']
         text = validated_data['text']
+        participant = ChallengeParticipant.objects.create(
+            user_participant=user,
+            challenge=challenge,
+            contribution=0,
+            mode=['A', 'P']
+        )
 
-        request = self.context.get('request')
         photo = request.FILES.get('photo')
         try:
             existed_challenge_report = ChallengeReport.objects.get(challenge=challenge, participant=participant)
@@ -41,7 +47,7 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
         if challenge_report_instance.photo.name is not None:
             challenge_report_instance.photo.name = change_challenge_report_filename(challenge_report_instance.photo.name)
             challenge_report_instance.save(update_fields=['photo'])
-            crop_image(challenge_report_instance.photo.name, f"{settings.BASE_DIR}/media/")
+            crop_image(challenge_report_instance.photo.name, f"{settings.BASE_DIR}/media/", to_square=False)
         return challenge_report_instance
 
 
@@ -77,6 +83,11 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                 else:
                     max_winners = challenge.parameters[1]["value"]
                     prize = challenge.parameters[0]["value"]
+
+                participant = ChallengeParticipant.objects.get(user_participant=user_participant)
+                participant.total_received = prize
+                participant.save(update_fields=['total_received'])
+
                 sender_account = Account.objects.get(challenge=challenge, account_type='D')
                 sender_account.amount -= prize
                 recipient_account = Account.objects.get(owner=user_participant, account_type='I')
@@ -105,6 +116,34 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                 if max_winners == winners_count + 1:
                     challenge.states = ['P', 'C']
                     challenge.save(update_fields=["states"])
+
+                    if sender_account.amount > 0:
+                        remain = sender_account.amount
+                        sender_account.amount = 0
+                        sender_account.save(update_fields='amount')
+                        recipient_account = Transaction.objects.get(to_challenge=challenge).sender_account
+                        transaction = Transaction.objects.create(
+                            is_anonymous=False,
+                            sender_account=sender_account,
+                            from_challenge=challenge,
+                            recipient_account=recipient_account,
+                            amount=remain,
+                            status='R',
+                            period=current_period,
+                        )
+
+                        participant = ChallengeParticipant.objects.get(user_participant=reviewer)
+                        participant.total_received = remain
+                        participant.save(update_fields=['total_received'])
+
+                        user_stat = UserStat.objects.get(user=reviewer)
+                        user_stat.returned_from_challenges += remain
+                        user_stat.save(update_fields=['returned_from_challenges'])
+
+                        recipient_account.transaction = transaction
+                        print("recipient_account:", recipient_account.amount, "_remain:", remain)
+                        recipient_account.amount += remain
+                        recipient_account.save(update_fields=['amount', 'transaction'])
 
         new_reports_exists = check_if_new_reports_exists(reviewer)
         validated_data['new_reports_exists'] = new_reports_exists
