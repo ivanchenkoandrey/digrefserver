@@ -141,7 +141,6 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                         user_stat.save(update_fields=['returned_from_challenges'])
 
                         recipient_account.transaction = transaction
-                        print("recipient_account:", recipient_account.amount, "_remain:", remain)
                         recipient_account.amount += remain
                         recipient_account.save(update_fields=['amount', 'transaction'])
 
