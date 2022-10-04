@@ -180,6 +180,9 @@ class CustomTransactionQueryset(models.QuerySet):
                     .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
+    def filter_by_user_limited(self, user, offset, limit):
+        return self.filter_by_user(user)[offset * limit: offset * limit + limit]
+
     def filter_to_use_by_controller(self):
         """
         Возвращает список транзакций со статусом 'Ожидает подтверждения'
