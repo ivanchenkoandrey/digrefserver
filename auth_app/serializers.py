@@ -114,7 +114,6 @@ class CreateUserSerializer(serializers.ModelSerializer):
         fields = ['username']
 
 
-@query_debugger
 class CommentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
@@ -137,8 +136,14 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        comments_on_transaction = Comment.objects.filter_by_transaction(obj.id).select_related('user__profile').\
-            only('user__profile__first_name', 'user__profile__photo').order_by(order_by)
+        comments_on_transaction = (Comment.objects.filter_by_transaction(obj.id).select_related('user__profile')
+                                   .only('user__profile__first_name',
+                                         'user__profile__photo',
+                                         'user__profile__surname',
+                                         'text',
+                                         'picture',
+                                         'date_created',
+                                         'date_last_modified').order_by(order_by))
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
             comment_info = {
