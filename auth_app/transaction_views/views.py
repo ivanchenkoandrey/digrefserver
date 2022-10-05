@@ -20,6 +20,7 @@ from auth_app.service import (update_transactions_by_controller,
                               cancel_transaction_by_user, is_cancel_transaction_request_is_valid,
                               AlreadyUpdatedByControllerError, NotWaitingTransactionError)
 from utils.custom_permissions import IsController
+from utils.paginates import process_offset_and_limit
 
 logger = logging.getLogger(__name__)
 
@@ -108,15 +109,17 @@ class TransactionsByUserView(ListAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-
+    queryset = Transaction.objects.all()
     serializer_class = TransactionFullSerializer
 
     def get(self, request, *args, **kwargs):
-        logger.info(f"Пользователь {self.request.user} смотрит список транзакций")
-        return super().get(request, *args, **kwargs)
-
-    def get_queryset(self):
-        return Transaction.objects.filter_by_user(self.request.user).order_by('-updated_at')
+        logger.info(f"Пользователь {request.user} смотрит список транзакций")
+        offset = request.GET.get('offset')
+        limit = request.GET.get('limit')
+        offset, limit = process_offset_and_limit(offset, limit)
+        transactions = Transaction.objects.filter_by_user_limited(request.user, offset, limit)
+        serializer = self.get_serializer(transactions, many=True)
+        return Response(serializer.data)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
