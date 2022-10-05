@@ -1,24 +1,26 @@
-from rest_framework.exceptions import ValidationError
-from datetime import datetime
-from auth_app.models import Account, Challenge, UserStat, ChallengeParticipant, Transaction
-from digrefserver import settings
-from utils.crop_photos import crop_image
-from utils.handle_image import change_challenge_filename
-from utils.current_period import get_current_period
-from django.db import transaction as tr
-
 import logging
+from datetime import datetime
+
+from django.conf import settings
+from django.db import transaction as tr
+from rest_framework.exceptions import ValidationError
+
+from auth_app.models import Account, Challenge, UserStat, ChallengeParticipant, Transaction
+from utils.crop_photos import crop_image
+from utils.current_period import get_current_period
+from utils.handle_image import change_challenge_filename
+
 logger = logging.getLogger(__name__)
 
 
 def create_challenge(creator, name, start_balance, description='', photo=None, parameter_id=None, parameter_value=None):
-    # is_public = cls.get_boolean_parameter(request.data.get('is_public'))
+    period = get_current_period()
+
+    if period is None:
+        raise ValidationError("Сейчас нет активного периода")
 
     challenge_modes = ['P']
     states = ['P']
-
-    # if is_public:
-    #     challenge_modes.append('P')
 
     if parameter_id is None:
         parameters = [{"id": 2, "value": 5},
@@ -46,16 +48,18 @@ def create_challenge(creator, name, start_balance, description='', photo=None, p
         logger.info(f"Попытка {creator} создать челлендж с фондом на сумму больше имеющейся на счету")
         raise ValidationError("Нельзя добавить в фонд больше, чем есть на счету")
 
-    if not from_income:
-        sender_distr_account.amount -= start_balance
-        sender_distr_account.save(update_fields=['amount'])
-    else:
-        sender_income_account.amount -= start_balance
-        sender_income_account.save(update_fields=['amount'])
-    user_stat = UserStat.objects.get(user=creator)
-    user_stat.sent_to_challenges += start_balance
-    user_stat.save(update_fields=['sent_to_challenges'])
     with tr.atomic():
+        if not from_income:
+            sender_distr_account.amount -= start_balance
+            sender_distr_account.save(update_fields=['amount'])
+        else:
+            sender_income_account.amount -= start_balance
+            sender_income_account.save(update_fields=['amount'])
+
+        user_stat = UserStat.objects.get(user=creator, period=period)
+        user_stat.sent_to_challenges += start_balance
+        user_stat.save(update_fields=['sent_to_challenges'])
+
         challenge = Challenge.objects.create(
             creator=creator,
             organized_by=creator,
@@ -81,7 +85,6 @@ def create_challenge(creator, name, start_balance, description='', photo=None, p
             challenge=challenge,
         )
 
-        current_period = get_current_period()
         transaction = Transaction.objects.create(
             is_anonymous=False,
             sender_account=account_to_save,
@@ -89,11 +92,10 @@ def create_challenge(creator, name, start_balance, description='', photo=None, p
             recipient_account=recipient_account,
             amount=start_balance,
             status='R',
-            period=current_period,
+            period=period,
         )
         recipient_account.transaction = transaction
         recipient_account.save(update_fields=['transaction'])
-
         if challenge.photo.name is not None:
             challenge.photo.name = change_challenge_filename(challenge.photo.name)
             challenge.save(update_fields=['photo'])

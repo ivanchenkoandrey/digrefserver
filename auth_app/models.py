@@ -847,6 +847,9 @@ class Challenge(models.Model):
         if self.photo:
             return self.photo.url
 
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
 
 class ParticipantModes(models.TextChoices):
     IS_RELEVANT = 'A', 'Запись актуальна'

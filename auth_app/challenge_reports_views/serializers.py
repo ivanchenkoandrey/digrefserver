@@ -20,35 +20,37 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
         user = request.user
         challenge = validated_data['challenge']
         text = validated_data['text']
-        participant = ChallengeParticipant.objects.create(
-            user_participant=user,
-            challenge=challenge,
-            contribution=0,
-            mode=['A', 'P']
-        )
-
         photo = request.FILES.get('photo')
-        try:
-            existed_challenge_report = ChallengeReport.objects.get(challenge=challenge, participant=participant)
-            if 'K' in challenge.challenge_mode:
-                raise ValidationError("Данный участник уже отправил отчет для этого челленджа")
-        except ChallengeReport.DoesNotExist:
-            challenge.participants_count += 1
-            challenge.save(update_fields=["participants_count"])
+        with tr.atomic():
 
-        challenge_report_instance = ChallengeReport.objects.create(
-            participant=participant,
-            challenge=challenge,
-            text=text,
-            state='S',
-            photo=photo
-        )
-        # is_new_reports = check_if_new_reports_exists()
-        if challenge_report_instance.photo.name is not None:
-            challenge_report_instance.photo.name = change_challenge_report_filename(challenge_report_instance.photo.name)
-            challenge_report_instance.save(update_fields=['photo'])
-            crop_image(challenge_report_instance.photo.name, f"{settings.BASE_DIR}/media/", to_square=False)
-        return challenge_report_instance
+            participant = ChallengeParticipant.objects.get(challenge=challenge, user_participant=user)
+            if participant is not None:
+                if 'K' in challenge.challenge_mode:
+                    raise ValidationError("Данный участник уже отправил отчет для этого челленджа")
+                else:
+                    participant = ChallengeParticipant.objects.get(challenge=challenge, user_participant=user)
+            else:
+                participant = ChallengeParticipant.objects.create(
+                    user_participant=user,
+                    challenge=challenge,
+                    contribution=0,
+                    mode=['A', 'P']
+                )
+                challenge.participants_count += 1
+                challenge.save(update_fields=["participants_count"])
+
+            challenge_report_instance = ChallengeReport.objects.create(
+                participant=participant,
+                challenge=challenge,
+                text=text,
+                state='S',
+                photo=photo
+            )
+            if challenge_report_instance.photo.name is not None:
+                challenge_report_instance.photo.name = change_challenge_report_filename(challenge_report_instance.photo.name)
+                challenge_report_instance.save(update_fields=['photo'])
+                crop_image(challenge_report_instance.photo.name, f"{settings.BASE_DIR}/media/", to_square=False)
+            return challenge_report_instance
 
 
 class CheckChallengeReportSerializer(serializers.ModelSerializer):
@@ -57,9 +59,9 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         fields = ['state']
 
     def validate(self, validated_data):
-        id = self.instance.id
+        pk = self.instance.id
         state = validated_data['state']
-        challenge_report = ChallengeReport.objects.get(id=id)
+        challenge_report = ChallengeReport.objects.get(id=pk)
         user_participant = challenge_report.participant.user_participant
         reviewer = self.context['request'].user
         challenge_creator = challenge_report.challenge.creator
@@ -84,7 +86,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     max_winners = challenge.parameters[1]["value"]
                     prize = challenge.parameters[0]["value"]
 
-                participant = ChallengeParticipant.objects.get(user_participant=user_participant)
+                participant = ChallengeParticipant.objects.get(user_participant=user_participant, challenge=challenge)
                 participant.total_received = prize
                 participant.save(update_fields=['total_received'])
 
@@ -110,8 +112,8 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                 recipient_account.save(update_fields=['amount', 'transaction'])
 
                 receiver_user_stat = UserStat.objects.get(user=user_participant, period=current_period)
-                receiver_user_stat.income_thanks += prize
-                receiver_user_stat.save(update_fields=['income_thanks'])
+                receiver_user_stat.awarded_from_challenges += prize
+                receiver_user_stat.save(update_fields=['awarded_from_challenges'])
 
                 if max_winners == winners_count + 1:
                     challenge.states = ['P', 'C']
