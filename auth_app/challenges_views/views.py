@@ -5,7 +5,8 @@ from rest_framework import authentication, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .service import create_challenge
+
+from auth_app.models import Challenge, ChallengeParticipant
 from utils.challenges_logic import (get_challenge_state_values, add_annotated_fields_to_challenges,
                                     update_challenge_photo_link_to_thumbnail,
                                     update_participant_photo_link_to_thumbnail,
@@ -14,8 +15,7 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
                                     calculate_remaining_top_places, update_time_in_challenges,
                                     update_time_in_winners_list, update_time_in_participants_list,
                                     check_if_new_reports_exists, update_challenge_creator_photo_link_to_thumbnail)
-
-from auth_app.models import Challenge, ChallengeParticipant
+from .service import create_challenge
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class ChallengeWinnersList(APIView):
         return Response(data=winners)
 
 
-class ChallengeCandidatesList(APIView):
+class ChallengeContendersList(APIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -128,7 +128,7 @@ class ChallengeCandidatesList(APIView):
         if challenge.creator_id != request.user.id:
             return Response({'permission_denied': 'Вы не являетесь организатором челленджа'},
                             status=status.HTTP_403_FORBIDDEN)
-        participants = ChallengeParticipant.objects.get_participants_data(challenge_id)
+        participants = ChallengeParticipant.objects.get_contenders_data(challenge_id)
         update_participant_photo_link_to_thumbnail(participants)
         update_report_photo_link_to_thumbnail(participants)
         update_time_in_participants_list(participants)

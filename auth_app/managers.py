@@ -76,10 +76,12 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
                         awarded_at=F('challengereports__updated_at')
                         ))
 
-    def get_participants_data(self, challenge_id):
+    def get_contenders_data(self, challenge_id):
         return (self.select_related('user_participant__profile')
                 .prefetch_related('challengereports')
-                .filter(challenge_id=challenge_id)
+                .annotate(reports_count=Count('challengereports',
+                                              filter=Q(challengereports__state__in=['S', 'F', 'A', 'R', 'W'])))
+                .filter(challenge_id=challenge_id, reports_count__gt=0)
                 .only('user_participant__id',
                       'user_participant__profile__photo',
                       'user_participant__profile__first_name',
