@@ -203,7 +203,6 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
             items = []
             counter = 0
             index = 0
-            # users_liked_cut = users_liked[offset:offset+limit]
             for i in range(len(users_liked)):
 
                 if users_liked[i][2] == like_kind[0]:
@@ -213,6 +212,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
                             this_user = {
                                     'id': users_liked[i][1].id,
                                     'name': users_liked[i][1].profile.first_name,
+                                    'surname': users_liked[i][1].profile.surname,
                                     'avatar': users_liked[i][1].profile.get_photo_url()
                                 }
 
