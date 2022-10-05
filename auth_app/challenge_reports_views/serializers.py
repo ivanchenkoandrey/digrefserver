@@ -1,13 +1,13 @@
-from rest_framework import serializers
-from auth_app.models import ChallengeReport, Organization, ChallengeParticipant, Account, Transaction, UserStat
-from rest_framework.exceptions import ValidationError
-from utils.thumbnail_link import get_thumbnail_link
-from utils.crop_photos import crop_image
 from django.conf import settings
-from utils.handle_image import change_challenge_report_filename
-from utils.current_period import get_current_period
 from django.db import transaction as tr
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+from auth_app.models import ChallengeReport, ChallengeParticipant, Account, Transaction, UserStat
 from utils.challenges_logic import check_if_new_reports_exists
+from utils.crop_photos import crop_image
+from utils.current_period import get_current_period
+from utils.handle_image import change_challenge_report_filename
 
 
 class CreateChallengeReportSerializer(serializers.ModelSerializer):
@@ -23,13 +23,11 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
         photo = request.FILES.get('photo')
         with tr.atomic():
 
-            participant = ChallengeParticipant.objects.get(challenge=challenge, user_participant=user)
-            if participant is not None:
+            try:
+                participant = ChallengeParticipant.objects.get(challenge=challenge, user_participant=user)
                 if 'K' in challenge.challenge_mode:
                     raise ValidationError("Данный участник уже отправил отчет для этого челленджа")
-                else:
-                    participant = ChallengeParticipant.objects.get(challenge=challenge, user_participant=user)
-            else:
+            except ChallengeParticipant.DoesNotExist:
                 participant = ChallengeParticipant.objects.create(
                     user_participant=user,
                     challenge=challenge,
@@ -38,6 +36,8 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
                 )
                 challenge.participants_count += 1
                 challenge.save(update_fields=["participants_count"])
+
+
 
             challenge_report_instance = ChallengeReport.objects.create(
                 participant=participant,
