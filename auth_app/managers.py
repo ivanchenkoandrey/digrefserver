@@ -26,8 +26,8 @@ class CustomChallengeQueryset(models.QuerySet):
                                   Q(challenge_id=OuterRef('pk')) &
                                   Q(challenge__creator_id=user_id) &
                                   Q(state__in=['S', 'F', 'R']))
-                          ),
-
+                          )
+                          
                           )
                 .only('id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount', 'description',
                       'start_balance', 'creator_id', 'status', 'parameters', 'is_new_reports', 'winners_count',
