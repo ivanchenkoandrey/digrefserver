@@ -37,8 +37,6 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
                 challenge.participants_count += 1
                 challenge.save(update_fields=["participants_count"])
 
-
-
             challenge_report_instance = ChallengeReport.objects.create(
                 participant=participant,
                 challenge=challenge,
@@ -134,11 +132,11 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                             period=current_period,
                         )
 
-                        participant = ChallengeParticipant.objects.get(user_participant=reviewer)
+                        participant = ChallengeParticipant.objects.get(user_participant=reviewer, challenge=challenge)
                         participant.total_received = remain
                         participant.save(update_fields=['total_received'])
 
-                        user_stat = UserStat.objects.get(user=reviewer)
+                        user_stat = UserStat.objects.get(user=reviewer, period=current_period)
                         user_stat.returned_from_challenges += remain
                         user_stat.save(update_fields=['returned_from_challenges'])
 
