@@ -33,8 +33,6 @@ class CommentListAPIView(APIView):
         if is_reverse_order is None:
             is_reverse_order = False
 
-        # if not isinstance(offset, int) or not isinstance(limit, int):
-        #     return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
         if type(offset) != int or type(limit) != int:
             return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
         if type(include_name) != bool or type(is_reverse_order) != bool:

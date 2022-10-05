@@ -1,9 +1,9 @@
 from django.db import transaction as tr
-from rest_framework import serializers
-from auth_app.models import Comment, Transaction, LikeCommentStatistics
-from rest_framework.exceptions import ValidationError
-from datetime import datetime
 from django.shortcuts import get_object_or_404
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+from auth_app.models import Comment, LikeCommentStatistics
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):
