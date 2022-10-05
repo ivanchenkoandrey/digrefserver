@@ -31,7 +31,7 @@ def create_challenge(creator, name, start_balance, description='', photo=None, p
         if parameter_id != 1 and parameter_id != 2:
             raise ValidationError("parameter_id должен принимать значение 1 или 2")
         parameters = [{"id": parameter_id, "value": parameter_value},
-                      {"id": 2 / parameter_id, "value": start_balance // parameter_value, "is_calc": True}]
+                      {"id": int(2/parameter_id), "value": start_balance//parameter_value, "is_calc": True}]
 
     sender_distr_account = Account.objects.filter(
         owner=creator, account_type='D', organization_id=None, challenge_id=None).first()
