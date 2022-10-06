@@ -12,7 +12,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
-from auth_app.managers import CustomChallengeQueryset, CustomChallengeParticipantQueryset
+from auth_app.managers import CustomChallengeQueryset, CustomChallengeParticipantQueryset, CustomChallengeReportQueryset
 
 User = get_user_model()
 
@@ -905,6 +905,8 @@ class ReportTypes(models.TextChoices):
 
 
 class ChallengeReport(models.Model):
+    objects = CustomChallengeReportQueryset.as_manager()
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     content_updated_at = models.DateTimeField(auto_now=True,

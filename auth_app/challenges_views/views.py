@@ -6,16 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from auth_app.models import Challenge, ChallengeParticipant
+from auth_app.models import Challenge, ChallengeParticipant, ChallengeReport
 from utils.challenges_logic import (get_challenge_state_values, add_annotated_fields_to_challenges,
-                                    update_challenge_photo_link_to_thumbnail,
-                                    update_participant_photo_link_to_thumbnail,
-                                    update_report_photo_link_to_thumbnail,
-                                    update_challenge_photo_link, set_active_field, set_completed_field,
-                                    calculate_remaining_top_places, update_time_in_challenges,
-                                    update_time_in_winners_list, update_time_in_participants_list,
-                                    check_if_new_reports_exists, update_challenge_creator_photo_link_to_thumbnail,
-                                    set_names_to_null)
+                                    set_active_field, set_completed_field, calculate_remaining_top_places,
+                                    check_if_new_reports_exists, set_names_to_null, get_challenge_report_status,
+                                    update_link_on_thumbnail, update_time, update_photo_link)
 from .service import create_challenge
 
 logger = logging.getLogger(__name__)
@@ -65,11 +60,11 @@ class ChallengeListView(APIView):
             challenges = Challenge.objects.get_active_only(request.user.id)
         else:
             challenges = Challenge.objects.get_all_challenges(request.user.id)
-        update_time_in_challenges(challenges)
+        update_time(challenges, 'updated_at')
         add_annotated_fields_to_challenges(challenges)
         set_active_field(challenges)
         get_challenge_state_values(challenges)
-        update_challenge_photo_link_to_thumbnail(challenges)
+        update_link_on_thumbnail(challenges, 'photo')
         return Response(data=challenges)
 
     @classmethod
@@ -89,13 +84,13 @@ class ChallengeDetailView(APIView):
         pk = kwargs.get('pk')
         challenges = Challenge.objects.get_challenge_by_pk(request.user.id, pk)
         if challenges:
-            update_time_in_challenges(challenges)
+            update_time(challenges, 'updated_at')
             add_annotated_fields_to_challenges(challenges)
             set_active_field(challenges)
             set_completed_field(challenges)
             get_challenge_state_values(challenges)
-            update_challenge_photo_link(challenges)
-            update_challenge_creator_photo_link_to_thumbnail(challenges)
+            update_photo_link(challenges, 'photo')
+            update_link_on_thumbnail(challenges, 'creator_photo')
             calculate_remaining_top_places(challenges)
             return Response(challenges[0])
         return Response('Челлендж не найден', status=status.HTTP_404_NOT_FOUND)
@@ -115,8 +110,8 @@ class ChallengeWinnersList(APIView):
         winners = ChallengeParticipant.objects.get_winners_data(challenge_id)
         if is_nickname_allowed:
             set_names_to_null(winners)
-        update_time_in_winners_list(winners)
-        update_participant_photo_link_to_thumbnail(winners)
+        update_time(winners, 'awarded_at')
+        update_link_on_thumbnail(winners, 'participant_photo')
         return Response(data=winners)
 
 
@@ -137,9 +132,9 @@ class ChallengeContendersList(APIView):
         participants = ChallengeParticipant.objects.get_contenders_data(challenge_id)
         if is_nickname_allowed:
             set_names_to_null(participants)
-        update_participant_photo_link_to_thumbnail(participants)
-        update_report_photo_link_to_thumbnail(participants)
-        update_time_in_participants_list(participants)
+        update_link_on_thumbnail(participants, 'participant_photo')
+        update_link_on_thumbnail(participants, 'report_photo')
+        update_time(participants, 'report_created_at')
         return Response(data=participants)
 
 
@@ -152,3 +147,22 @@ class CheckIfNewReportsExistView(APIView):
     def get(cls, request, *args, **kwargs):
         new_reports_exists = check_if_new_reports_exists(request.user.id)
         return Response({'is_exists': new_reports_exists})
+
+
+class GetUserChallengeReportView(APIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @classmethod
+    # @query_debugger
+    def get(cls, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        report = ChallengeReport.objects.get_user_challenge_result_data(request.user, pk)
+        if report:
+            update_time(report, 'updated_at')
+            update_photo_link(report, 'photo')
+            report_status = report[0]['status']
+            report[0]['status'] = get_challenge_report_status(report_status)
+            return Response(*report)
+        return Response({'status': 'not found'}, status=status.HTTP_404_NOT_FOUND)

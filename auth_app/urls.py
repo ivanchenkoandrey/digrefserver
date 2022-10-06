@@ -54,6 +54,7 @@ urlpatterns = [
     path('challenge-winners/<int:pk>/', challenges_views.ChallengeWinnersList.as_view()),
     path('challenge-contenders/<int:pk>/', challenges_views.ChallengeContendersList.as_view()),
     path('check-new-reports/', challenges_views.CheckIfNewReportsExistView.as_view()),
+    path('challenge-result/<int:pk>/', challenges_views.GetUserChallengeReportView.as_view()),
 
     path('create-challenge/', challenges_views.CreateChallengeView.as_view()),
     path('create-challenge-report/', challenge_reports_views.CreateChallengeReportView.as_view()),

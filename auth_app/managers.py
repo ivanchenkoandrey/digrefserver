@@ -60,6 +60,10 @@ class CustomChallengeQueryset(models.QuerySet):
 
 
 class CustomChallengeParticipantQueryset(models.QuerySet):
+    def get_total_received_points(self, user, challenge_id):
+        return (self.filter(user_participant=user, challenge_id=challenge_id)
+                .only('total_received').values('total_received'))
+
     def get_winners_data(self, challenge_id):
         return (self.select_related('user_participant__profile')
                 .prefetch_related('challengereports')
@@ -82,7 +86,7 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
         return (self.select_related('user_participant__profile')
                 .prefetch_related('challengereports')
                 .annotate(reports_count=Count('challengereports',
-                                              filter=Q(challengereports__state__in=['S', 'F', 'A', 'R', 'W'])))
+                                              filter=Q(challengereports__state__in=['S', 'F', 'R'])))
                 .filter(challenge_id=challenge_id, reports_count__gt=0)
                 .only('user_participant__id',
                       'user_participant__profile__photo',
@@ -103,3 +107,10 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
                         report_text=F('challengereports__text'),
                         report_photo=F('challengereports__photo'),
                         report_id=F('challengereports__id')))
+
+
+class CustomChallengeReportQueryset(models.QuerySet):
+    def get_user_challenge_result_data(self, user, challenge_id):
+        return (self.select_related('participant').filter(challenge_id=challenge_id, participant__user_participant=user)
+                .only('updated_at', 'text', 'photo', 'participant__total_received', 'state')
+                .values('updated_at', 'text', 'photo', status=F('state'), received=F('participant__total_received')))

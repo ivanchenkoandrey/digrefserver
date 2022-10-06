@@ -26,6 +26,15 @@ MODES = {
     'Y': 'Подтверждение будет выполняться судейской коллегией (через выдачу ими баллов)'
 }
 
+CHALLENGE_REPORT_STATES = {
+    'S': 'Направлен организатору для подтверждения',
+    'F': 'В процессе оценки судьями',
+    'A': 'Подтверждено',
+    'D': 'Отклонено',
+    'R': 'Повторно направлено организатору',
+    'W': 'Получено вознаграждение'
+}
+
 
 def add_annotated_fields_to_challenges(challenges: List[Dict]) -> None:
     for challenge in challenges:
@@ -43,56 +52,21 @@ def get_challenge_state_values(challenges: List[Dict]) -> None:
             states[index] = MODES.get(state)
 
 
-def update_challenge_photo_link_to_thumbnail(challenges: List[Dict]) -> None:
-    for challenge in challenges:
-        if photo := challenge.get('photo'):
+def update_photo_link(data: List[Dict], field: str) -> None:
+    for item in data:
+        if photo := item.get(field):
+            item.update({field: f'/media/{photo}'})
+        else:
+            item.update({field: None})
+
+
+def update_link_on_thumbnail(data: List[Dict], field: str) -> None:
+    for item in data:
+        if photo := item.get(field):
             link = '/media/{photo}'.format(photo=get_thumbnail_link(photo)).replace("//", "/")
-            challenge.update({'photo': link})
+            item.update({field: link})
         else:
-            challenge.update({'photo': None})
-
-
-def update_challenge_creator_photo_link_to_thumbnail(challenges: List[Dict]) -> None:
-    for challenge in challenges:
-        if photo := challenge.get('creator_photo'):
-            link = '/media/{photo}'.format(photo=get_thumbnail_link(photo)).replace("//", "/")
-            challenge.update({'creator_photo': link})
-        else:
-            challenge.update({'creator_photo': None})
-
-
-def update_participant_photo_link_to_thumbnail(participants: List[Dict]) -> None:
-    for participant in participants:
-        if photo := participant.get('participant_photo'):
-            link = '/media/{photo}'.format(photo=get_thumbnail_link(photo)).replace("//", "/")
-            participant.update({'participant_photo': link})
-        else:
-            participant.update({'participant_photo': None})
-
-
-def update_report_photo_link_to_thumbnail(participants: List[Dict]) -> None:
-    for participant in participants:
-        if photo := participant.get('report_photo'):
-            link = '/media/{photo}'.format(photo=get_thumbnail_link(photo)).replace("//", "/")
-            participant.update({'report_photo': link})
-        else:
-            participant.update({'report_photo': None})
-
-
-def update_challenge_photo_link(challenges: List[Dict]) -> None:
-    for challenge in challenges:
-        if photo := challenge.get('photo'):
-            challenge.update({'photo': f'/media/{photo}'})
-        else:
-            challenge.update({'photo': None})
-
-
-def update_participant_photo_link(participants: List[Dict]) -> None:
-    for participant in participants:
-        if photo := participant.get('participant_photo'):
-            participant.update({'participant_photo': f'/media/{photo}'})
-        else:
-            participant.update({'participant_photo': None})
+            item.update({field: None})
 
 
 def set_active_field(challenges: List[Dict]) -> None:
@@ -123,22 +97,10 @@ def calculate_remaining_top_places(challenges: List[Dict]) -> None:
             challenge.update({'remaining_top_places': None})
 
 
-def update_time_in_challenges(challenges: List[Dict]) -> None:
-    for challenge in challenges:
-        updated_at = challenge.get('updated_at')
-        challenge.update({'updated_at': updated_at + timedelta(hours=3)})
-
-
-def update_time_in_winners_list(winners_list: List[Dict]) -> None:
-    for winner in winners_list:
-        awarded_at = winner.get('awarded_at')
-        winner.update({'awarded_at': awarded_at + timedelta(hours=3)})
-
-
-def update_time_in_participants_list(participants_list: List[Dict]) -> None:
-    for participant in participants_list:
-        awarded_at = participant.get('report_created_at')
-        participant.update({'report_created_at': awarded_at + timedelta(hours=3)})
+def update_time(data: List[Dict], field: str) -> None:
+    for item in data:
+        awarded_at = item.get(field)
+        item.update({field: awarded_at + timedelta(hours=3)})
 
 
 def check_if_new_reports_exists(user_id: int) -> bool:
@@ -154,3 +116,7 @@ def set_names_to_null(participants: List[Dict]) -> None:
     for participant in participants:
         if participant.get('nickname') is not None:
             participant.update({'participant_name': None, 'participant_surname': None})
+
+
+def get_challenge_report_status(state: str) -> str:
+    return CHALLENGE_REPORT_STATES.get(state)
