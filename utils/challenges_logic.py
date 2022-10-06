@@ -148,3 +148,9 @@ def check_if_new_reports_exists(user_id: int) -> bool:
                           .filter(Q(challenge__creator_id=user_id) & Q(state__in=['S', 'F', 'R']))
                           .exists())
     return new_reports_exists
+
+
+def set_names_to_null(participants: List[Dict]) -> None:
+    for participant in participants:
+        if participant.get('nickname') is not None:
+            participant.update({'participant_name': None, 'participant_surname': None})

@@ -14,7 +14,8 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
                                     update_challenge_photo_link, set_active_field, set_completed_field,
                                     calculate_remaining_top_places, update_time_in_challenges,
                                     update_time_in_winners_list, update_time_in_participants_list,
-                                    check_if_new_reports_exists, update_challenge_creator_photo_link_to_thumbnail)
+                                    check_if_new_reports_exists, update_challenge_creator_photo_link_to_thumbnail,
+                                    set_names_to_null)
 from .service import create_challenge
 
 logger = logging.getLogger(__name__)
@@ -108,8 +109,12 @@ class ChallengeWinnersList(APIView):
     @classmethod
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
-        challenge_id = get_object_or_404(Challenge, pk=pk).pk
+        challenge = get_object_or_404(Challenge, pk=pk)
+        challenge_id = challenge.pk
+        is_nickname_allowed = 'N' in challenge.challenge_mode
         winners = ChallengeParticipant.objects.get_winners_data(challenge_id)
+        if is_nickname_allowed:
+            set_names_to_null(winners)
         update_time_in_winners_list(winners)
         update_participant_photo_link_to_thumbnail(winners)
         return Response(data=winners)
@@ -128,7 +133,10 @@ class ChallengeContendersList(APIView):
         if challenge.creator_id != request.user.id:
             return Response({'permission_denied': 'Вы не являетесь организатором челленджа'},
                             status=status.HTTP_403_FORBIDDEN)
+        is_nickname_allowed = 'N' in challenge.challenge_mode
         participants = ChallengeParticipant.objects.get_contenders_data(challenge_id)
+        if is_nickname_allowed:
+            set_names_to_null(participants)
         update_participant_photo_link_to_thumbnail(participants)
         update_report_photo_link_to_thumbnail(participants)
         update_time_in_participants_list(participants)

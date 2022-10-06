@@ -183,6 +183,12 @@ class CustomTransactionQueryset(models.QuerySet):
     def filter_by_user_limited(self, user, offset, limit):
         return self.filter_by_user(user)[offset * limit: offset * limit + limit]
 
+    def filter_by_user_sent_only(self, user, offset, limit):
+        return self.filter_by_user(user).filter(sender=user)[offset * limit: offset * limit + limit]
+
+    def filter_by_user_received_only(self, user, offset, limit):
+        return self.filter_by_user(user).filter(recipient=user)[offset * limit: offset * limit + limit]
+
     def filter_to_use_by_controller(self):
         """
         Возвращает список транзакций со статусом 'Ожидает подтверждения'

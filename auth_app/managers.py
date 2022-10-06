@@ -27,7 +27,7 @@ class CustomChallengeQueryset(models.QuerySet):
                                   Q(challenge__creator_id=user_id) &
                                   Q(state__in=['S', 'F', 'R']))
                           )
-                          
+
                           )
                 .only('id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount', 'description',
                       'start_balance', 'creator_id', 'status', 'parameters', 'is_new_reports', 'winners_count',
@@ -43,7 +43,7 @@ class CustomChallengeQueryset(models.QuerySet):
 
     def get_active_only(self, user_id):
         return (self.get_challenges_list(user_id)
-                .filter(~Q(states__contains=['C'])).values(
+        .filter(~Q(states__contains=['C'])).values(
             'id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount',
             'creator_id', 'status', 'parameters', 'is_new_reports', fund=F('start_balance')
         ))
@@ -68,8 +68,10 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
                       'user_participant__profile__photo',
                       'user_participant__profile__first_name',
                       'user_participant__profile__surname',
+                      'nickname',
                       'challengereports__updated_at')
-                .values(participant_id=F('user_participant__id'),
+                .values('nickname',
+                        participant_id=F('user_participant__id'),
                         participant_photo=F('user_participant__profile__photo'),
                         participant_name=F('user_participant__profile__first_name'),
                         participant_surname=F('user_participant__profile__surname'),
@@ -86,12 +88,14 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
                       'user_participant__profile__photo',
                       'user_participant__profile__first_name',
                       'user_participant__profile__surname',
+                      'nickname',
                       'challengereports__created_at',
                       'challengereports__text',
                       'challengereports__photo',
                       'challengereports__id'
                       )
-                .values(participant_id=F('user_participant__id'),
+                .values('nickname',
+                        participant_id=F('user_participant__id'),
                         participant_photo=F('user_participant__profile__photo'),
                         participant_name=F('user_participant__profile__first_name'),
                         participant_surname=F('user_participant__profile__surname'),
