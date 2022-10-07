@@ -28,24 +28,17 @@ class CreateChallengeView(APIView):
     def post(cls, request, *args, **kwargs):
         creator = request.user
         name = request.data.get('name')
-        description = request.data.get('description')
+        description = request.data.get('description', '')
+        end_at = request.data.get('end_at')
         start_balance = int(request.data.get('start_balance'))
         parameter_id = request.data.get('parameter_id')
         parameter_value = request.data.get('parameter_value')
         photo = request.FILES.get('photo')
 
-        response = create_challenge(creator, name, start_balance, description=description, photo=photo,
-                                    parameter_id=parameter_id, parameter_value=parameter_value)
+        response = create_challenge(creator, name, end_at, description, start_balance,  photo,
+                                    parameter_id, parameter_value)
 
         return Response(response)
-
-    @classmethod
-    def get_boolean_parameter(cls, parameter):
-        if parameter is None:
-            return False
-        elif parameter in [1, '1', 'True', 'true']:
-            return True
-        return False
 
 
 class ChallengeListView(APIView):

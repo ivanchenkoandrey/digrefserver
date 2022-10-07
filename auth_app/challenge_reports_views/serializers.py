@@ -57,13 +57,15 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         fields = ['state']
 
     def validate(self, validated_data):
-        pk = self.instance.id
+
         state = validated_data['state']
-        challenge_report = ChallengeReport.objects.get(id=pk)
+        challenge_report = self.instance
         user_participant = challenge_report.participant.user_participant
         reviewer = self.context['request'].user
         challenge_creator = challenge_report.challenge.creator
         text = 'Причина'
+        if challenge_report.state in ['W', 'D']:
+            raise ValidationError("Отчет уже отклонен или уже выдана награда")
         if reviewer != challenge_creator:
             raise ValidationError("Отправивший запрос не является создателем челленджа")
         if 'C' in challenge_report.challenge.states:
@@ -85,7 +87,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     prize = challenge.parameters[0]["value"]
 
                 participant = ChallengeParticipant.objects.get(user_participant=user_participant, challenge=challenge)
-                participant.total_received = prize
+                participant.total_received += prize
                 participant.save(update_fields=['total_received'])
 
                 sender_account = Account.objects.get(challenge=challenge, account_type='D')
@@ -133,7 +135,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                         )
 
                         participant = ChallengeParticipant.objects.get(user_participant=reviewer, challenge=challenge)
-                        participant.total_received = remain
+                        participant.total_received += remain
                         participant.save(update_fields=['total_received'])
 
                         user_stat = UserStat.objects.get(user=reviewer, period=current_period)
