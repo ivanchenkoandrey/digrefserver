@@ -4,7 +4,6 @@ from datetime import timedelta
 from django.db.models import F
 
 from auth_app.models import EventTypes, Transaction, Profile
-from utils.query_debugger import query_debugger
 from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
@@ -36,10 +35,9 @@ def get_event_type(user, recipient, is_public, event_types):
     return event_types.get('Входящая транзакция')
 
 
-@query_debugger
-def get_events_list(request):
+def get_events_list(request, offset, limit):
     request_user_tg_name = get_request_user_tg_name(request)
-    transactions = get_transactions_queryset(request)
+    transactions = get_transactions_queryset(request, offset, limit)
     event_types = get_event_types_data()
     feed_data = []
     for _transaction in transactions:
@@ -94,7 +92,7 @@ def get_request_user_tg_name(request):
     return request_user_tg_name
 
 
-def get_transactions_queryset(request):
+def get_transactions_queryset(request, offset, limit):
     public_transactions = (Transaction.objects
                            .select_related('sender__profile', 'recipient__profile')
                            .prefetch_related('_objecttags', 'likes',
@@ -113,5 +111,5 @@ def get_transactions_queryset(request):
 
     extended_transactions = ((public_transactions | transactions_receiver_only)
                              .distinct('updated_at', 'id')
-                             .order_by('-updated_at')[:20])
+                             .order_by('-updated_at')[offset*limit:offset*limit+limit])
     return extended_transactions

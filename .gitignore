@@ -163,5 +163,5 @@ cython_debug/
 
 media/
 
-digrefserver/docker-compose.yml
-digrefserver/gunicorn.conf.py
+docker-compose.yml
+gunicorn.conf.py

@@ -1,10 +1,8 @@
 from django.db import transaction as tr
-from rest_framework import serializers
-from auth_app.models import Comment, Transaction, LikeCommentStatistics
-from rest_framework.exceptions import ValidationError
-from datetime import datetime
 from django.shortcuts import get_object_or_404
-from django.contrib.contenttypes.models import ContentType
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from auth_app.models import Comment, LikeCommentStatistics
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):
@@ -17,6 +15,9 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         content_type = validated_data['content_type']
+        object_id = validated_data['object_id']
+        text = validated_data.get('text')
+        image = validated_data.get('picture')
         if content_type in ['11', 'transaction']:
             content_type = 11
         elif content_type in ['30', 'challenge']:
@@ -24,16 +25,13 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         elif content_type in ['31', 'challengeReport']:
             content_type = 31
 
-        object_id = validated_data['object_id']
-        text = validated_data.get('text')
-        image = validated_data.get('picture')
-
         if (text is None or text == "") and image is None:
             raise ValidationError("Не переданы параметры text или picture")
         with tr.atomic():
             try:
                 previous_comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
             except Comment.DoesNotExist:
+
                 validated_data['is_last_comment'] = True
                 validated_data['previous_comment'] = None
 
@@ -80,19 +78,16 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
 
         text = validated_data.get('text')
         picture = validated_data.get('picture')
-        comment_id = self.instance.id
         if (text is None or text == "") and picture is None:
-            raise ValidationError("Не переданы параметры text или picture")
+            raise ValidationError("Не передан параметр text или picture")
 
-        try:
-            comment = Comment.objects.get(id=comment_id)
-        except Comment.DoesNotExist:
-            raise ValidationError("Данного комментария не существует")
+        comment = self.instance
         if comment.user_id != self.context['request'].user.id:
             raise ValidationError("Вы не можете изменить комментарий чужого пользователя")
 
-        transaction_id = comment.transaction_id
-        like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=transaction_id)
+        content_type = comment.content_type
+        object_id = comment.object_id
+        like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
         like_comment_statistics_data = {'last_event_comment': comment}
         super().update(like_comment_statistics, like_comment_statistics_data)
         return validated_data
@@ -101,15 +96,12 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
 class DeleteCommentSerializer(serializers.ModelSerializer):
 
     def validate(self, validated_data):
-        comment_id = self.instance.id
-        validated_data['id'] = comment_id
-        try:
-            comment = get_object_or_404(Comment, id=comment_id)
-        except Comment.DoesNotExist:
-            raise ValidationError("Данного комментария не существует")
+
+        comment = self.instance
         if comment.user_id != self.context['request'].user.id:
             raise ValidationError("Вы не можете удалить комментарий чужого пользователя")
-        transaction_id = comment.transaction_id
+        content_type = comment.content_type
+        object_id = comment.object_id
         previous_comment = comment.previous_comment
         with tr.atomic():
             if previous_comment is not None:
@@ -144,12 +136,14 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
                     pass
 
             # comment.delete()
-            last_comment_created = Comment.objects.only('id', 'date_created').filter(transaction_id=transaction_id) \
+            last_comment_created = Comment.objects.only('id', 'date_created').\
+                filter(content_type=content_type, object_id=object_id) \
                 .order_by('-date_created').first()
-            last_comment_modified = Comment.objects.only('id', 'date_last_modified').filter(transaction_id=transaction_id) \
+            last_comment_modified = Comment.objects.only('id', 'date_last_modified').\
+                filter(content_type=content_type, object_id=object_id) \
                 .order_by('-date_last_modified').first()
 
-            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=comment.transaction_id)
+            like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
             comment_counter = like_comment_statistics.comment_counter - 1
             like_comment_statistics_data = {'comment_counter': comment_counter}
             if last_comment_created is not None:

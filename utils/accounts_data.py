@@ -19,7 +19,7 @@ def processing_accounts_data(user: User, period_id=None):
         period = get_object_or_404(Period, pk=period_id)
     else:
         period = get_period()
-    queryset = Account.objects.filter(account_type__in=['I', 'D', 'F'], owner=user)
+    queryset = Account.objects.filter(owner=user, challenge_id=None, organization_id=None)
     accounts_data = {f"{item.to_json().get('account_type')}": item.to_json() for item in queryset}
     user_stat = UserStat.objects.filter(user=user, period=period).first()
     user_profile_data = {

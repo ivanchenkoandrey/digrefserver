@@ -345,19 +345,25 @@ class LikeUserSerializer(serializers.ModelSerializer):
 @query_debugger
 class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
-    transaction_id = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     first_comment = serializers.SerializerMethodField()
     last_comment = serializers.SerializerMethodField()
     last_event_comment = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
 
-    def get_transaction_id(self, obj):
-        return obj.id
+    content_type = serializers.SerializerMethodField()
+    object_id = serializers.SerializerMethodField()
+
+    def get_content_type(self, obj):
+        model_class = ContentType.objects.get_for_id(obj['content_type'])
+        return model_class.name
+
+    def get_object_id(self, obj):
+        return obj['object_id']
 
     def get_comments(self, obj):
         try:
-            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=obj.id)
+            like_comment_statistics = LikeCommentStatistics.objects.get(content_type=obj['content_type'], object_id=obj['object_id'])
             return like_comment_statistics.comment_counter
         except LikeCommentStatistics.DoesNotExist:
             return 0
@@ -393,7 +399,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         if include_first_comment:
             try:
                 likes_comments_statistics = [statistics.first_comment for statistics in LikeCommentStatistics.objects.select_related("first_comment").
-                                             only("first_comment").filter(transaction_id=obj.id)]
+                                             only("first_comment").filter(content_type=obj['content_type'], object_id=obj['object_id'])]
                 first_comment = likes_comments_statistics[0]
                 if first_comment is not None:
                     return self.get_comment(first_comment.id, include_name)
@@ -406,9 +412,9 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_comment = self.context.get('include_last_comment')
         if include_last_comment:
             try:
-                likes_comments_statistics = [statistics.first_comment for statistics in
+                likes_comments_statistics = [statistics.last_comment for statistics in
                                              LikeCommentStatistics.objects.select_related("last_comment").only(
-                                                 "last_comment").filter(transaction_id=obj.id)]
+                                                 "last_comment").filter(content_type=obj['content_type'], object_id=obj['object_id'])]
                 last_comment = likes_comments_statistics[0]
                 if last_comment is not None:
                     return self.get_comment(last_comment.id, include_name)
@@ -421,9 +427,9 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_event_comment = self.context.get('include_last_event_comment')
         if include_last_event_comment:
             try:
-                likes_comments_statistics = [statistics.first_comment for statistics in
+                likes_comments_statistics = [statistics.last_event_comment for statistics in
                                              LikeCommentStatistics.objects.select_related("last_event_comment").only(
-                                                 "last_event_comment").filter(transaction_id=obj.id)]
+                                                 "last_event_comment").filter(content_type=obj['content_type'], object_id=obj['object_id'])]
                 last_event_comment = likes_comments_statistics[0]
                 if last_event_comment is not None:
                     return self.get_comment(last_event_comment.id, include_name)
@@ -440,7 +446,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
         try:
             like_statistics = [(statistics.like_kind_id, statistics.like_counter, statistics.last_change_at) for statistics in LikeStatistics.objects.select_related("transaction", "like_kind").only("id", "like_counter", "like_kind", "last_change_at", "transaction__id").
-                               filter(transaction_id=obj.id)]
+                               filter(content_type=obj['content_type'], object_id=obj['object_id'])]
         except LikeStatistics.DoesNotExist:
             pass
         for like_kind in fields:
@@ -472,7 +478,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Like
-        fields = ['transaction_id', 'comments', 'first_comment', 'last_comment', 'last_event_comment', 'likes']
+        fields = ['content_type', 'object_id', 'comments', 'first_comment', 'last_comment', 'last_event_comment', 'likes']
 
 
 class AccountSerializer(serializers.ModelSerializer):
