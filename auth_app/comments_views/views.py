@@ -2,7 +2,7 @@ from rest_framework import authentication, status
 from rest_framework.generics import CreateAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from auth_app.models import Comment, Transaction
+from auth_app.models import Comment
 from auth_app.serializers import CommentTransactionSerializer
 from rest_framework.response import Response
 from .serializers import CreateCommentSerializer, UpdateCommentSerializer, DeleteCommentSerializer
@@ -19,20 +19,12 @@ class CommentListAPIView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        transaction_id = request.data.get('transaction_id')
-        offset = request.data.get('offset')
-        limit = request.data.get('limit')
-        include_name = request.data.get('include_name')
-        is_reverse_order = request.data.get('is_reverse_order')
-
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 20
-        if include_name is None:
-            include_name = False
-        if is_reverse_order is None:
-            is_reverse_order = False
+        content_type = request.data.get('content_type')
+        object_id = request.data.get('object_id')
+        offset = request.data.get('offset', 0)
+        limit = request.data.get('limit', 20)
+        include_name = request.data.get('include_name', False)
+        is_reverse_order = request.data.get('is_reverse_order', False)
 
         # if not isinstance(offset, int) or not isinstance(limit, int):
         #     return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
@@ -43,18 +35,19 @@ class CommentListAPIView(APIView):
 
         context = {"offset": offset, "limit": limit, "include_name": include_name, "is_reverse_order": is_reverse_order}
 
-        if transaction_id is not None:
+        if content_type is not None and object_id is not None:
+            model_class = ContentType.objects.get_for_id(content_type).model_class()
             try:
-                transaction = Transaction.objects.get(id=transaction_id)
-                serializer = CommentTransactionSerializer(transaction, context=context)
-
+                model_object = model_class.objects.get(id=object_id)
+                # {"model_class": model_class, "model_object": model_object}
+                serializer = CommentTransactionSerializer({"content_type": content_type, "object_id": object_id}, context=context)
                 return Response(serializer.data)
 
-            except Transaction.DoesNotExist:
+            except model_class.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
-                                "ни к одной транзакции",
+                                "ни к одной заданной модели",
                                 status=status.HTTP_404_NOT_FOUND)
-        return Response("Не передан параметр transaction_id",
+        return Response("Не передан параметр content_type или object_id",
                         status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -65,7 +58,6 @@ class CreateCommentView(CreateAPIView):
                               authentication.TokenAuthentication]
     queryset = Comment.objects.all()
     serializer_class = CreateCommentSerializer
-
 
 
 class UpdateCommentView(UpdateAPIView):

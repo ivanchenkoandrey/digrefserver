@@ -17,18 +17,23 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         content_type = validated_data['content_type']
+        if content_type in ['11', 'transaction']:
+            content_type = 11
+        elif content_type in ['30', 'challenge']:
+            content_type = 30
+        elif content_type in ['31', 'challengeReport']:
+            content_type = 31
+
         object_id = validated_data['object_id']
-        content = validated_data.get('text')
+        text = validated_data.get('text')
         image = validated_data.get('picture')
-        ctype = ContentType.objects.get(model='Transaction')
-        print("con_type:", ctype)
-        if (content is None or content == "") and image is None:
+
+        if (text is None or text == "") and image is None:
             raise ValidationError("Не переданы параметры text или picture")
         with tr.atomic():
             try:
                 previous_comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
             except Comment.DoesNotExist:
-
                 validated_data['is_last_comment'] = True
                 validated_data['previous_comment'] = None
 
@@ -36,14 +41,15 @@ class CreateCommentSerializer(serializers.ModelSerializer):
                 comment = Comment.objects.get(content_type=content_type, object_id=object_id, previous_comment=None)
                 try:
 
-                    like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=object_id)
+                    like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
                     like_comment_statistics_data = {'first_comment': comment, 'last_comment': comment,
                                                     'last_event_comment': comment,
                                                     'comment_counter': 1}
                     super().update(like_comment_statistics, like_comment_statistics_data)
                 except LikeCommentStatistics.DoesNotExist:
 
-                    like_comment_statistics_object = LikeCommentStatistics(transaction_id=object_id,
+                    like_comment_statistics_object = LikeCommentStatistics(content_type=content_type,
+                                                                           object_id=object_id,
                                                                            first_comment=comment,
                                                                            last_comment=comment, last_event_comment=comment,
                                                                            comment_counter=1)
@@ -57,7 +63,7 @@ class CreateCommentSerializer(serializers.ModelSerializer):
             created_comment_instance = super().create(validated_data)
             comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
 
-            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=object_id)
+            like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
             comment_counter = like_comment_statistics.comment_counter + 1
             like_comment_statistics_data = {'last_comment': comment, 'last_event_comment': comment,
                                             'comment_counter': comment_counter}

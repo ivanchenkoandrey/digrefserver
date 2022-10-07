@@ -158,22 +158,11 @@ class TransactionStatisticsAPIView(APIView):
     @classmethod
     def post(cls, request, *args, **kwargs):
         transaction_id = request.data.get('transaction_id')
-        include_code = request.data.get('include_code')
-        include_name = request.data.get('include_name')
-        include_first_comment = request.data.get('include_first_comment')
-        include_last_comment = request.data.get('include_last_comment')
-        include_last_event_comment = request.data.get('include_last_event_comment')
-
-        if include_name is None:
-            include_name = False
-        if include_code is None:
-            include_code = False
-        if include_first_comment is None:
-            include_first_comment = False
-        if include_last_comment is None:
-            include_last_comment = False
-        if include_last_event_comment is None:
-            include_last_event_comment = False
+        include_code = request.data.get('include_code', False)
+        include_name = request.data.get('include_name', False)
+        include_first_comment = request.data.get('include_first_comment', False)
+        include_last_comment = request.data.get('include_last_comment', False)
+        include_last_event_comment = request.data.get('include_last_event_comment', False)
 
         if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(include_last_comment)\
            != bool or type(include_last_event_comment) != bool:

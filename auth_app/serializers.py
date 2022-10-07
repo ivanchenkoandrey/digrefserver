@@ -119,13 +119,18 @@ class CreateUserSerializer(serializers.ModelSerializer):
 class CommentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ['transaction_id', 'comments']
+        fields = ['content_type', 'object_id', 'comments']
 
-    transaction_id = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
+    object_id = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
 
-    def get_transaction_id(self, obj):
-        return obj.id
+    def get_content_type(self, obj):
+        model_class = ContentType.objects.get_for_id(obj['content_type'])
+        return model_class.name
+
+    def get_object_id(self, obj):
+        return obj['object_id']
 
     def get_comments(self, obj):
         offset = self.context.get('offset')
@@ -138,7 +143,8 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        comments_on_transaction = Comment.objects.filter_by_ctype(ctype).select_related('user__profile').\
+        comments_on_transaction = Comment.objects.filter_by_object(content_type=obj['content_type'],
+                                                                   object_id=obj['object_id']).select_related('user__profile').\
             only('user__profile__first_name', 'user__profile__photo').order_by(order_by)
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
@@ -172,11 +178,16 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
 
 class LikeTransactionSerializer(serializers.ModelSerializer):
 
-    transaction_id = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
+    object_id = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
 
-    def get_transaction_id(self, obj):
-        return obj.id
+    def get_content_type(self, obj):
+        model_class = ContentType.objects.get_for_id(obj['content_type'])
+        return model_class.name
+
+    def get_object_id(self, obj):
+        return obj['object_id']
 
     @query_debugger
     def get_likes(self, obj):
@@ -194,12 +205,11 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
             like_kinds = [(like_kind.id, like_kind.code, like_kind.name, like_kind.get_icon_url()) for like_kind in
                           [LikeKind.objects.get(id=like_kind_id)]]
 
-        ctype = ContentType.objects.get(model='transactions')
         users_liked = [(like.date_created, like.user, like.like_kind_id)
                        for like in Like.objects.select_related('user__profile', 'like_kind', 'transaction')
                        .only("id", "date_created", 'user__profile__first_name', 'user__profile__photo', 'like_kind',
                              'transaction__id').
-                       filter(content_type=ctype, is_liked=True).order_by('-date_created')]
+                       filter(content_type=obj['content_type'], object_id=obj['object_id'], is_liked=True).order_by('-date_created')]
 
         for like_kind in like_kinds:
             items = []
@@ -257,14 +267,12 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Like
-        fields = ['transaction_id', 'likes']
+        fields = ['content_type', 'object_id', 'likes']
 
 
 class LikeUserSerializer(serializers.ModelSerializer):
-
-    likes = serializers.SerializerMethodField()
-
     user_id = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
 
     def get_user_id(self, obj):
         return obj.id
@@ -288,18 +296,19 @@ class LikeUserSerializer(serializers.ModelSerializer):
         if like_kind_id != 'all':
             like_kind = LikeKind.objects.get(id=like_kind_id)
 
-            transactions_liked = [(like.object_id, like.date_created)
-                                  for like in Like.objects.filter_by_user_and_like_kind(ctype, like_kind).
+            transactions_liked = [(like.content_type, like.object_id, like.date_created)
+                                  for like in Like.objects.filter_by_user_and_like_kind(obj.id, like_kind).
                                   order_by('date_created')]
 
             transactions_liked_cut = transactions_liked[offset:offset + limit]
             for i in range(len(transactions_liked_cut)):
-                transaction_info = {
-                                      "transaction_id": transactions_liked_cut[i][0],
-                                      "time_of": transactions_liked_cut[i][1],
-                                      "like_kind": like_kind_id
-                                    }
-                items.append(transaction_info)
+                model_id = transactions_liked_cut[i][0].name + '_id'
+                object_info = {
+                                  model_id: transactions_liked_cut[i][1],
+                                  "time_of": transactions_liked_cut[i][2],
+                                  "like_kind": like_kind_id
+                              }
+                items.append(object_info)
             likes['items'] = items
 
             if len(transactions_liked_cut) == 0:
@@ -308,16 +317,17 @@ class LikeUserSerializer(serializers.ModelSerializer):
             return likes
 
         else:
-            transactions_liked = [(like.object_id, like.date_created, like.like_kind_id)
+            transactions_liked = [(like.content_type, like.object_id, like.date_created, like.like_kind_id)
                                   for like in Like.objects.filter_by_user(obj.id).order_by('-date_created')]
             transactions_liked_cut = transactions_liked[offset: offset + limit]
             for i in range(len(transactions_liked_cut)):
+                model_id = transactions_liked_cut[i][0].name + '_id'
 
                 items.append(
                     {
-                        "transaction_id": transactions_liked_cut[i][0],
-                        "time_of": transactions_liked_cut[i][1],
-                        "like_kind": transactions_liked_cut[i][2],
+                        model_id: transactions_liked_cut[i][1],
+                        "time_of": transactions_liked_cut[i][2],
+                        "like_kind": transactions_liked_cut[i][3]
                     }
                 )
                 likes['items'] = items

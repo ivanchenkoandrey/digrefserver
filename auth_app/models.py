@@ -479,29 +479,30 @@ class CustomCommentQueryset(models.QuerySet):
     в рамках менеджера objects в инстансах модели Comment
     """
 
-    def filter_by_ctype(self, ctype):
+    def filter_by_object(self, content_type, object_id):
         """
-        Возвращает список комментариев заданной транзакции
+        Возвращает список комментариев по заданной модели и его айди
         """
-        return Comment.objects.filter(content_type=ctype)
+        return Comment.objects.filter(content_type=content_type, object_id=object_id)
 
 
 class Comment(models.Model):
     objects = CustomCommentQueryset.as_manager()
 
     # id: идентификатор - создается автоматически
-    # transaction = models.ForeignKey(Transaction, related_name="comments", on_delete=models.SET_NULL,
-    #                                 null=True, blank=True, verbose_name="Транзакция")
-    content_type = models.ForeignKey(ContentType, null=True, blank=True, on_delete=models.SET_NULL)
+    transaction = models.ForeignKey(Transaction, related_name="comments", on_delete=models.SET_NULL,
+                                    null=True, blank=True, verbose_name="Транзакция")
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True)
     object_id = models.PositiveIntegerField(null=True)
-    content_object = GenericForeignKey()
+    content_object = GenericForeignKey("content_type", "object_id")
 
     user = models.ForeignKey(User, related_name='comment', on_delete=models.CASCADE,
                              verbose_name='Владелец Комментария')
     date_created = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Дата создания")
     date_last_modified = models.DateTimeField(auto_now=True, null=True, verbose_name="Дата последнего изменения")
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
-    previous_comment = models.ForeignKey("Comment", null=True, related_name='next_comment', on_delete=models.SET_NULL,
+    previous_comment = models.ForeignKey("Comment", null=True, blank=True, related_name='next_comment', on_delete=models.SET_NULL,
                                          verbose_name='Ссылка на предыдущий комментарий')
     text = models.CharField(max_length=50, null=True, blank=True, verbose_name="Текст")
     picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures',
@@ -572,13 +573,13 @@ class CustomLikeQueryset(models.QuerySet):
 
 class Like(models.Model):
     # id: идентификатор - создается автоматически
-
     objects = CustomLikeQueryset.as_manager()
-    # transaction = models.ForeignKey(Transaction, related_name="likes", on_delete=models.CASCADE,
-    #                                 verbose_name="Транзакция")
-    content_type = models.ForeignKey(ContentType, null=True, blank=True, on_delete=models.SET_NULL)
+    transaction = models.ForeignKey(Transaction, null=True, blank=True, related_name="likes", on_delete=models.CASCADE,
+                                    verbose_name="Транзакция")
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
     object_id = models.PositiveIntegerField(null=True)
-    content_object = GenericForeignKey()
+    content_object = GenericForeignKey("content_type", "object_id")
 
     like_kind = models.ForeignKey(LikeKind, related_name='like', on_delete=models.CASCADE,
                                   verbose_name='Тип лайка')
@@ -599,6 +600,11 @@ class Like(models.Model):
 class LikeStatistics(models.Model):
     transaction = models.ForeignKey(Transaction, related_name='like_statistics', on_delete=models.SET_NULL,
                                     null=True, blank=True, verbose_name='Транзакция')
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
+    object_id = models.PositiveIntegerField(null=True)
+    content_object = GenericForeignKey("content_type", "object_id")
+
     like_counter = models.IntegerField(verbose_name='Количество лайков')
     like_kind = models.ForeignKey(LikeKind, related_name='like_statistics', on_delete=models.SET_NULL,
                                   null=True, blank=True, verbose_name='Тип лайка')
@@ -612,6 +618,10 @@ class LikeStatistics(models.Model):
 class LikeCommentStatistics(models.Model):
     transaction = models.ForeignKey(Transaction, related_name='like_comment_statistics', on_delete=models.SET_NULL,
                                     null=True, blank=True, verbose_name='Транзакция')
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True)
+    object_id = models.PositiveIntegerField(null=True)
+    content_object = GenericForeignKey("content_type", "object_id")
 
     first_comment = models.ForeignKey("Comment", related_name='first_comment_statistics', on_delete=models.SET_NULL,
                                       null=True, blank=True, verbose_name='Первый комментарий')

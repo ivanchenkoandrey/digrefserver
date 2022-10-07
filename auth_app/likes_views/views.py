@@ -7,14 +7,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import authentication, status
 from .serializers import PressLikeSerializer
+from django.contrib.contenttypes.models import ContentType
 
 logger = logging.getLogger(__name__)
 
 
-class LikesTransactionListAPIView(APIView):
+class LikesListAPIView(APIView):
 
     """
-    Список всех лайков переданной транзакции
+    Список всех лайков переданной модели
     """
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
@@ -22,7 +23,8 @@ class LikesTransactionListAPIView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        transaction_id = request.data.get('transaction_id')
+        content_type = request.data.get('content_type')
+        object_id = request.data.get('object_id')
         like_kind = request.data.get('like_kind')
         include_code = request.data.get('include_code')
         include_name = request.data.get('include_name')
@@ -56,18 +58,18 @@ class LikesTransactionListAPIView(APIView):
         context = {"include_code": include_code, "like_kind": like_kind, "include_name": include_name,
                    "offset": offset, "limit": limit}
 
-        if transaction_id is not None:
+        if object_id is not None and content_type is not None:
+            model_class = ContentType.objects.get_for_id(content_type).model_class()
             try:
-                transaction = Transaction.objects.get(id=transaction_id)
-                serializer = LikeTransactionSerializer(transaction, context=context)
-
+                model_object = model_class.objects.get(id=object_id)
+                serializer = LikeTransactionSerializer({"content_type": content_type, "object_id": object_id}, context=context)
                 return Response(serializer.data)
 
-            except Transaction.DoesNotExist:
+            except model_class.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
-                                "ни к одной транзакции",
+                                "ни к одной заданной модели",
                                 status=status.HTTP_404_NOT_FOUND)
-        return Response("Не передан параметр transaction_id",
+        return Response("Не передан параметр object_id или content_type",
                         status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -89,16 +91,9 @@ class LikesUserListAPIView(APIView):
         # need to check for the privilege (admin, coordinator, ..)
         user_id = request.data.get('user_id')
         like_kind = request.data.get('like_kind')
-        include_code = request.data.get('include_code')
-        offset = request.data.get('offset')
-        limit = request.data.get('limit')
-
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 20
-        if include_code is None:
-            include_code = False
+        include_code = request.data.get('include_code', False)
+        offset = request.data.get('offset', 0)
+        limit = request.data.get('limit', 20)
 
         if type(offset) != int or type(limit) != int:
             return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
