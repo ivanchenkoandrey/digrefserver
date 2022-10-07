@@ -13,7 +13,7 @@ from utils.handle_image import change_challenge_filename
 logger = logging.getLogger(__name__)
 
 
-def create_challenge(creator, name, start_balance, description='', photo=None, parameter_id=None, parameter_value=None):
+def create_challenge(creator, name, end_at, description, start_balance, photo, parameter_id, parameter_value):
     period = get_current_period()
 
     if period is None:
@@ -65,6 +65,7 @@ def create_challenge(creator, name, start_balance, description='', photo=None, p
             organized_by=creator,
             name=name,
             description=description,
+            end_at=end_at,
             states=states,
             challenge_mode=challenge_modes,
             start_balance=start_balance,
