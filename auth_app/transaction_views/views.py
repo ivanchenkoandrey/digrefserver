@@ -11,6 +11,7 @@ from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.contrib.contenttypes.models import ContentType
 
 from auth_app.models import Transaction, Period
 from auth_app.serializers import (TransactionPartialSerializer, TransactionFullSerializer,
@@ -166,7 +167,7 @@ class SingleTransactionByUserView(RetrieveAPIView):
 
 class TransactionStatisticsAPIView(APIView):
     """
-    Статистика комментариев и лайков указанной транзакции
+    Статистика комментариев и лайков указанной модели
     """
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
@@ -174,23 +175,13 @@ class TransactionStatisticsAPIView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        transaction_id = request.data.get('transaction_id')
-        include_code = request.data.get('include_code')
-        include_name = request.data.get('include_name')
-        include_first_comment = request.data.get('include_first_comment')
-        include_last_comment = request.data.get('include_last_comment')
-        include_last_event_comment = request.data.get('include_last_event_comment')
-
-        if include_name is None:
-            include_name = False
-        if include_code is None:
-            include_code = False
-        if include_first_comment is None:
-            include_first_comment = False
-        if include_last_comment is None:
-            include_last_comment = False
-        if include_last_event_comment is None:
-            include_last_event_comment = False
+        content_type = request.data.get('content_type')
+        object_id = request.data.get('object_id')
+        include_code = request.data.get('include_code', False)
+        include_name = request.data.get('include_name', False)
+        include_first_comment = request.data.get('include_first_comment', False)
+        include_last_comment = request.data.get('include_last_comment', False)
+        include_last_event_comment = request.data.get('include_last_event_comment', False)
 
         if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(
                 include_last_comment) \
@@ -203,12 +194,13 @@ class TransactionStatisticsAPIView(APIView):
                    "include_last_comment": include_last_comment,
                    "include_last_event_comment": include_last_event_comment}
 
-        if transaction_id is not None:
+        if content_type is not None and object_id is not None:
+            model_class = ContentType.objects.get_for_id(content_type).model_class()
             try:
-                transaction = Transaction.objects.get(id=transaction_id)
-                serializer = TransactionStatisticsSerializer(transaction, context=context)
+                model_object = model_class.objects.get(id=object_id)
+                serializer = TransactionStatisticsSerializer({"content_type": content_type, "object_id": object_id}, context=context)
                 return Response(serializer.data)
-            except Transaction.DoesNotExist:
+            except model_class.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
                                 "ни к одной транзакции",
                                 status=status.HTTP_404_NOT_FOUND)

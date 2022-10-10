@@ -8,6 +8,7 @@ from django.db.models import F
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from utils.query_debugger import query_debugger
+from django.contrib.contenttypes.models import ContentType
 
 from auth_app.models import (Profile, Account, Transaction,
                              UserStat, Period, Contact,
@@ -117,13 +118,18 @@ class CreateUserSerializer(serializers.ModelSerializer):
 class CommentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ['transaction_id', 'comments']
+        fields = ['content_type', 'object_id', 'comments']
 
-    transaction_id = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
+    object_id = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
 
-    def get_transaction_id(self, obj):
-        return obj.id
+    def get_content_type(self, obj):
+        model_class = ContentType.objects.get_for_id(obj['content_type'])
+        return model_class.name
+
+    def get_object_id(self, obj):
+        return obj['object_id']
 
     def get_comments(self, obj):
         offset = self.context.get('offset')
@@ -136,7 +142,9 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        comments_on_transaction = (Comment.objects.filter_by_transaction(obj.id).select_related('user__profile')
+
+        comments_on_transaction = (Comment.objects.filter_by_object(content_type=obj['content_type'],
+                                                                   object_id=obj['object_id']).select_related('user__profile')
                                    .only('user__profile__first_name',
                                          'user__profile__photo',
                                          'user__profile__surname',
@@ -176,11 +184,16 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
 
 class LikeTransactionSerializer(serializers.ModelSerializer):
 
-    transaction_id = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
+    object_id = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
 
-    def get_transaction_id(self, obj):
-        return obj.id
+    def get_content_type(self, obj):
+        model_class = ContentType.objects.get_for_id(obj['content_type'])
+        return model_class.name
+
+    def get_object_id(self, obj):
+        return obj['object_id']
 
     @query_debugger
     def get_likes(self, obj):
@@ -202,7 +215,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
                        for like in Like.objects.select_related('user__profile', 'like_kind', 'transaction')
                        .only("id", "date_created", 'user__profile__first_name', 'user__profile__photo', 'like_kind',
                              'transaction__id').
-                       filter(transaction_id=obj.id, is_liked=True).order_by('-date_created')]
+                       filter(content_type=obj['content_type'], object_id=obj['object_id'], is_liked=True).order_by('-date_created')]
 
         for like_kind in like_kinds:
             items = []
@@ -259,14 +272,12 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Like
-        fields = ['transaction_id', 'likes']
+        fields = ['content_type', 'object_id', 'likes']
 
 
 class LikeUserSerializer(serializers.ModelSerializer):
-
-    likes = serializers.SerializerMethodField()
-
     user_id = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
 
     def get_user_id(self, obj):
         return obj.id
@@ -290,18 +301,19 @@ class LikeUserSerializer(serializers.ModelSerializer):
         if like_kind_id != 'all':
             like_kind = LikeKind.objects.get(id=like_kind_id)
 
-            transactions_liked = [(like.transaction_id, like.date_created)
+            transactions_liked = [(like.content_type, like.object_id, like.date_created)
                                   for like in Like.objects.filter_by_user_and_like_kind(obj.id, like_kind).
                                   order_by('date_created')]
 
             transactions_liked_cut = transactions_liked[offset:offset + limit]
             for i in range(len(transactions_liked_cut)):
-                transaction_info = {
-                                      "transaction_id": transactions_liked_cut[i][0],
-                                      "time_of": transactions_liked_cut[i][1],
-                                      "like_kind": like_kind_id
-                                    }
-                items.append(transaction_info)
+                model_id = transactions_liked_cut[i][0].name + '_id'
+                object_info = {
+                                  model_id: transactions_liked_cut[i][1],
+                                  "time_of": transactions_liked_cut[i][2],
+                                  "like_kind": like_kind_id
+                              }
+                items.append(object_info)
             likes['items'] = items
 
             if len(transactions_liked_cut) == 0:
@@ -310,16 +322,17 @@ class LikeUserSerializer(serializers.ModelSerializer):
             return likes
 
         else:
-            transactions_liked = [(like.transaction_id, like.date_created, like.like_kind_id)
+            transactions_liked = [(like.content_type, like.object_id, like.date_created, like.like_kind_id)
                                   for like in Like.objects.filter_by_user(obj.id).order_by('-date_created')]
             transactions_liked_cut = transactions_liked[offset: offset + limit]
             for i in range(len(transactions_liked_cut)):
+                model_id = transactions_liked_cut[i][0].name + '_id'
 
                 items.append(
                     {
-                        "transaction_id": transactions_liked_cut[i][0],
-                        "time_of": transactions_liked_cut[i][1],
-                        "like_kind": transactions_liked_cut[i][2],
+                        model_id: transactions_liked_cut[i][1],
+                        "time_of": transactions_liked_cut[i][2],
+                        "like_kind": transactions_liked_cut[i][3]
                     }
                 )
                 likes['items'] = items
@@ -337,19 +350,25 @@ class LikeUserSerializer(serializers.ModelSerializer):
 @query_debugger
 class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
-    transaction_id = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     first_comment = serializers.SerializerMethodField()
     last_comment = serializers.SerializerMethodField()
     last_event_comment = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
 
-    def get_transaction_id(self, obj):
-        return obj.id
+    content_type = serializers.SerializerMethodField()
+    object_id = serializers.SerializerMethodField()
+
+    def get_content_type(self, obj):
+        model_class = ContentType.objects.get_for_id(obj['content_type'])
+        return model_class.name
+
+    def get_object_id(self, obj):
+        return obj['object_id']
 
     def get_comments(self, obj):
         try:
-            like_comment_statistics = LikeCommentStatistics.objects.get(transaction_id=obj.id)
+            like_comment_statistics = LikeCommentStatistics.objects.get(content_type=obj['content_type'], object_id=obj['object_id'])
             return like_comment_statistics.comment_counter
         except LikeCommentStatistics.DoesNotExist:
             return 0
@@ -385,7 +404,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         if include_first_comment:
             try:
                 likes_comments_statistics = [statistics.first_comment for statistics in LikeCommentStatistics.objects.select_related("first_comment").
-                                             only("first_comment").filter(transaction_id=obj.id)]
+                                             only("first_comment").filter(content_type=obj['content_type'], object_id=obj['object_id'])]
                 first_comment = likes_comments_statistics[0]
                 if first_comment is not None:
                     return self.get_comment(first_comment.id, include_name)
@@ -398,9 +417,9 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_comment = self.context.get('include_last_comment')
         if include_last_comment:
             try:
-                likes_comments_statistics = [statistics.first_comment for statistics in
+                likes_comments_statistics = [statistics.last_comment for statistics in
                                              LikeCommentStatistics.objects.select_related("last_comment").only(
-                                                 "last_comment").filter(transaction_id=obj.id)]
+                                                 "last_comment").filter(content_type=obj['content_type'], object_id=obj['object_id'])]
                 last_comment = likes_comments_statistics[0]
                 if last_comment is not None:
                     return self.get_comment(last_comment.id, include_name)
@@ -413,9 +432,9 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_event_comment = self.context.get('include_last_event_comment')
         if include_last_event_comment:
             try:
-                likes_comments_statistics = [statistics.first_comment for statistics in
+                likes_comments_statistics = [statistics.last_event_comment for statistics in
                                              LikeCommentStatistics.objects.select_related("last_event_comment").only(
-                                                 "last_event_comment").filter(transaction_id=obj.id)]
+                                                 "last_event_comment").filter(content_type=obj['content_type'], object_id=obj['object_id'])]
                 last_event_comment = likes_comments_statistics[0]
                 if last_event_comment is not None:
                     return self.get_comment(last_event_comment.id, include_name)
@@ -432,7 +451,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
         try:
             like_statistics = [(statistics.like_kind_id, statistics.like_counter, statistics.last_change_at) for statistics in LikeStatistics.objects.select_related("transaction", "like_kind").only("id", "like_counter", "like_kind", "last_change_at", "transaction__id").
-                               filter(transaction_id=obj.id)]
+                               filter(content_type=obj['content_type'], object_id=obj['object_id'])]
         except LikeStatistics.DoesNotExist:
             pass
         for like_kind in fields:
@@ -464,7 +483,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Like
-        fields = ['transaction_id', 'comments', 'first_comment', 'last_comment', 'last_event_comment', 'likes']
+        fields = ['content_type', 'object_id', 'comments', 'first_comment', 'last_comment', 'last_event_comment', 'likes']
 
 
 class AccountSerializer(serializers.ModelSerializer):
