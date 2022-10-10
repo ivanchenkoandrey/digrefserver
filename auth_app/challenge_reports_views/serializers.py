@@ -2,12 +2,13 @@ from django.conf import settings
 from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-
+from auth_app.comments_views.service import create_comment
 from auth_app.models import ChallengeReport, ChallengeParticipant, Account, Transaction, UserStat
 from utils.challenges_logic import check_if_new_reports_exists
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
 from utils.handle_image import change_filename
+from django.contrib.contenttypes.models import ContentType
 
 
 class CreateChallengeReportSerializer(serializers.ModelSerializer):
@@ -54,12 +55,14 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
 class CheckChallengeReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChallengeReport
-        fields = ['state', 'reason']
+        fields = ['state', 'text']
 
     def validate(self, validated_data):
 
         state = validated_data['state']
-        reason = validated_data['reason']
+        text = self.instance.text
+        reason = validated_data['text']
+        validated_data['text'] = text
         challenge_report = self.instance
         user_participant = challenge_report.participant.user_participant
         reviewer = self.context['request'].user
@@ -72,6 +75,9 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
             raise ValidationError("Челлендж уже завершен")
         if reason is None and state == 'D':
             raise ValidationError("Не указана причина отклонения")
+        else:
+            content_type = ContentType.objects.get_for_id(31)
+            create_comment(content_type, challenge_report.id, reason, None, reviewer)
         if state == 'W':
             with tr.atomic():
                 challenge = challenge_report.challenge

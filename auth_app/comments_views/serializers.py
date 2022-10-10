@@ -2,7 +2,7 @@ from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from auth_app.models import Comment, LikeCommentStatistics
-from service import create_comment
+from .service import create_comment
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):
@@ -19,7 +19,7 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         text = validated_data.get('text')
         picture = request.FILES.get('photo')
         validated_data['picture'] = picture
-        create_comment(validated_data, content_type, object_id, text, picture, user)
+        create_comment(content_type, object_id, text, picture, user)
 
 
 class UpdateCommentSerializer(serializers.ModelSerializer):

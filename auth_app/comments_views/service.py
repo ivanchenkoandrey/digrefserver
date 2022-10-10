@@ -6,7 +6,7 @@ from rest_framework.exceptions import ValidationError
 from auth_app.models import Comment, LikeCommentStatistics
 
 
-def create_comment(validated_data, content_type, object_id, text, picture, user):
+def create_comment(content_type, object_id, text, picture, user):
     if content_type in ['11', 'transaction']:
         content_type = 11
     elif content_type in ['30', 'challenge']:
