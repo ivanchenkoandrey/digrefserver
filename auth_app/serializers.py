@@ -115,7 +115,6 @@ class CreateUserSerializer(serializers.ModelSerializer):
         fields = ['username']
 
 
-@query_debugger
 class CommentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
@@ -143,9 +142,16 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
         else:
             order_by = "date_created"
         comments = []
-        comments_on_transaction = Comment.objects.filter_by_object(content_type=obj['content_type'],
-                                                                   object_id=obj['object_id']).select_related('user__profile').\
-            only('user__profile__first_name', 'user__profile__photo').order_by(order_by)
+
+        comments_on_transaction = (Comment.objects.filter_by_object(content_type=obj['content_type'],
+                                                                   object_id=obj['object_id']).select_related('user__profile')
+                                   .only('user__profile__first_name',
+                                         'user__profile__photo',
+                                         'user__profile__surname',
+                                         'text',
+                                         'picture',
+                                         'date_created',
+                                         'date_last_modified').order_by(order_by))
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
             comment_info = {
@@ -215,7 +221,6 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
             items = []
             counter = 0
             index = 0
-            # users_liked_cut = users_liked[offset:offset+limit]
             for i in range(len(users_liked)):
 
                 if users_liked[i][2] == like_kind[0]:
@@ -520,15 +525,17 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         reason_def = self.data.get('reason_def')
         amount = self.validated_data['amount']
         is_anonymous = self.validated_data['is_anonymous']
-        tags = self.make_validations(amount, current_period, reason, reason_def, recipient, sender, tags)
+        tags = self.make_validations(amount, current_period, reason, recipient, sender, tags)
         sender_distr_account = Account.objects.filter(
-            owner=sender, account_type='D').first()
+            owner=sender, account_type='D', organization_id=None, challenge_id=None).first()
+        account_to_save = sender_distr_account
         current_account_amount = sender_distr_account.amount
         if current_account_amount == 0:
             sender_income_account = Account.objects.filter(
-                owner=sender, account_type='I').first()
+                owner=sender, account_type='I', organization_id=None, challenge_id=None).first()
             current_account_amount = sender_income_account.amount
             from_income = True
+            account_to_save = sender_income_account
         if current_account_amount - amount < 0:
             logger.info(f"Попытка {sender} перевести сумму больше имеющейся на счету распределения")
             raise ValidationError("Нельзя перевести больше, чем есть на счету")
@@ -538,11 +545,12 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             raise ValidationError("Перевести можно до 50% имеющейся "
                                   "суммы на счету распределения")
         sender_frozen_account = Account.objects.filter(
-            owner=sender, account_type='F').first()
+            owner=sender, account_type='F', organization_id=None, challenge_id=None).first()
         sender_user_stat = UserStat.objects.get(user=sender, period=current_period)
         with transaction.atomic():
             transaction_instance = Transaction.objects.create(
                 sender=self.context['request'].user,
+                sender_account=account_to_save,
                 recipient=recipient,
                 transaction_class='T',
                 amount=self.validated_data['amount'],
@@ -584,17 +592,17 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             return transaction_instance
 
     @classmethod
-    def make_validations(cls, amount, current_period, reason, reason_def, recipient, sender, tags):
+    def make_validations(cls, amount, current_period, reason, recipient, sender, tags):
         if amount <= 0:
             logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
             raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
         if current_period is None:
             logger.info(f"Попытка создать транзакцию, когда закончился период")
             raise ValidationError('Период отправки транзакций закончился')
-        if reason is None and reason_def is None:
-            logger.error(f"Не переданы ни своё обоснование, ни готовое обоснование")
+        if reason is None and tags is None:
+            logger.error(f"Не переданы ни своё обоснование, ни ценность")
             raise ValidationError("Нужно либо заполнить поле обоснования, "
-                                  "либо указать ID уже существующего обоснования (благодарности)")
+                                  "либо указать ID существующего тега (ценности)")
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             logger.info(f"Попытка отправить спасибки на системный аккаунт")
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
@@ -646,49 +654,76 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_sender(self, obj):
         user_id = self.context.get('user').pk
-        sender_photo_url = obj.sender.profile.get_photo_url()
-        if (not obj.is_anonymous
-                or user_id == obj.sender.id):
+        if obj.sender is not None:
+            sender_photo_url = obj.sender.profile.get_photo_url()
+            if (not obj.is_anonymous
+                    or user_id == obj.sender.id):
+                return {
+                    'sender_id': obj.sender.id,
+                    'sender_tg_name': obj.sender.profile.tg_name,
+                    'sender_first_name': obj.sender.profile.first_name,
+                    'sender_surname': obj.sender.profile.surname,
+                    'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
+                }
             return {
-                'sender_id': obj.sender.id,
-                'sender_tg_name': obj.sender.profile.tg_name,
-                'sender_first_name': obj.sender.profile.first_name,
-                'sender_surname': obj.sender.profile.surname,
+                'sender_id': None,
+                'sender_tg_name': 'anonymous',
+                'sender_first_name': None,
+                'sender_surname': None,
+                'sender_photo': None
+            }
+        if obj.sender_account is not None:
+            sender_photo_url = obj.sender_account.owner.profile.get_photo_url()
+            return {
+                'sender_id': obj.sender_account.owner.id,
+                'sender_tg_name': obj.sender_account.owner.profile.tg_name,
+                'sender_first_name': obj.sender_account.owner.profile.first_name,
+                'sender_surname': obj.sender_account.owner.profile.surname,
                 'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
             }
-        return {
-            'sender_id': None,
-            'sender_tg_name': 'anonymous',
-            'sender_first_name': None,
-            'sender_surname': None,
-            'sender_photo': None
-        }
 
     def get_sender_id(self, obj):
-        user_id = self.context.get('user').pk
-        if (not obj.is_anonymous
-                or user_id == obj.sender.id):
-            return obj.sender.id
-        return None
+        if obj.sender is not None:
+            user_id = self.context.get('user').pk
+            if (not obj.is_anonymous
+                    or user_id == obj.sender.id):
+                return obj.sender.id
+        if obj.sender_account is not None:
+            return obj.sender_account.owner.id
 
     def get_recipient(self, obj):
-        recipient_photo_url = obj.recipient.profile.get_photo_url()
-        return {
-            'recipient_id': obj.recipient.id,
-            'recipient_tg_name': obj.recipient.profile. tg_name,
-            'recipient_first_name': obj.recipient.profile.first_name,
-            'recipient_surname': obj.recipient.profile.surname,
-            'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
-        }
+        if obj.recipient is not None:
+            recipient_photo_url = obj.recipient.profile.get_photo_url()
+            return {
+                'recipient_id': obj.recipient.id,
+                'recipient_tg_name': obj.recipient.profile. tg_name,
+                'recipient_first_name': obj.recipient.profile.first_name,
+                'recipient_surname': obj.recipient.profile.surname,
+                'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
+            }
+        if obj.recipient_account is not None:
+            recipient_photo_url = obj.recipient_account.owner.profile.get_photo_url()
+            return {
+                'recipient_id': obj.recipient_account.owner_id,
+                'recipient_tg_name': obj.recipient_account.owner.profile.tg_name,
+                'recipient_first_name': obj.recipient_account.owner.profile.first_name,
+                'recipient_surname': obj.recipient_account.owner.profile.surname,
+                'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
+            }
 
     def get_recipient_id(self, obj):
-        return obj.recipient.id
+        if obj.recipient is not None:
+            return obj.recipient.id
+        if obj.recipient_account is not None:
+            return obj.recipient_account.owner_id
 
     def get_can_user_cancel(self, obj):
-        user_id = self.context.get('user').pk
-        return (obj.status in ['W', 'G', 'A']
-                and user_id == obj.sender.id
-                and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
+        if obj.sender is not None:
+            user_id = self.context.get('user').pk
+            return (obj.status in ['W', 'G', 'A']
+                    and user_id == obj.sender.id
+                    and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
+        return False
 
     def get_tags(self, obj):
         return obj._objecttags.values('tag_id', name=F('tag__name'))

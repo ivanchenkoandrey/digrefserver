@@ -21,6 +21,8 @@ from auth_app.service import (update_transactions_by_controller,
                               cancel_transaction_by_user, is_cancel_transaction_request_is_valid,
                               AlreadyUpdatedByControllerError, NotWaitingTransactionError)
 from utils.custom_permissions import IsController
+from utils.paginates import process_offset_and_limit
+from utils.query_debugger import query_debugger
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +111,31 @@ class TransactionsByUserView(ListAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-
+    queryset = Transaction.objects.all()
     serializer_class = TransactionFullSerializer
 
+    @query_debugger
     def get(self, request, *args, **kwargs):
-        logger.info(f"Пользователь {self.request.user} смотрит список транзакций")
-        return super().get(request, *args, **kwargs)
+        logger.info(f"Пользователь {request.user} смотрит список транзакций")
+        offset = request.GET.get('offset')
+        limit = request.GET.get('limit')
+        sent_only = request.GET.get('sent_only')
+        received_only = request.GET.get('received_only')
+        offset, limit = process_offset_and_limit(offset, limit)
+        if not any([self.is_parameter_valid(sent_only), self.is_parameter_valid(received_only)]):
+            transactions = Transaction.objects.filter_by_user_limited(request.user, offset, limit)
+        else:
+            transactions = (Transaction.objects.filter_by_user_sent_only(request.user, offset, limit)
+                            if self.is_parameter_valid(sent_only)
+                            else Transaction.objects.filter_by_user_received_only(request.user, offset, limit))
+        serializer = self.get_serializer(transactions, many=True)
+        return Response(serializer.data)
 
-    def get_queryset(self):
-        return Transaction.objects.filter_by_user(self.request.user).order_by('-updated_at')
+    @classmethod
+    def is_parameter_valid(cls, parameter):
+        if parameter in ('1', 'True', 'true'):
+            return True
+        return False
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -148,7 +166,6 @@ class SingleTransactionByUserView(RetrieveAPIView):
 
 
 class TransactionStatisticsAPIView(APIView):
-
     """
     Статистика комментариев и лайков указанной модели
     """
@@ -166,8 +183,9 @@ class TransactionStatisticsAPIView(APIView):
         include_last_comment = request.data.get('include_last_comment', False)
         include_last_event_comment = request.data.get('include_last_event_comment', False)
 
-        if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(include_last_comment)\
-           != bool or type(include_last_event_comment) != bool:
+        if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(
+                include_last_comment) \
+                != bool or type(include_last_event_comment) != bool:
             return Response("include_name, is_reverse_order, include_first_comment, include_last_comment и "
                             "include_last_event_comment должны быть типа bool", status=status.HTTP_400_BAD_REQUEST)
 

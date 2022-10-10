@@ -1,0 +1,122 @@
+from datetime import timedelta
+from typing import Dict, List
+
+from django.db.models import Q
+
+from utils.thumbnail_link import get_thumbnail_link
+
+MODES = {
+    'O': 'От имени организации',
+    'U': 'От имени пользователя',
+    'P': 'Является публичным',
+    'C': 'Является командным',
+    'R': 'Нужна регистрация',
+    'G': 'Нужна картинка',
+    'M': 'Запрет комментариев',
+    'E': 'Разрешить комментарии только для участников',
+    'L': 'Лайки запрещены',
+    'T': 'Разрешить лайки только для участников',
+    'X': 'Комментарии отчетов разрешены только автору отчета, организатору и судьям',
+    'W': 'Комментарии отчетов разрешены только участникам',
+    'I': 'Лайки отчетов разрешены только участникам',
+    'N': 'Участник может использовать никнейм',
+    'H': 'Участник может сделать отчёт приватным',
+    'A': 'Отчеты анонимизированы до подведения итогов, не видны ни имена пользователей, ни псевдонимы',
+    'Q': 'Участник может рассылать приглашения',
+    'Y': 'Подтверждение будет выполняться судейской коллегией (через выдачу ими баллов)'
+}
+
+CHALLENGE_REPORT_STATES = {
+    'S': 'Направлен организатору для подтверждения',
+    'F': 'В процессе оценки судьями',
+    'A': 'Подтверждено',
+    'D': 'Отклонено',
+    'R': 'Повторно направлено организатору',
+    'W': 'Получено вознаграждение'
+}
+
+
+def add_annotated_fields_to_challenges(challenges: List[Dict]) -> None:
+    for challenge in challenges:
+        parameters = challenge.get('parameters')
+        if parameters:
+            parameters = sorted(parameters, key=lambda obj: obj['id'])
+            challenge.update(
+                {'prize_size': parameters[0]['value'],
+                 'awardees': parameters[1]['value']})
+
+
+def get_challenge_state_values(challenges: List[Dict]) -> None:
+    for challenge in challenges:
+        for index, state in enumerate(states := challenge.get('states')):
+            states[index] = MODES.get(state)
+
+
+def update_photo_link(data: List[Dict], field: str) -> None:
+    for item in data:
+        if photo := item.get(field):
+            item.update({field: f'/media/{photo}'})
+        else:
+            item.update({field: None})
+
+
+def update_link_on_thumbnail(data: List[Dict], field: str) -> None:
+    for item in data:
+        if photo := item.get(field):
+            link = '/media/{photo}'.format(photo=get_thumbnail_link(photo)).replace("//", "/")
+            item.update({field: link})
+        else:
+            item.update({field: None})
+
+
+def set_active_field(challenges: List[Dict]) -> None:
+    for challenge in challenges:
+        if 'C' not in challenge.get('states'):
+            challenge.update({'active': True})
+        else:
+            challenge.update({'active': False})
+
+
+def set_completed_field(challenges: List[Dict]) -> None:
+    for challenge in challenges:
+        if 'C' in challenge.get('states'):
+            challenge.update({'completed': True})
+        else:
+            challenge.update({'completed': False})
+
+
+def calculate_remaining_top_places(challenges: List[Dict]) -> None:
+    for challenge in challenges:
+        parameters = challenge.get('parameters')
+        if parameters:
+            parameters = sorted(parameters, key=lambda obj: obj['id'])
+            winners_count = challenge.get('winners_count')
+            prizes = parameters[1]['value']
+            challenge.update({'remaining_top_places': prizes - winners_count})
+        else:
+            challenge.update({'remaining_top_places': None})
+
+
+def update_time(data: List[Dict], field: str) -> None:
+    for item in data:
+        awarded_at = item.get(field)
+        item.update({field: awarded_at + timedelta(hours=3)})
+
+
+def check_if_new_reports_exists(user_id: int) -> bool:
+    from auth_app.models import ChallengeReport
+
+    new_reports_exists = (ChallengeReport.objects
+                          .filter(Q(challenge__creator_id=user_id) & Q(state__in=['S', 'F', 'R']))
+                          .exists())
+    return new_reports_exists
+
+
+def set_names_to_null(participants: List[Dict]) -> None:
+    for participant in participants:
+        if participant.get('nickname') is not None:
+            participant.update({'participant_name': None, 'participant_surname': None})
+
+
+def get_challenge_report_status(state: str) -> str:
+    return CHALLENGE_REPORT_STATES.get(state)

@@ -15,6 +15,10 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation
 
+from auth_app.managers import (CustomChallengeQueryset,
+                               CustomChallengeParticipantQueryset,
+                               CustomChallengeReportQueryset)
+
 User = get_user_model()
 
 
@@ -161,8 +165,9 @@ class TransactionClass(models.TextChoices):
     PURCHASE = 'P', 'Покупка'  # при покупках в внутреннем маркетплейсе, только из account [INCOMDE] только в account [MARKET]
     EMIT = 'E', 'Эмитирование'  # только для account [SYSTEM] из account [TREASURY], вброс баллов в систему, возможно как погашение отрицательного баланса account [SYSTEM], источника
     CASH = 'С', 'Погашение'  # источник account [BONUS|MARKET|BURNING], получатель account [TREASURY]
-    # в моб.приложении сейчас создаются только Transaction [THANKS]
-    # возможно потом добавятся BONUS, REDIST, PURCHASE
+    TO_CHALLENGE = 'H', 'Для взноса в челлендж'
+    AWARD_FROM_CHALLENGE = 'W', 'Награда из челленджа'
+    RETURN_FROM_CHALLENGE = 'F', 'Возврат из челленджа'
 
 
 class CustomTransactionQueryset(models.QuerySet):
@@ -178,15 +183,27 @@ class CustomTransactionQueryset(models.QuerySet):
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile', 'reason_def')
                     .prefetch_related('_objecttags')
-                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))))))
+                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
+                             Q(sender_account__owner=current_user) | Q(recipient_account__owner=current_user))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
+
+    def filter_by_user_limited(self, user, offset, limit):
+        return self.filter_by_user(user)[offset * limit: offset * limit + limit]
+
+    def filter_by_user_sent_only(self, user, offset, limit):
+        return self.filter_by_user(user).filter(sender=user)[offset * limit: offset * limit + limit]
+
+    def filter_by_user_received_only(self, user, offset, limit):
+        return self.filter_by_user(user).filter(recipient=user)[offset * limit: offset * limit + limit]
 
     def filter_to_use_by_controller(self):
         """
         Возвращает список транзакций со статусом 'Ожидает подтверждения'
         """
         queryset = (self
-                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
+                                    'sender_account__owner__profile',
+                                    'recipient_account__owner__profile')
                     .prefetch_related('_objecttags')
                     .filter(status='W'))
         return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
@@ -235,8 +252,18 @@ class CustomTransactionQueryset(models.QuerySet):
 class Transaction(models.Model):
     objects = CustomTransactionQueryset.as_manager()
 
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outcomes', verbose_name='Отправитель')
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incomes', verbose_name='Получатель')
+    sender = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='outcomes', verbose_name='Отправитель')
+    sender_account = models.ForeignKey('Account', on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='sendertransactions', verbose_name='Счёт отправителя')
+    recipient = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='incomes', verbose_name='Получатель')
+    recipient_account = models.ForeignKey('Account', on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='recipienttransactions', verbose_name='Счёт получателя')
+    from_challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, related_name='fromtransactions',
+                                       null=True, blank=True, verbose_name='От челленджа')
+    to_challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, related_name='totransactions',
+                                     null=True, blank=True, verbose_name='Челленджу')
     transaction_class = models.CharField(max_length=1, choices=TransactionClass.choices, verbose_name='Вид транзакции')
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
@@ -317,12 +344,15 @@ class AccountTypes(models.TextChoices):
 
 class Account(models.Model):
     account_type = models.CharField(max_length=1, choices=AccountTypes.choices, verbose_name='Тип счета')
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts', verbose_name='Владелец')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='accounts',
+                              null=True, blank=True, verbose_name='Владелец')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='accounts',
                                      verbose_name='Подразделение', null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
+    challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='challengeaccount', verbose_name='Челлендж')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -388,8 +418,17 @@ class UserStat(models.Model):
     # account [DISTR] -> transaction [THANKS]
     distr_declined = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                          verbose_name='Сгоревшие (отклоненные транзакции из распределяемых)')
-
-    # account [DISTR] -> transaction [THANKS][DECLINED]
+    manager_redist = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                         verbose_name='Менеджер отправил для перераспределения другим')
+    sent_to_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                             verbose_name='Пользователь отправил в фонды челленджей со счёта раздачи')
+    sent_to_challenges_from_income = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                                         verbose_name='Пользователь отправил в фонды '
+                                                                      'челленджей со счёта получения')
+    awarded_from_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                                  verbose_name='Пользователь получил из фондов в качестве награды')
+    returned_from_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                                   verbose_name='Пользователь получил из фондов в качестве возврата')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -451,7 +490,6 @@ class EventTypes(models.Model):
 
 
 class Event(models.Model):
-    # id: идентификатор - создается автоматически
     # тип события - транзакция, лайк и тп
     event_type = models.ForeignKey(EventTypes, on_delete=models.PROTECT, verbose_name='Тип события')
     # объект, с которым произошло событие
@@ -504,7 +542,7 @@ class Comment(models.Model):
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
     previous_comment = models.ForeignKey("Comment", null=True, blank=True, related_name='next_comment', on_delete=models.SET_NULL,
                                          verbose_name='Ссылка на предыдущий комментарий')
-    text = models.CharField(max_length=50, null=True, blank=True, verbose_name="Текст")
+    text = models.TextField(default='', blank=True, verbose_name="Текст")
     picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures',
                                 verbose_name='Картинка Комментария')
 
@@ -773,6 +811,7 @@ class ChallengeMode(models.TextChoices):
     ANONYMOUS_MODE = 'A', 'Отчеты анонимизированы до подведения итогов, не видны ни имена пользователей, ни псевдонимы'
     CAN_SEND_INVITES = 'Q', 'Участник может рассылать приглашения'
     CONFIRMATION_RULE = 'Y', 'Подтверждение будет выполняться судейской коллегией (через выдачу ими баллов)'
+    ONE_REPORT_MAX = 'K', 'Максимум 1 отчет для отправки для каждого участника'
 
 
 class ChallengeParticipants(models.TextChoices):
@@ -787,6 +826,8 @@ class ChallengeParticipants(models.TextChoices):
 
 
 class Challenge(models.Model):
+    objects = CustomChallengeQueryset.as_manager()
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challengecreators',
@@ -835,7 +876,9 @@ class Challenge(models.Model):
     next_reward_size = models.PositiveIntegerField(null=True, blank=True,
                                                    verbose_name='Размер очередного вознаграждения')
     list_visibility = models.JSONField(null=True, blank=True, verbose_name='Видимость списков')
-    
+    participants_count = models.PositiveIntegerField(default=0, verbose_name='Текущее количество участников')
+    winners_count = models.PositiveIntegerField(default=0, verbose_name='Текущее количество победителей')
+
     class Meta:
         db_table = 'challenges'
 
@@ -847,6 +890,9 @@ class Challenge(models.Model):
         if self.photo:
             return self.photo.url
 
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
 
 class ParticipantModes(models.TextChoices):
     IS_RELEVANT = 'A', 'Запись актуальна'
@@ -855,9 +901,12 @@ class ParticipantModes(models.TextChoices):
     HIDDEN = 'H', 'Скрыть связь с пользователем'
     JUDGE = 'R', 'Судья'
     ORGANIZER = 'O', 'Организатор'
+    WINNER = 'W', 'Победитель'
 
 
 class ChallengeParticipant(models.Model):
+    objects = CustomChallengeParticipantQueryset.as_manager()
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания записи')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления записи')
     register_time = models.DateTimeField(null=True, blank=True, verbose_name='Время регистрации')
@@ -876,7 +925,7 @@ class ChallengeParticipant(models.Model):
     place = models.PositiveIntegerField(null=True, blank=True, verbose_name='Место в списке победителей')
     total_received = models.PositiveIntegerField(default=0, verbose_name='Сумма полученного выигрыша или возврата')
     mode = ArrayField(models.CharField(max_length=1, choices=ParticipantModes.choices), size=6)
-    
+
     class Meta:
         db_table = 'challenge_participants'
 
@@ -891,6 +940,8 @@ class ReportTypes(models.TextChoices):
 
 
 class ChallengeReport(models.Model):
+    objects = CustomChallengeReportQueryset.as_manager()
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     content_updated_at = models.DateTimeField(auto_now=True,
@@ -926,7 +977,6 @@ def create_income_account(instance: Profile, created: bool, **kwargs):
         Account.objects.create(
             owner=instance.user,
             account_type='I',
-            organization=instance.department,
             amount=0
         )
 
@@ -937,7 +987,6 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
         Account.objects.create(
             owner=instance.user,
             account_type='F',
-            organization=instance.department,
             amount=0
         )
 
@@ -948,7 +997,6 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
         Account.objects.create(
             owner=instance.user,
             account_type='D',
-            organization=instance.department,
             amount=0
         )
 

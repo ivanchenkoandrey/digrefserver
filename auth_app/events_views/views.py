@@ -1,11 +1,15 @@
+import logging
+
 from rest_framework.authentication import (TokenAuthentication,
                                            SessionAuthentication)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from utils.paginates import process_offset_and_limit
 from .service import get_events_list
-from utils.query_debugger import query_debugger
+
+logger = logging.getLogger(__name__)
 
 
 class EventListView(APIView):
@@ -13,7 +17,9 @@ class EventListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
-    @query_debugger
     def get(cls, request, *args, **kwargs):
-        feed_data = get_events_list(request)
+        offset = request.GET.get('offset')
+        limit = request.GET.get('limit')
+        offset, limit = process_offset_and_limit(offset, limit)
+        feed_data = get_events_list(request, offset, limit)
         return Response(feed_data)

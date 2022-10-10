@@ -22,7 +22,7 @@ class CreateUserStats(APIView):
         period = get_current_period()
         user_stats = UserStat.objects.filter(period=period).exists()
         if not user_stats:
-            users = User.objects.filter(~Q(username__in=['system', 'admin']))
+            users = User.objects.filter(~Q(username__in=['system', 'admin', 'digrefbot']))
             with transaction.atomic():
                 stats = [UserStat(user=user, period=period) for user in users]
                 data = UserStat.objects.bulk_create(stats)

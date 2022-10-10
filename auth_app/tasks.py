@@ -41,11 +41,14 @@ def validate_transactions_after_grace_period():
     period = get_current_period()
     if period is None:
         return
-    transactions_to_check = [t for t in Transaction.objects.filter(status='G')
-                             .only('sender_id', 'recipient_id', 'status',
-                                   'amount', 'period', 'created_at')]
+    transactions_to_check = [t for t in Transaction.objects
+                             .select_related('sender_account', 'recipient_account')
+                             .filter(status='G')
+                             .only('sender_id', 'recipient_id', 'status', 'amount',
+                             'period', 'created_at', 'sender_account', 'recipient_account')]
     with transaction.atomic():
-        accounts = Account.objects.all()
+        accounts = (Account.objects.filter(organization_id=None, challenge_id=None)
+                    .only('owner_id', 'amount', 'account_type', 'transaction'))
         user_stats = (UserStat.objects
                       .filter(period=period)
                       .only('period', 'income_thanks'))
@@ -68,7 +71,8 @@ def validate_transactions_after_grace_period():
                 recipient_income_account.transaction = _transaction
                 recipient_user_stat.income_thanks += amount
                 _transaction.status = 'R'
-                _transaction.save(update_fields=['status', 'updated_at'])
+                _transaction.recipient_account = recipient_income_account
+                _transaction.save(update_fields=['status', 'updated_at', 'recipient_account'])
                 sender_frozen_account.save(update_fields=['amount', 'transaction'])
                 recipient_income_account.save(update_fields=['amount', 'transaction'])
                 recipient_user_stat.save(update_fields=['income_thanks'])

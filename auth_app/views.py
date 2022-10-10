@@ -3,7 +3,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from rest_framework import status, authentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.generics import ListAPIView, RetrieveAPIView
@@ -134,7 +134,7 @@ class UsersList(APIView):
     def post(cls, request, *args, **kwargs):
         if request.data.get('get_users') is not None:
             logger.info(f'Запрос на показ пользователей по умолчанию от {request.user}')
-            users_list = (User.objects.exclude(username__in=[request.user.username, 'system'])
+            users_list = (User.objects.exclude(username__in=[request.user.username, 'system', 'digrefbot'])
                           .order_by('profile__surname').annotate(
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),
