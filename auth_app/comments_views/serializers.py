@@ -19,7 +19,7 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         text = validated_data.get('text')
         picture = request.FILES.get('photo')
         validated_data['picture'] = picture
-        create_comment(content_type, object_id, text, picture, user)
+        return create_comment(content_type, object_id, text, picture, user)
 
 
 class UpdateCommentSerializer(serializers.ModelSerializer):
