@@ -7,7 +7,9 @@ from auth_app.serializers import CommentTransactionSerializer
 from rest_framework.response import Response
 from .serializers import CreateCommentSerializer, UpdateCommentSerializer, DeleteCommentSerializer
 from django.contrib.contenttypes.models import ContentType
-
+from utils.crop_photos import crop_image
+from utils.handle_image import change_filename
+from django.conf import settings
 
 class CommentListAPIView(APIView):
     """
@@ -67,9 +69,16 @@ class UpdateCommentView(UpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
+        pk = instance.id
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            comment = Comment.objects.get(id=pk)
+            if comment.picture.name is not None:
+                comment.picture.name = change_filename(
+                    comment.picture.name)
+                comment.save(update_fields=['picture'])
+                crop_image(comment.picture.name, f"{settings.BASE_DIR}/media/", to_square=False)
             return Response(serializer.data)
         return Response(serializer.errors,
                         status=status.HTTP_400_BAD_REQUEST)

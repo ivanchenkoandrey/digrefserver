@@ -1,8 +1,8 @@
 from django.db import transaction as tr
-from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from auth_app.models import Comment, LikeCommentStatistics
+from .service import create_comment
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):
@@ -11,66 +11,15 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         fields = ['content_type', 'object_id', 'text', 'picture']
 
     def create(self, validated_data):
-
+        request = self.context.get('request')
         user = self.context['request'].user
         validated_data['user'] = user
         content_type = validated_data['content_type']
         object_id = validated_data['object_id']
         text = validated_data.get('text')
-        image = validated_data.get('picture')
-        if content_type in ['11', 'transaction']:
-            content_type = 11
-        elif content_type in ['30', 'challenge']:
-            content_type = 30
-        elif content_type in ['31', 'challengeReport']:
-            content_type = 31
-
-        if (text is None or text == "") and image is None:
-            raise ValidationError("Не переданы параметры text или picture")
-        with tr.atomic():
-            try:
-                previous_comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
-            except Comment.DoesNotExist:
-
-                validated_data['is_last_comment'] = True
-                validated_data['previous_comment'] = None
-
-                created_comment_instance = super().create(validated_data)
-                content_object = created_comment_instance.content_object
-                if content_object is None:
-                    raise ValidationError("Объекта с таким id не существует")
-                comment = Comment.objects.get(content_type=content_type, object_id=object_id, previous_comment=None)
-                try:
-
-                    like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
-                    like_comment_statistics_data = {'first_comment': comment, 'last_comment': comment,
-                                                    'last_event_comment': comment,
-                                                    'comment_counter': 1}
-                    super().update(like_comment_statistics, like_comment_statistics_data)
-                except LikeCommentStatistics.DoesNotExist:
-
-                    like_comment_statistics_object = LikeCommentStatistics(content_type=content_type,
-                                                                           object_id=object_id,
-                                                                           first_comment=comment,
-                                                                           last_comment=comment, last_event_comment=comment,
-                                                                           comment_counter=1)
-                    like_comment_statistics_object.save()
-                return created_comment_instance
-
-            data = {'is_last_comment': False}
-            super().update(previous_comment, data)
-            validated_data['previous_comment'] = previous_comment
-            validated_data['is_last_comment'] = True
-            created_comment_instance = super().create(validated_data)
-
-            comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
-
-            like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
-            comment_counter = like_comment_statistics.comment_counter + 1
-            like_comment_statistics_data = {'last_comment': comment, 'last_event_comment': comment,
-                                            'comment_counter': comment_counter}
-            super().update(like_comment_statistics, like_comment_statistics_data)
-            return created_comment_instance
+        picture = request.FILES.get('photo')
+        validated_data['picture'] = picture
+        create_comment(content_type, object_id, text, picture, user)
 
 
 class UpdateCommentSerializer(serializers.ModelSerializer):
@@ -81,7 +30,9 @@ class UpdateCommentSerializer(serializers.ModelSerializer):
     def validate(self, validated_data):
 
         text = validated_data.get('text')
-        picture = validated_data.get('picture')
+        request = self.context.get('request')
+        picture = request.FILES.get('photo')
+        validated_data['picture'] = picture
         if (text is None or text == "") and picture is None:
             raise ValidationError("Не передан параметр text или picture")
 
@@ -140,10 +91,10 @@ class DeleteCommentSerializer(serializers.ModelSerializer):
                     pass
 
             # comment.delete()
-            last_comment_created = Comment.objects.only('id', 'date_created').\
+            last_comment_created = Comment.objects.only('id', 'date_created'). \
                 filter(content_type=content_type, object_id=object_id) \
                 .order_by('-date_created').first()
-            last_comment_modified = Comment.objects.only('id', 'date_last_modified').\
+            last_comment_modified = Comment.objects.only('id', 'date_last_modified'). \
                 filter(content_type=content_type, object_id=object_id) \
                 .order_by('-date_last_modified').first()
 
