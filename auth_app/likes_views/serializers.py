@@ -108,5 +108,9 @@ class PressLikeSerializer(serializers.ModelSerializer):
                     super().update(like_statistics, like_statistics_data)
 
                     like = Like(content_type=content_type, object_id=object_id, user=user, is_liked=True, like_kind=like_kind)
-                    like.save()
+                    content_object = like.content_object
+                    if content_object is None:
+                        raise ValidationError("Объекта с таким id не существует")
+                    else:
+                        like.save()
                     return validated_data

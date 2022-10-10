@@ -36,6 +36,9 @@ class CreateCommentSerializer(serializers.ModelSerializer):
                 validated_data['previous_comment'] = None
 
                 created_comment_instance = super().create(validated_data)
+                content_object = created_comment_instance.content_object
+                if content_object is None:
+                    raise ValidationError("Объекта с таким id не существует")
                 comment = Comment.objects.get(content_type=content_type, object_id=object_id, previous_comment=None)
                 try:
 
@@ -59,6 +62,7 @@ class CreateCommentSerializer(serializers.ModelSerializer):
             validated_data['previous_comment'] = previous_comment
             validated_data['is_last_comment'] = True
             created_comment_instance = super().create(validated_data)
+
             comment = Comment.objects.get(content_type=content_type, object_id=object_id, is_last_comment=True)
 
             like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
