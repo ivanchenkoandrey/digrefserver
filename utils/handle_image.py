@@ -23,7 +23,7 @@ def change_profile_filename(filename: str) -> str:
     return new_filename
 
 
-def change_transaction_filename(filename: str) -> str:
+def change_filename(filename: str) -> str:
     path = '/'.join(filename.split('/')[:-1])
     old_filename = filename.split('/')[-1]
     old_filename, extension = old_filename.rsplit('.', 1)
@@ -32,22 +32,3 @@ def change_transaction_filename(filename: str) -> str:
               f"{settings.BASE_DIR}/media/{new_filename}")
     return new_filename
 
-
-def change_challenge_filename(filename: str) -> str:
-    path = '/'.join(filename.split('/')[:-1])
-    old_filename = filename.split('/')[-1]
-    old_filename, extension = old_filename.rsplit('.', 1)
-    new_filename = f"{path}/{uuid.uuid4().hex}.{extension}"
-    os.rename(f"{settings.BASE_DIR}/media/{filename}",
-              f"{settings.BASE_DIR}/media/{new_filename}")
-    return new_filename
-
-
-def change_challenge_report_filename(filename: str) -> str:
-    path = '/'.join(filename.split('/')[:-1])
-    old_filename = filename.split('/')[-1]
-    old_filename, extension = old_filename.rsplit('.', 1)
-    new_filename = f"{path}/{uuid.uuid4().hex}.{extension}"
-    os.rename(f"{settings.BASE_DIR}/media/{filename}",
-              f"{settings.BASE_DIR}/media/{new_filename}")
-    return new_filename

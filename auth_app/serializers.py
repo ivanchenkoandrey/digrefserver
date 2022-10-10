@@ -19,7 +19,7 @@ from auth_app.models import (Profile, Account, Transaction,
 from utils.current_period import get_current_period
 from utils.thumbnail_link import get_thumbnail_link
 from utils.crop_photos import crop_image
-from utils.handle_image import change_transaction_filename
+from utils.handle_image import change_filename
 
 User = get_user_model()
 
@@ -586,7 +586,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                     )
                 logger.info(f"{sender} отправил(а) {amount} спасибок на счёт {recipient}")
             if transaction_instance.photo.name is not None:
-                transaction_instance.photo.name = change_transaction_filename(transaction_instance.photo.name)
+                transaction_instance.photo.name = change_filename(transaction_instance.photo.name)
                 transaction_instance.save(update_fields=['photo'])
                 crop_image(transaction_instance.photo.name, f"{settings.BASE_DIR}/media/")
             return transaction_instance

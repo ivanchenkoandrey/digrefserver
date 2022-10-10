@@ -543,7 +543,7 @@ class Comment(models.Model):
     previous_comment = models.ForeignKey("Comment", null=True, blank=True, related_name='next_comment', on_delete=models.SET_NULL,
                                          verbose_name='Ссылка на предыдущий комментарий')
     text = models.TextField(default='', blank=True, verbose_name="Текст")
-    picture = models.ImageField(blank=True, null=True, upload_to='comment_pictures',
+    picture = models.ImageField(blank=True, null=True, upload_to='comments',
                                 verbose_name='Картинка Комментария')
 
     def to_json(self):

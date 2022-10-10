@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 from auth_app.models import Account, Challenge, UserStat, ChallengeParticipant, Transaction
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
-from utils.handle_image import change_challenge_filename
+from utils.handle_image import change_filename
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
         recipient_account.transaction = transaction
         recipient_account.save(update_fields=['transaction'])
         if challenge.photo.name is not None:
-            challenge.photo.name = change_challenge_filename(challenge.photo.name)
+            challenge.photo.name = change_filename(challenge.photo.name)
             challenge.save(update_fields=['photo'])
             crop_image(challenge.photo.name, f"{settings.BASE_DIR}/media/", to_square=False)
         return {"challenge_created": True}
