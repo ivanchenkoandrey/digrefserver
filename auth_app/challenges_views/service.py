@@ -49,16 +49,17 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
         raise ValidationError("Нельзя добавить в фонд больше, чем есть на счету")
 
     with tr.atomic():
+        user_stat = UserStat.objects.get(user=creator, period=period)
         if not from_income:
             sender_distr_account.amount -= start_balance
+            user_stat.sent_to_challenges += start_balance
             sender_distr_account.save(update_fields=['amount'])
+            user_stat.save(update_fields=['sent_to_challenges'])
         else:
             sender_income_account.amount -= start_balance
+            user_stat.sent_to_challenges_from_income += start_balance
             sender_income_account.save(update_fields=['amount'])
-
-        user_stat = UserStat.objects.get(user=creator, period=period)
-        user_stat.sent_to_challenges += start_balance
-        user_stat.save(update_fields=['sent_to_challenges'])
+            user_stat.save(update_fields=['sent_to_challenges_from_income'])
 
         challenge = Challenge.objects.create(
             creator=creator,
@@ -92,6 +93,7 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
             to_challenge=challenge,
             recipient_account=recipient_account,
             amount=start_balance,
+            transaction_class='H',
             status='R',
             period=period,
         )

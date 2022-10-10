@@ -635,49 +635,76 @@ class TransactionFullSerializer(serializers.ModelSerializer):
 
     def get_sender(self, obj):
         user_id = self.context.get('user').pk
-        sender_photo_url = obj.sender.profile.get_photo_url()
-        if (not obj.is_anonymous
-                or user_id == obj.sender.id):
+        if obj.sender is not None:
+            sender_photo_url = obj.sender.profile.get_photo_url()
+            if (not obj.is_anonymous
+                    or user_id == obj.sender.id):
+                return {
+                    'sender_id': obj.sender.id,
+                    'sender_tg_name': obj.sender.profile.tg_name,
+                    'sender_first_name': obj.sender.profile.first_name,
+                    'sender_surname': obj.sender.profile.surname,
+                    'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
+                }
             return {
-                'sender_id': obj.sender.id,
-                'sender_tg_name': obj.sender.profile.tg_name,
-                'sender_first_name': obj.sender.profile.first_name,
-                'sender_surname': obj.sender.profile.surname,
+                'sender_id': None,
+                'sender_tg_name': 'anonymous',
+                'sender_first_name': None,
+                'sender_surname': None,
+                'sender_photo': None
+            }
+        if obj.sender_account is not None:
+            sender_photo_url = obj.sender_account.owner.profile.get_photo_url()
+            return {
+                'sender_id': obj.sender_account.owner.id,
+                'sender_tg_name': obj.sender_account.owner.profile.tg_name,
+                'sender_first_name': obj.sender_account.owner.profile.first_name,
+                'sender_surname': obj.sender_account.owner.profile.surname,
                 'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
             }
-        return {
-            'sender_id': None,
-            'sender_tg_name': 'anonymous',
-            'sender_first_name': None,
-            'sender_surname': None,
-            'sender_photo': None
-        }
 
     def get_sender_id(self, obj):
-        user_id = self.context.get('user').pk
-        if (not obj.is_anonymous
-                or user_id == obj.sender.id):
-            return obj.sender.id
-        return None
+        if obj.sender is not None:
+            user_id = self.context.get('user').pk
+            if (not obj.is_anonymous
+                    or user_id == obj.sender.id):
+                return obj.sender.id
+        if obj.sender_account is not None:
+            return obj.sender_account.owner.id
 
     def get_recipient(self, obj):
-        recipient_photo_url = obj.recipient.profile.get_photo_url()
-        return {
-            'recipient_id': obj.recipient.id,
-            'recipient_tg_name': obj.recipient.profile. tg_name,
-            'recipient_first_name': obj.recipient.profile.first_name,
-            'recipient_surname': obj.recipient.profile.surname,
-            'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
-        }
+        if obj.recipient is not None:
+            recipient_photo_url = obj.recipient.profile.get_photo_url()
+            return {
+                'recipient_id': obj.recipient.id,
+                'recipient_tg_name': obj.recipient.profile. tg_name,
+                'recipient_first_name': obj.recipient.profile.first_name,
+                'recipient_surname': obj.recipient.profile.surname,
+                'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
+            }
+        if obj.recipient_account is not None:
+            recipient_photo_url = obj.recipient_account.owner.profile.get_photo_url()
+            return {
+                'recipient_id': obj.recipient_account.owner_id,
+                'recipient_tg_name': obj.recipient_account.owner.profile.tg_name,
+                'recipient_first_name': obj.recipient_account.owner.profile.first_name,
+                'recipient_surname': obj.recipient_account.owner.profile.surname,
+                'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
+            }
 
     def get_recipient_id(self, obj):
-        return obj.recipient.id
+        if obj.recipient is not None:
+            return obj.recipient.id
+        if obj.recipient_account is not None:
+            return obj.recipient_account.owner_id
 
     def get_can_user_cancel(self, obj):
-        user_id = self.context.get('user').pk
-        return (obj.status in ['W', 'G', 'A']
-                and user_id == obj.sender.id
-                and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
+        if obj.sender is not None:
+            user_id = self.context.get('user').pk
+            return (obj.status in ['W', 'G', 'A']
+                    and user_id == obj.sender.id
+                    and (datetime.now(timezone.utc) - obj.created_at).seconds < settings.GRACE_PERIOD)
+        return False
 
     def get_tags(self, obj):
         return obj._objecttags.values('tag_id', name=F('tag__name'))

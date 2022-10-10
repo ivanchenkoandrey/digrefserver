@@ -21,6 +21,7 @@ from auth_app.service import (update_transactions_by_controller,
                               AlreadyUpdatedByControllerError, NotWaitingTransactionError)
 from utils.custom_permissions import IsController
 from utils.paginates import process_offset_and_limit
+from utils.query_debugger import query_debugger
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ class TransactionsByUserView(ListAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionFullSerializer
 
+    @query_debugger
     def get(self, request, *args, **kwargs):
         logger.info(f"Пользователь {request.user} смотрит список транзакций")
         offset = request.GET.get('offset')

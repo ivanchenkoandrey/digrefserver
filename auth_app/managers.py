@@ -73,8 +73,10 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
                       'user_participant__profile__first_name',
                       'user_participant__profile__surname',
                       'nickname',
-                      'challengereports__updated_at')
+                      'challengereports__updated_at',
+                      'total_received')
                 .values('nickname',
+                        'total_received',
                         participant_id=F('user_participant__id'),
                         participant_photo=F('user_participant__profile__photo'),
                         participant_name=F('user_participant__profile__first_name'),

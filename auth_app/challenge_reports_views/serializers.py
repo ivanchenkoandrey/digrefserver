@@ -102,6 +102,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     from_challenge=challenge,
                     recipient_account=recipient_account,
                     amount=prize,
+                    transaction_class='W',
                     status='R',
                     period=current_period,
                 )
@@ -130,6 +131,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                             from_challenge=challenge,
                             recipient_account=recipient_account,
                             amount=remain,
+                            transaction_class='F',
                             status='R',
                             period=current_period,
                         )

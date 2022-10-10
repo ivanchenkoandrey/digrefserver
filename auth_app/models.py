@@ -12,7 +12,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
-from auth_app.managers import CustomChallengeQueryset, CustomChallengeParticipantQueryset, CustomChallengeReportQueryset
+from auth_app.managers import (CustomChallengeQueryset,
+                               CustomChallengeParticipantQueryset,
+                               CustomChallengeReportQueryset)
 
 User = get_user_model()
 
@@ -160,8 +162,9 @@ class TransactionClass(models.TextChoices):
     PURCHASE = 'P', 'Покупка'  # при покупках в внутреннем маркетплейсе, только из account [INCOMDE] только в account [MARKET]
     EMIT = 'E', 'Эмитирование'  # только для account [SYSTEM] из account [TREASURY], вброс баллов в систему, возможно как погашение отрицательного баланса account [SYSTEM], источника
     CASH = 'С', 'Погашение'  # источник account [BONUS|MARKET|BURNING], получатель account [TREASURY]
-    # в моб.приложении сейчас создаются только Transaction [THANKS]
-    # возможно потом добавятся BONUS, REDIST, PURCHASE
+    TO_CHALLENGE = 'H', 'Для взноса в челлендж'
+    AWARD_FROM_CHALLENGE = 'W', 'Награда из челленджа'
+    RETURN_FROM_CHALLENGE = 'F', 'Возврат из челленджа'
 
 
 class CustomTransactionQueryset(models.QuerySet):
@@ -177,7 +180,8 @@ class CustomTransactionQueryset(models.QuerySet):
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile', 'reason_def')
                     .prefetch_related('_objecttags')
-                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))))))
+                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
+                             Q(sender_account__owner=current_user) | Q(recipient_account__owner=current_user))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def filter_by_user_limited(self, user, offset, limit):
@@ -194,7 +198,9 @@ class CustomTransactionQueryset(models.QuerySet):
         Возвращает список транзакций со статусом 'Ожидает подтверждения'
         """
         queryset = (self
-                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
+                                    'sender_account__owner__profile',
+                                    'recipient_account__owner__profile')
                     .prefetch_related('_objecttags')
                     .filter(status='W'))
         return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
@@ -409,7 +415,10 @@ class UserStat(models.Model):
     manager_redist = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                          verbose_name='Менеджер отправил для перераспределения другим')
     sent_to_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
-                                             verbose_name='Пользователь отправил в фонды челленджей')
+                                             verbose_name='Пользователь отправил в фонды челленджей со счёта раздачи')
+    sent_to_challenges_from_income = models.DecimalField(max_digits=10, decimal_places=0, default=0,
+                                                         verbose_name='Пользователь отправил в фонды '
+                                                                      'челленджей со счёта получения')
     awarded_from_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
                                                   verbose_name='Пользователь получил из фондов в качестве награды')
     returned_from_challenges = models.DecimalField(max_digits=10, decimal_places=0, default=0,
@@ -845,6 +854,7 @@ class Challenge(models.Model):
     list_visibility = models.JSONField(null=True, blank=True, verbose_name='Видимость списков')
     participants_count = models.PositiveIntegerField(default=0, verbose_name='Текущее количество участников')
     winners_count = models.PositiveIntegerField(default=0, verbose_name='Текущее количество победителей')
+
     class Meta:
         db_table = 'challenges'
 
@@ -867,6 +877,7 @@ class ParticipantModes(models.TextChoices):
     HIDDEN = 'H', 'Скрыть связь с пользователем'
     JUDGE = 'R', 'Судья'
     ORGANIZER = 'O', 'Организатор'
+    WINNER = 'W', 'Победитель'
 
 
 class ChallengeParticipant(models.Model):
