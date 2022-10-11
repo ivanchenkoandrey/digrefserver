@@ -123,12 +123,16 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
     content_type = serializers.SerializerMethodField()
     object_id = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
+    transaction_id = serializers.SerializerMethodField()
 
     def get_content_type(self, obj):
         model_class = ContentType.objects.get_for_id(obj['content_type'])
         return model_class.name
 
     def get_object_id(self, obj):
+        return obj['object_id']
+
+    def get_transaction_id(self, obj):
         return obj['object_id']
 
     def get_comments(self, obj):
@@ -186,7 +190,11 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
 
     content_type = serializers.SerializerMethodField()
     object_id = serializers.SerializerMethodField()
+    transaction_id = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
+
+    def get_transaction_id(self, obj):
+        return obj['object_id']
 
     def get_content_type(self, obj):
         model_class = ContentType.objects.get_for_id(obj['content_type'])
@@ -272,7 +280,7 @@ class LikeTransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Like
-        fields = ['content_type', 'object_id', 'likes']
+        fields = ['transaction_id', 'content_type', 'object_id', 'likes']
 
 
 class LikeUserSerializer(serializers.ModelSerializer):
