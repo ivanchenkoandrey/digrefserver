@@ -174,7 +174,7 @@ def get_transactions_from_events(transaction_id_array: List[int]) -> Dict:
                             recipient_tg_name=F('recipient__profile__tg_name'),
                             recipient_photo=F('recipient__profile__photo')))
     update_link_on_thumbnail(transactions, 'recipient_photo')
-    update_time(transactions, 'update_at')
+    update_time(transactions, 'updated_at')
     for tr in transactions:
         if tr.get('is_anonymous'):
             tr.update({'sender_id': None, 'sender_tg_name': None})
