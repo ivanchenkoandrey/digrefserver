@@ -184,7 +184,7 @@ class CustomTransactionQueryset(models.QuerySet):
                     .select_related('sender__profile', 'recipient__profile', 'reason_def')
                     .prefetch_related('_objecttags')
                     .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
-                             Q(sender_account__owner=current_user) | Q(recipient_account__owner=current_user))))
+                             (Q(sender_account__isnull=False) & ~Q(sender_account__owner=current_user)))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def filter_by_user_limited(self, user, offset, limit):
