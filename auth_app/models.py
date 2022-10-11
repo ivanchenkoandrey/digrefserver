@@ -323,7 +323,8 @@ class TransactionState(models.Model):
     transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='states',
                                     verbose_name='Транзакция')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Время создания')
-    controller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='revised', verbose_name='Контролер')
+    controller = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE,
+                                   related_name='revised', verbose_name='Контролер')
     status = models.CharField(max_length=1, choices=TransactionStatus.choices, verbose_name='Состояние транзакции')
     reason = CITextField(verbose_name='Обоснование (отклонения)', null=True, blank=True)
 
@@ -461,6 +462,7 @@ class EventRecordTypes(models.TextChoices):
     TRANS_STATUS = 'S', 'Статус транзакции'
     LIKE_ITEM = 'L', 'Лайк'
     COMMENT_ITEM = 'C', 'Комментарий'
+    REPORT_ITEM = 'R', 'Отчёт челленджа'
 
 
 class EventTypes(models.Model):
@@ -490,18 +492,21 @@ class EventTypes(models.Model):
 
 
 class Event(models.Model):
-    # тип события - транзакция, лайк и тп
+    class EventObject(models.TextChoices):
+        TRANSACTION = 'T', 'Транзакция'
+        QUEST = 'Q'
+        REPORT = 'R'
+        NEWS = 'N'
+        ADVERTISEMENT = 'A', 'Объявление'
+
     event_type = models.ForeignKey(EventTypes, on_delete=models.PROTECT, verbose_name='Тип события')
-    # объект, с которым произошло событие
     event_object_id = models.IntegerField(null=True, blank=True)
-    # объект, описывающий событие
     event_record_id = models.IntegerField(null=True, blank=True)
-    # таймстамп когда событие произошло / обновилось
+    object_selector = models.CharField(max_length=1, choices=EventObject.choices, null=True, blank=True,
+                                       verbose_name='Селектор объекта')
     time = models.DateTimeField(verbose_name='Время события')
-    # область видимости (организация)
     scope = models.ForeignKey(Organization, on_delete=models.SET_NULL, verbose_name='Область видимости', null=True,
                               blank=True)
-    # пользователь - адресат события
     user = models.ForeignKey(User, on_delete=models.SET_NULL, verbose_name='Пользователь', null=True, blank=True)
 
     class Meta:
@@ -692,6 +697,10 @@ class Tag(models.Model):
     name = CICharField(max_length=100, verbose_name="Отображаемый текст тега")
     info = models.TextField(verbose_name="Пояснительный текст тега", null=True, blank=True)
     pict = models.ImageField(upload_to='tags', verbose_name="Пиктограмма", null=True, blank=True)
+
+    def to_json_name_only(self):
+        return {field: getattr(self, field) for field in self.__dict__
+                if not field.startswith('_') and field in ('id', 'name')}
 
     def get_pict_url(self):
         if self.pict:
