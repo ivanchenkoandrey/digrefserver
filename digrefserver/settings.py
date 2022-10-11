@@ -143,7 +143,7 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
-        'utils.thumbnail_link': {
+        'utils.events_service': {
             'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
