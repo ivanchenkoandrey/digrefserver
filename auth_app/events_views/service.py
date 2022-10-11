@@ -5,7 +5,7 @@ from typing import List, Dict
 from django.db.models import F
 
 from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport
-from utils.challenges_logic import update_link_on_thumbnail
+from utils.challenges_logic import update_link_on_thumbnail, update_time
 from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
@@ -145,6 +145,7 @@ def get_events_data(offset, limit):
         events_data.append(w)
     for ch in challenge_event_pairs.values():
         events_data.append(ch)
+    update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
 
@@ -173,6 +174,7 @@ def get_transactions_from_events(transaction_id_array: List[int]) -> Dict:
                             recipient_tg_name=F('recipient__profile__tg_name'),
                             recipient_photo=F('recipient__profile__photo')))
     update_link_on_thumbnail(transactions, 'recipient_photo')
+    update_time(transactions, 'update_at')
     for tr in transactions:
         if tr.get('is_anonymous'):
             tr.update({'sender_id': None, 'sender_tg_name': None})
@@ -194,6 +196,7 @@ def get_challenges_from_events(challenge_id_array: List[int]) -> Dict:
                           creator_surname=F('creator__profile__surname'),
                           creator_tg_name=F('creator__profile__tg_name')))
     update_link_on_thumbnail(challenges, 'photo')
+    update_time(challenges, 'created_at')
     return challenges
 
 
