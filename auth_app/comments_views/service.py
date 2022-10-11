@@ -3,16 +3,22 @@ from utils.handle_image import change_filename
 from django.conf import settings
 from django.db import transaction as tr
 from rest_framework.exceptions import ValidationError
-from auth_app.models import Comment, LikeCommentStatistics
+from auth_app.models import Comment, LikeCommentStatistics, Transaction, Challenge, ChallengeReport
+from django.contrib.contenttypes.models import ContentType
 
 
-def create_comment(content_type, object_id, text, picture, user):
-    if content_type in ['11', 'transaction']:
-        content_type = 11
-    elif content_type in ['30', 'challenge']:
-        content_type = 30
-    elif content_type in ['31', 'challengeReport']:
-        content_type = 31
+def create_comment(content_type, object_id, text, picture, user, transaction_id):
+    if content_type in ['Transaction', 'transaction']:
+        content_type = ContentType.objects.get_for_model(Transaction)
+    elif content_type in ['Challenge', 'challenge']:
+        content_type = ContentType.objects.get_for_model(Challenge)
+    elif content_type in ['ChallengeReport', 'challengeReport', 'challengereport']:
+        content_type = ContentType.objects.get_for_model(ChallengeReport)
+    elif content_type in ['Comment', 'comment']:
+        content_type = ContentType.objects.get_for_model(Comment)
+    if content_type is None:
+        content_type = ContentType.objects.get_for_model(Transaction)
+        object_id = transaction_id
 
     if (text is None or text == "") and picture is None:
         raise ValidationError("Не переданы параметры text или picture")
@@ -60,7 +66,7 @@ def create_comment(content_type, object_id, text, picture, user):
                     comment_instance.picture.name)
                 comment_instance.save(update_fields=['picture'])
                 crop_image(comment_instance.picture.name, f"{settings.BASE_DIR}/media/", to_square=False)
-            return comment_instance
+            return comment_instance.to_json()
 
         previous_comment.is_last_comment = False
         previous_comment.save(update_fields=['is_last_comment'])
@@ -90,4 +96,4 @@ def create_comment(content_type, object_id, text, picture, user):
                 comment.picture.name)
             comment.save(update_fields=['picture'])
             crop_image(comment.picture.name, f"{settings.BASE_DIR}/media/", to_square=False)
-        return comment
+        return comment.to_json()

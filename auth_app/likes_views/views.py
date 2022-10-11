@@ -1,13 +1,14 @@
 import logging
-from rest_framework.permissions import IsAuthenticated
-from auth_app.models import Like, Transaction, User, LikeKind
-from auth_app.serializers import LikeTransactionSerializer, LikeUserSerializer
-from rest_framework.generics import CreateAPIView
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import authentication, status
-from .serializers import PressLikeSerializer
+
 from django.contrib.contenttypes.models import ContentType
+from rest_framework import authentication, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from auth_app.models import Transaction, User, LikeKind, Challenge, ChallengeReport, Comment
+from auth_app.serializers import LikeTransactionSerializer, LikeUserSerializer
+from .service import press_like
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,21 @@ class LikesListAPIView(APIView):
         like_kind = request.data.get('like_kind')
         include_code = request.data.get('include_code')
         include_name = request.data.get('include_name')
+        transaction_id = request.data.get('transaction_id')
         offset = request.data.get('offset')
         limit = request.data.get('limit')
+        if content_type in ['Transaction', 'transaction']:
+            content_type = ContentType.objects.get_for_model(Transaction).id
+        elif content_type in ['Challenge', 'challenge']:
+            content_type = ContentType.objects.get_for_model(Challenge).id
+        elif content_type in ['ChallengeReport', 'challengeReport', 'challengereport']:
+            content_type = ContentType.objects.get_for_model(ChallengeReport).id
+        elif content_type in ['Comment', 'comment']:
+            content_type = ContentType.objects.get_for_model(Comment).id
+
+        if content_type is None:
+            content_type = ContentType.objects.get_for_model(Transaction).id
+            object_id = transaction_id
 
         if offset is None:
             offset = 0
@@ -126,12 +140,23 @@ class LikesUserListAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 
-class PressLikeView(CreateAPIView):
+class PressLikeView(APIView):
+    """
+        Нажатие лайка
+    """
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    queryset = Like.objects.all()
-    serializer_class = PressLikeSerializer
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        user = request.user
+        content_type = request.data.get('content_type')
+        object_id = request.data.get('object_id')
+        like_kind = request.data.get('like_kind')
+        transaction = request.data.get('transaction')
+        response = press_like(user, content_type, object_id, like_kind, transaction)
+        return Response(response)
 
 
 

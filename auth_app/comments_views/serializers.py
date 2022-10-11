@@ -2,24 +2,6 @@ from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from auth_app.models import Comment, LikeCommentStatistics
-from .service import create_comment
-
-
-class CreateCommentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Comment
-        fields = ['content_type', 'object_id', 'text', 'picture']
-
-    def create(self, validated_data):
-        request = self.context.get('request')
-        user = self.context['request'].user
-        validated_data['user'] = user
-        content_type = validated_data['content_type']
-        object_id = validated_data['object_id']
-        text = validated_data.get('text')
-        picture = request.FILES.get('photo')
-        validated_data['picture'] = picture
-        return create_comment(content_type, object_id, text, picture, user)
 
 
 class UpdateCommentSerializer(serializers.ModelSerializer):
