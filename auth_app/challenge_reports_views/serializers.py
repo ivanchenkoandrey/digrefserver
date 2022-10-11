@@ -1,9 +1,12 @@
+from datetime import datetime
+
 from django.conf import settings
 from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from auth_app.comments_views.service import create_comment
-from auth_app.models import ChallengeReport, ChallengeParticipant, Account, Transaction, UserStat
+from auth_app.models import (ChallengeReport, Event, EventTypes,
+                             ChallengeParticipant, Account, Transaction, UserStat)
 from utils.challenges_logic import check_if_new_reports_exists
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
@@ -111,6 +114,12 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     transaction_class='W',
                     status='R',
                     period=current_period,
+                )
+                Event.objects.create(
+                    event_type=EventTypes.objects.get(name='Новый победитель челленджа'),
+                    event_object_id=self.instance.pk,
+                    object_selector='R',
+                    time=datetime.now()
                 )
 
                 sender_account.transaction = transaction
