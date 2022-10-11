@@ -82,7 +82,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
             raise ValidationError("Не указана причина отклонения")
         elif reason is not None and state == 'D':
             content_type = ContentType.objects.get_for_model(ChallengeReport)
-            create_comment(content_type, challenge_report.id, reason, None, reviewer)
+            create_comment(content_type, challenge_report.id, reason, None, reviewer, None)
         if state == 'W':
             with tr.atomic():
                 challenge = challenge_report.challenge
