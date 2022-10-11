@@ -3,7 +3,7 @@ from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from auth_app.comments_views.service import create_comment
-from auth_app.models import ChallengeReport, ChallengeParticipant, Account, Transaction, UserStat
+from auth_app.models import ChallengeReport, ChallengeParticipant, Account, Transaction, UserStat, Like, Challenge, Comment
 from utils.challenges_logic import check_if_new_reports_exists
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
@@ -67,6 +67,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         user_participant = challenge_report.participant.user_participant
         reviewer = self.context['request'].user
         challenge_creator = challenge_report.challenge.creator
+
         if challenge_report.state in ['W', 'D']:
             raise ValidationError("Отчет уже отклонен или уже выдана награда")
         if reviewer != challenge_creator:
@@ -75,8 +76,8 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
             raise ValidationError("Челлендж уже завершен")
         if reason is None and state == 'D':
             raise ValidationError("Не указана причина отклонения")
-        else:
-            content_type = ContentType.objects.get_for_id(31)
+        elif reason is not None and state == 'D':
+            content_type = ContentType.objects.get_for_model(ChallengeReport)
             create_comment(content_type, challenge_report.id, reason, None, reviewer)
         if state == 'W':
             with tr.atomic():
