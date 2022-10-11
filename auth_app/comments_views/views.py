@@ -5,11 +5,13 @@ from rest_framework.views import APIView
 from auth_app.models import Comment
 from auth_app.serializers import CommentTransactionSerializer
 from rest_framework.response import Response
-from .serializers import CreateCommentSerializer, UpdateCommentSerializer, DeleteCommentSerializer
+from .serializers import UpdateCommentSerializer, DeleteCommentSerializer
 from django.contrib.contenttypes.models import ContentType
 from utils.crop_photos import crop_image
 from utils.handle_image import change_filename
 from django.conf import settings
+from .service import create_comment
+
 
 class CommentListAPIView(APIView):
     """
@@ -51,13 +53,22 @@ class CommentListAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 
-class CreateCommentView(CreateAPIView):
+class CreateCommentView(APIView):
 
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
-    queryset = Comment.objects.all()
-    serializer_class = CreateCommentSerializer
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        user = request.user
+        content_type = request.data.get('content_type')
+        object_id = request.data.get('object_id')
+        text = request.data.get('text')
+        picture = request.FILES.get('photo')
+        transaction_id = request.data.get('transaction_id')
+        response = create_comment(content_type, object_id, text, picture, user, transaction_id)
+        return Response(response)
 
 
 class UpdateCommentView(UpdateAPIView):

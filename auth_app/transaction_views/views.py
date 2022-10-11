@@ -182,6 +182,7 @@ class TransactionStatisticsAPIView(APIView):
         include_first_comment = request.data.get('include_first_comment', False)
         include_last_comment = request.data.get('include_last_comment', False)
         include_last_event_comment = request.data.get('include_last_event_comment', False)
+        transaction_id = request.data.get('transaction_id')
 
         if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(
                 include_last_comment) \
@@ -192,7 +193,13 @@ class TransactionStatisticsAPIView(APIView):
         context = {"include_code": include_code, "include_name": include_name,
                    "include_first_comment": include_first_comment,
                    "include_last_comment": include_last_comment,
-                   "include_last_event_comment": include_last_event_comment}
+                   "include_last_event_comment": include_last_event_comment
+                   }
+        print("ctype:", content_type)
+        if content_type is None:
+            content_type = ContentType.objects.get_for_model(Transaction).id
+            object_id = transaction_id
+            print("OK")
 
         if content_type is not None and object_id is not None:
             model_class = ContentType.objects.get_for_id(content_type).model_class()
@@ -204,7 +211,7 @@ class TransactionStatisticsAPIView(APIView):
                 return Response("Переданный идентификатор не относится "
                                 "ни к одной транзакции",
                                 status=status.HTTP_404_NOT_FOUND)
-        return Response("Не передан параметр transaction_id",
+        return Response("Не передан параметр content_type или object_id или transaction_id",
                         status=status.HTTP_400_BAD_REQUEST)
 
 
