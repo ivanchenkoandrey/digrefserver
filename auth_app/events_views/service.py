@@ -1,12 +1,20 @@
 import logging
 from datetime import timedelta
+from typing import List, Dict
 
 from django.db.models import F
 
-from auth_app.models import EventTypes, Transaction, Profile
+from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport
+from utils.challenges_logic import update_link_on_thumbnail, update_time
 from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
+
+event_types_data = {event_type.name: event_type.to_json() for event_type in EventTypes.objects.all()}
+
+TRANSACTION_TYPE_ID = event_types_data.get('Новая публичная транзакция').get('id')
+WINNER_TYPE_ID = event_types_data.get('Новый победитель челленджа').get('id')
+CHALLENGE_TYPE_ID = event_types_data.get('Создан челлендж').get('id')
 
 TRANSACTION_FIELDS = (
     "id",
@@ -111,5 +119,103 @@ def get_transactions_queryset(request, offset, limit):
 
     extended_transactions = ((public_transactions | transactions_receiver_only)
                              .distinct('updated_at', 'id')
-                             .order_by('-updated_at')[offset*limit:offset*limit+limit])
+                             .order_by('-updated_at')[offset * limit:offset * limit + limit])
     return extended_transactions
+
+
+def get_events_data(offset, limit):
+    events = {event.id: event.to_json() for event in
+              Event.objects.order_by('-time')[offset * limit: offset * limit + limit]}
+    events_data = []
+    transaction_event_pairs = get_event_objects_pairs(events, TRANSACTION_TYPE_ID)
+    transactions = get_transactions_from_events(list(transaction_event_pairs.keys()))
+    for tr in transactions:
+        transaction_event_pairs.get(tr.get('id')).update({'transaction': tr})
+    winners_event_pairs = get_event_objects_pairs(events, WINNER_TYPE_ID)
+    winners = get_winners_from_events(list(winners_event_pairs.keys()))
+    for w in winners:
+        winners_event_pairs.get(w.get('id')).update({'winner': w})
+    challenge_event_pairs = get_event_objects_pairs(events, CHALLENGE_TYPE_ID)
+    challenges = get_challenges_from_events(list(challenge_event_pairs.keys()))
+    for ch in challenges:
+        challenge_event_pairs.get(ch.get('id')).update({'challenge': ch})
+    for tr in transaction_event_pairs.values():
+        events_data.append(tr)
+    for w in winners_event_pairs.values():
+        events_data.append(w)
+    for ch in challenge_event_pairs.values():
+        events_data.append(ch)
+    update_time(events_data, 'time')
+    return sorted(events_data, key=lambda item: item['time'], reverse=True)
+
+
+def get_event_objects_pairs(events: Dict[int, Dict], type_id: int) -> Dict[int, Dict]:
+    return {event['event_object_id']: event
+            for event in events.values() if event['event_type_id'] == type_id}
+
+
+def get_transactions_from_events(transaction_id_array: List[int]) -> Dict:
+    transactions = (Transaction.objects
+                    .select_related('sender__profile', 'recipient__profile')
+                    .prefetch_related('_objecttags')
+                    .filter(pk__in=transaction_id_array)
+                    .only('sender__profile__tg_name',
+                          'sender_id',
+                          'recipient_id',
+                          'recipient__profile__tg_name',
+                          'recipient__profile__photo',
+                          'amount',
+                          'updated_at',
+                          'is_anonymous',
+                          'id')
+                    .values('id', 'amount', 'updated_at', 'sender_id',
+                            'recipient_id', 'is_anonymous',
+                            sender_tg_name=F('sender__profile__tg_name'),
+                            recipient_tg_name=F('recipient__profile__tg_name'),
+                            recipient_photo=F('recipient__profile__photo')))
+    update_link_on_thumbnail(transactions, 'recipient_photo')
+    update_time(transactions, 'updated_at')
+    for tr in transactions:
+        if tr.get('is_anonymous'):
+            tr.update({'sender_id': None, 'sender_tg_name': None})
+    return transactions
+
+
+def get_challenges_from_events(challenge_id_array: List[int]) -> Dict:
+    challenges = (Challenge.objects
+                  .select_related('creator__profile')
+                  .filter(pk__in=challenge_id_array)
+                  .only('photo', 'created_at', 'name', 'end_at',
+                        'creator_id', 'id',
+                        'creator__profile__first_name',
+                        'creator__profile__surname',
+                        'creator__profile__tg_name'
+                        )
+                  .values('id', 'photo', 'created_at', 'name', 'creator_id',
+                          creator_first_name=F('creator__profile__first_name'),
+                          creator_surname=F('creator__profile__surname'),
+                          creator_tg_name=F('creator__profile__tg_name')))
+    update_link_on_thumbnail(challenges, 'photo')
+    update_time(challenges, 'created_at')
+    return challenges
+
+
+def get_winners_from_events(winners_id_array: List[int]) -> Dict:
+    winners = (ChallengeReport.objects
+               .select_related('challenge__organized_by',
+                               'participant__user_participant__profile')
+               .filter(pk__in=winners_id_array)
+               .only('id', 'updated_at', 'challenge__name',
+                     'challenge_id', 'challenge__creator_id',
+                     'participant__user_participant_id',
+                     'participant__user_participant__profile__first_name',
+                     'participant__user_participant__profile__surname',
+                     'participant__user_participant__profile__tg_name',
+                     'participant__user_participant__profile__photo')
+               .values('id', 'updated_at', challenge_name=F('challenge__name'),
+                       winner_id=F('participant__user_participant_id'),
+                       winner_first_name=F('participant__user_participant__profile__first_name'),
+                       winner_surname=F('participant__user_participant__profile__surname'),
+                       winner_tg_name=F('participant__user_participant__profile__tg_name'),
+                       winner_photo=F('participant__user_participant__profile__photo')))
+    return winners

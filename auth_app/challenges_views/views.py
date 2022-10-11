@@ -148,14 +148,14 @@ class GetUserChallengeReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
-    # @query_debugger
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
-        report = ChallengeReport.objects.get_user_challenge_result_data(request.user, pk)
-        if report:
-            update_time(report, 'updated_at')
-            update_photo_link(report, 'photo')
-            report_status = report[0]['status']
-            report[0]['status'] = get_challenge_report_status(report_status)
-            return Response(*report)
+        reports = ChallengeReport.objects.get_user_challenge_result_data(request.user, pk)
+        if reports:
+            update_time(reports, 'updated_at')
+            update_photo_link(reports, 'photo')
+            for index in range(len(reports)):
+                report_status = reports[index]['status']
+                reports[index]['status'] = get_challenge_report_status(report_status)
+            return Response(reports)
         return Response({'status': 'not found'}, status=status.HTTP_404_NOT_FOUND)

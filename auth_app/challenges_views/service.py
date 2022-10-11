@@ -5,7 +5,8 @@ from django.conf import settings
 from django.db import transaction as tr
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Account, Challenge, UserStat, ChallengeParticipant, Transaction
+from auth_app.models import (Account, Event, Challenge, UserStat,
+                             ChallengeParticipant, Transaction, EventTypes)
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
 from utils.handle_image import change_filename
@@ -73,6 +74,15 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
             parameters=parameters,
             photo=photo
         )
+
+        if 'P' in challenge.states:
+            Event.objects.create(
+                event_type=EventTypes.objects.get(name='Создан челлендж'),
+                event_object_id=challenge.pk,
+                object_selector='Q',
+                time=datetime.now()
+            )
+
         participant = ChallengeParticipant.objects.create(
             user_participant=creator,
             challenge=challenge,
