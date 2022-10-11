@@ -70,6 +70,7 @@ urlpatterns = [
 
     # events
     path('feed/', events_views.EventListView.as_view()),
+    path('events/', events_views.FeedView.as_view()),
 
     # periods
     path('periods/', periods_views.PeriodListView.as_view()),
@@ -85,7 +86,7 @@ urlpatterns = [
     path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
 
     # tags
-    path('tags/', tag_views.TagListView.as_view()),
+    path('send-coins-settings/', tag_views.TagList.as_view()),
     path('tags/<int:pk>/', tag_views.TagDetailView.as_view()),
     path('reasons/', tag_views.ReasonListView.as_view()),
 
@@ -110,6 +111,4 @@ urlpatterns = [
     path('get-likes-by-user/', likes_views.LikesUserListAPIView.as_view()),
     # statistics
     path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
-
-
 ]

@@ -2,9 +2,11 @@ from rest_framework import authentication
 from rest_framework.generics import (ListAPIView, ListCreateAPIView,
                                      RetrieveAPIView)
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
 from auth_app.models import Reason, Tag
 from .serializers import TagSerializer, TagRetrieveSerializer, ReasonSerializer
+from rest_framework.response import Response
 
 
 class BasicView:
@@ -13,9 +15,12 @@ class BasicView:
     permission_classes = [IsAuthenticated]
 
 
-class TagListView(BasicView, ListCreateAPIView):
-    serializer_class = TagSerializer
-    queryset = Tag.objects.filter(flags='A')
+class TagList(BasicView, APIView):
+
+    @classmethod
+    def get(cls, request, *args, **kwargs):
+        tags = [tag.to_json_name_only() for tag in Tag.objects.all()]
+        return Response({'tags': tags})
 
 
 class TagDetailView(BasicView, RetrieveAPIView):

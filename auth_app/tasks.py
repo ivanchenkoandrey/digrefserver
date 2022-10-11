@@ -30,7 +30,8 @@ def remove_reports():
 @app.task
 @query_debugger
 def validate_transactions_after_grace_period():
-    from auth_app.models import Account, Transaction, UserStat
+    from auth_app.models import (Account, Event, Transaction, EventTypes,
+                                 TransactionState, UserStat)
     from django.conf import settings
     from django.db import transaction
     from datetime import datetime, timezone
@@ -73,6 +74,14 @@ def validate_transactions_after_grace_period():
                 _transaction.status = 'R'
                 _transaction.recipient_account = recipient_income_account
                 _transaction.save(update_fields=['status', 'updated_at', 'recipient_account'])
+                state = TransactionState.objects.create(transaction=_transaction, status='R')
+                Event.objects.create(
+                    event_type=EventTypes.objects.get(name='Новая публичная транзакция'),
+                    event_record_id=state.pk,
+                    event_object_id=_transaction.pk,
+                    object_selector='T',
+                    time=now
+                )
                 sender_frozen_account.save(update_fields=['amount', 'transaction'])
                 recipient_income_account.save(update_fields=['amount', 'transaction'])
                 recipient_user_stat.save(update_fields=['income_thanks'])
