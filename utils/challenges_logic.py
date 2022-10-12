@@ -120,3 +120,10 @@ def set_names_to_null(participants: List[Dict]) -> None:
 
 def get_challenge_report_status(state: str) -> str:
     return CHALLENGE_REPORT_STATES.get(state)
+
+
+def set_winner_nickname(winners: List[Dict]) -> None:
+    for winner in winners:
+        if winner.get('nickname') is None:
+            winner['nickname'] = winner.get('participant_tg_name')
+        del winner['participant_tg_name']

@@ -11,13 +11,14 @@ class CustomChallengeQueryset(models.QuerySet):
                           status=Case(
                               When(Q(creator_id=user_id),
                                    then=Value('Вы создатель челленджа')),
-                              When(Q(reports__participant__pk=user_id) & Q(reports__state__in=['S', 'F', 'R']),
+                              When(Q(reports__participant__user_participant__pk=user_id) &
+                                   Q(reports__state__in=['S', 'F', 'R']),
                                    then=Value('Отчёт отправлен')),
-                              When(Q(reports__participant__pk=user_id) & Q(reports__state__exact='A'),
+                              When(Q(reports__participant__user_participant__pk=user_id) & Q(reports__state__in=['A']),
                                    then=Value('Отчёт подтверждён')),
-                              When(Q(reports__participant__pk=user_id) & Q(reports__state__exact='D'),
+                              When(Q(reports__participant__user_participant__pk=user_id) & Q(reports__state__in=['D']),
                                    then=Value('Отчёт отклонён')),
-                              When(Q(reports__participant__pk=user_id) & Q(reports__state__exact='W'),
+                              When(Q(reports__participant__user_participant__pk=user_id) & Q(reports__state__in=['W']),
                                    then=Value('Получено вознаграждение')),
                               default=Value('Можно отправить отчёт')
                           ),
@@ -72,11 +73,13 @@ class CustomChallengeParticipantQueryset(models.QuerySet):
                       'user_participant__profile__photo',
                       'user_participant__profile__first_name',
                       'user_participant__profile__surname',
+                      'user_participant__profile__tg_name',
                       'nickname',
                       'challengereports__updated_at',
                       'total_received')
                 .values('nickname',
                         'total_received',
+                        participant_tg_name=F('user_participant__profile__tg_name'),
                         participant_id=F('user_participant__id'),
                         participant_photo=F('user_participant__profile__photo'),
                         participant_name=F('user_participant__profile__first_name'),

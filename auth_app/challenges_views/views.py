@@ -10,7 +10,8 @@ from auth_app.models import Challenge, ChallengeParticipant, ChallengeReport
 from utils.challenges_logic import (get_challenge_state_values, add_annotated_fields_to_challenges,
                                     set_active_field, set_completed_field, calculate_remaining_top_places,
                                     check_if_new_reports_exists, set_names_to_null, get_challenge_report_status,
-                                    update_link_on_thumbnail, update_time, update_photo_link)
+                                    update_link_on_thumbnail, update_time, update_photo_link,
+                                    set_winner_nickname)
 from .service import create_challenge
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,7 @@ class ChallengeWinnersList(APIView):
         winners = ChallengeParticipant.objects.get_winners_data(challenge_id)
         if is_nickname_allowed:
             set_names_to_null(winners)
+        set_winner_nickname(winners)
         update_time(winners, 'awarded_at')
         update_link_on_thumbnail(winners, 'participant_photo')
         return Response(data=winners)
