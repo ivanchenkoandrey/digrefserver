@@ -158,15 +158,16 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
                                          'date_last_modified').order_by(order_by))
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
+            picture_url = comments_on_transaction_cut[i].get_photo_url()
             comment_info = {
                 "id": comments_on_transaction_cut[i].id,
                 "text": comments_on_transaction_cut[i].text,
-                "picture": comments_on_transaction_cut[i].picture,
+                "picture": get_thumbnail_link(picture_url) if picture_url else None,
                 "created": comments_on_transaction_cut[i].date_created,
                 "edited": comments_on_transaction_cut[i].date_last_modified
             }
-            if comments_on_transaction_cut[i].picture:
-                comment_info['picture'] = comments_on_transaction_cut[i].picture
+            if picture_url:
+                comment_info['picture'] = get_thumbnail_link(picture_url)
             else:
                 comment_info['picture'] = None
             if include_name:
@@ -387,7 +388,7 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
     @query_debugger
     def get_comment(self, comment_id, include_name):
-        comment = [(com.user.id, com.user.profile.first_name, com.user.profile.get_photo_url(), com.text, com.picture, com.date_created, com.date_last_modified)
+        comment = [(com.user.id, com.user.profile.first_name, com.user.profile.get_photo_url(), com.text, com.get_picture_url(), com.date_created, com.date_last_modified)
                    for com in Comment.objects.select_related("user__profile").
                    only("id", "user__profile__first_name", "user__profile__photo", "text", "picture", "date_created", "date_last_modified").filter(id=comment_id)]
         comment_info = {"id": comment_id}

@@ -557,6 +557,11 @@ class Comment(models.Model):
     def __str__(self):
         return self.text
 
+    @property
+    def get_picture_url(self):
+        if self.picture:
+            return f"{self.picture.url}"
+
     class Meta:
         db_table = 'comments'
 

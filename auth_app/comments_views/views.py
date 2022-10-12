@@ -67,7 +67,12 @@ class CreateCommentView(APIView):
         text = request.data.get('text')
         picture = request.FILES.get('photo')
         transaction_id = request.data.get('transaction_id')
-        response = create_comment(content_type, object_id, text, picture, user, transaction_id)
+        challenge_id = request.data.get('challenge_id')
+        challenge_report_id = request.data.get('challenge_report_id')
+        comment_id = request.data.get('comment_id')
+        transaction = request.data.get('transaction')
+        response = create_comment(content_type, object_id, text, picture, user, transaction,
+                                  transaction_id, challenge_id, challenge_report_id, comment_id)
         return Response(response)
 
 

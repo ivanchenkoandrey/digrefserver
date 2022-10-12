@@ -5,24 +5,18 @@ from rest_framework.exceptions import ValidationError
 from auth_app.models import Like, LikeKind, LikeStatistics, LikeCommentStatistics, Transaction, ChallengeReport, \
                             Challenge, Comment
 from django.contrib.contenttypes.models import ContentType
+from auth_app.comments_views.service import get_object
 
 logger = logging.getLogger(__name__)
 
 
-def press_like(user, content_type, object_id, like_kind, transaction):
+def press_like(user, content_type, object_id, like_kind, transaction,
+               transaction_id, challenge_id, challenge_report_id, comment_id):
     like_kinds = LikeKind.objects.all()
     like_kind = LikeKind.objects.get(id=like_kind)
-    if content_type in ['Transaction', 'transaction']:
-        content_type = ContentType.objects.get_for_model(Transaction)
-    elif content_type in ['Challenge', 'challenge']:
-        content_type = ContentType.objects.get_for_model(Challenge)
-    elif content_type in ['ChallengeReport', 'challengeReport', 'challengereport']:
-        content_type = ContentType.objects.get_for_model(ChallengeReport)
-    elif content_type in ['Comment', 'comment']:
-        content_type = ContentType.objects.get_for_model(Comment)
-    if content_type is None:
-        content_type = ContentType.objects.get_for_model(Transaction)
-        object_id = transaction
+
+    content_type, object_id = get_object(content_type, object_id, transaction, transaction_id, challenge_id,
+                                         challenge_report_id, comment_id)
     with tr.atomic():
         try:
             like_statistics = LikeStatistics.objects.get(content_type=content_type, object_id=object_id,
