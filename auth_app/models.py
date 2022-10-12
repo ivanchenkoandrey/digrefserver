@@ -181,10 +181,12 @@ class CustomTransactionQueryset(models.QuerySet):
         Возвращает список транзакций пользователя
         """
         queryset = (self
-                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
+                                    'sender_account', 'recipient_account')
                     .prefetch_related('_objecttags')
                     .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
-                             Q(sender_account__owner=current_user) | Q(recipient_account__owner=current_user))))
+                             (Q(transaction_class='H') & Q(sender_account__owner=current_user)) |
+                             (Q(transaction_class__in=['W', 'F']) & Q(recipient_account__owner=current_user)))))
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def filter_by_user_limited(self, user, offset, limit):

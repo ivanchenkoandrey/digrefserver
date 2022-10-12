@@ -83,6 +83,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         elif reason is not None and state == 'D':
             content_type = "ChallengeReport"
             create_comment(content_type, challenge_report.id, reason, None, reviewer, None, None, None, None, None)
+
         if state == 'W':
             with tr.atomic():
                 challenge = challenge_report.challenge

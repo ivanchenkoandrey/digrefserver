@@ -218,4 +218,5 @@ def get_winners_from_events(winners_id_array: List[int]) -> Dict:
                        winner_surname=F('participant__user_participant__profile__surname'),
                        winner_tg_name=F('participant__user_participant__profile__tg_name'),
                        winner_photo=F('participant__user_participant__profile__photo')))
+    update_link_on_thumbnail(winners, 'winner_photo')
     return winners
