@@ -118,7 +118,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
 class CommentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ['content_type', 'object_id', 'comments']
+        fields = ['transaction_id', 'content_type', 'object_id', 'comments']
 
     content_type = serializers.SerializerMethodField()
     object_id = serializers.SerializerMethodField()
@@ -158,18 +158,18 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
                                          'date_last_modified').order_by(order_by))
         comments_on_transaction_cut = comments_on_transaction[offset: offset + limit]
         for i in range(len(comments_on_transaction_cut)):
-            picture_url = comments_on_transaction_cut[i].get_photo_url()
+
             comment_info = {
                 "id": comments_on_transaction_cut[i].id,
                 "text": comments_on_transaction_cut[i].text,
-                "picture": get_thumbnail_link(picture_url) if picture_url else None,
                 "created": comments_on_transaction_cut[i].date_created,
                 "edited": comments_on_transaction_cut[i].date_last_modified
             }
-            if picture_url:
-                comment_info['picture'] = get_thumbnail_link(picture_url)
+            if getattr(comments_on_transaction_cut[i], "picture"):
+                comment_info['picture'] = get_thumbnail_link(comments_on_transaction_cut[i].picture.url)
             else:
                 comment_info['picture'] = None
+
             if include_name:
                 user_info = {
                     "id": comments_on_transaction_cut[i].user_id,
@@ -388,26 +388,25 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
 
     @query_debugger
     def get_comment(self, comment_id, include_name):
-        comment = [(com.user.id, com.user.profile.first_name, com.user.profile.get_photo_url(), com.text, com.get_picture_url(), com.date_created, com.date_last_modified)
-                   for com in Comment.objects.select_related("user__profile").
-                   only("id", "user__profile__first_name", "user__profile__photo", "text", "picture", "date_created", "date_last_modified").filter(id=comment_id)]
+        comment = Comment.objects.select_related("user__profile").only("id", "user__profile__first_name", "user__profile__photo", "text", "picture", "date_created", "date_last_modified").get(id=comment_id)
         comment_info = {"id": comment_id}
         if include_name:
             user = {
-                    "id": comment[0][0],
-                    "name": comment[0][1],
-                    "avatar": comment[0][2]
+                    "id": comment.user.id,
+                    "name": comment.user.profile.first_name,
+                    "avatar": comment.user.profile.get_photo_url()
             }
         else:
-            user = {"id": comment[0][0]}
+            user = {"id": comment.user.id}
         comment_info['user'] = user
-        comment_info['text'] = comment[0][3]
-        if comment[0][4]:
-            comment_info['picture'] = comment[0][4]
+        comment_info['text'] = comment.text
+        if getattr(comment, "picture"):
+            comment_info['picture'] = get_thumbnail_link(comment.picture.url)
         else:
             comment_info['picture'] = None
-        comment_info['created'] = comment[0][5]
-        comment_info['edited'] = comment[0][6]
+
+        comment_info['created'] = comment.date_created
+        comment_info['edited'] = comment.date_last_modified
         return comment_info
 
     @query_debugger
@@ -417,10 +416,9 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         if include_first_comment:
             try:
 
-                likes_comments_statistics = [statistics.first_comment for statistics in LikeCommentStatistics.objects.select_related("first_comment").
-                                             only("first_comment").get(content_type=obj['content_type'], object_id=obj['object_id'])]
+                likes_comments_statistics = LikeCommentStatistics.objects.select_related("first_comment").only("first_comment").get(content_type=obj['content_type'], object_id=obj['object_id'])
 
-                first_comment = likes_comments_statistics[0]
+                first_comment = likes_comments_statistics.first_comment
                 if first_comment is not None:
                     return self.get_comment(first_comment.id, include_name)
             except LikeCommentStatistics.DoesNotExist:
@@ -432,10 +430,10 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_comment = self.context.get('include_last_comment')
         if include_last_comment:
             try:
-                likes_comments_statistics = [statistics.last_comment for statistics in
-                                             LikeCommentStatistics.objects.select_related("last_comment").only(
-                                                 "last_comment").get(content_type=obj['content_type'], object_id=obj['object_id'])]
-                last_comment = likes_comments_statistics[0]
+                likes_comments_statistics = LikeCommentStatistics.objects.select_related("first_comment").only(
+                    "first_comment").get(content_type=obj['content_type'], object_id=obj['object_id'])
+
+                last_comment = likes_comments_statistics.last_comment
                 if last_comment is not None:
                     return self.get_comment(last_comment.id, include_name)
             except LikeCommentStatistics.DoesNotExist:
@@ -447,10 +445,10 @@ class TransactionStatisticsSerializer(serializers.ModelSerializer):
         include_last_event_comment = self.context.get('include_last_event_comment')
         if include_last_event_comment:
             try:
-                likes_comments_statistics = [statistics.last_event_comment for statistics in
-                                             LikeCommentStatistics.objects.select_related("last_event_comment").only(
-                                                 "last_event_comment").get(content_type=obj['content_type'], object_id=obj['object_id'])]
-                last_event_comment = likes_comments_statistics[0]
+                likes_comments_statistics = LikeCommentStatistics.objects.select_related("first_comment").only(
+                    "first_comment").get(content_type=obj['content_type'], object_id=obj['object_id'])
+
+                last_event_comment = likes_comments_statistics.last_event_comment
                 if last_event_comment is not None:
                     return self.get_comment(last_event_comment.id, include_name)
             except LikeCommentStatistics.DoesNotExist:

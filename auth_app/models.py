@@ -552,15 +552,21 @@ class Comment(models.Model):
                                 verbose_name='Картинка Комментария')
 
     def to_json(self):
-        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+        json_dict = {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_') and field != 'picture'}
+        if getattr(self, "picture"):
+            json_dict['picture'] = self.picture.url
+        else:
+            json_dict['picture'] = None
+        return json_dict
 
     def __str__(self):
         return self.text
 
     @property
     def get_picture_url(self):
-        if self.picture:
-            return f"{self.picture.url}"
+        if getattr(self, "picture"):
+            return self.picture.url
+        return None
 
     class Meta:
         db_table = 'comments'
