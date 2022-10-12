@@ -12,6 +12,7 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
                                     check_if_new_reports_exists, set_names_to_null, get_challenge_report_status,
                                     update_link_on_thumbnail, update_time, update_photo_link,
                                     set_winner_nickname)
+from utils.query_debugger import query_debugger
 from .service import create_challenge
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ class ChallengeListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
+    @query_debugger
     def get(cls, request, *args, **kwargs):
         active_only = request.GET.get('active_only')
         if cls.get_boolean_parameter(active_only):
