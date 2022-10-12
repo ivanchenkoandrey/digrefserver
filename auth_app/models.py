@@ -230,12 +230,12 @@ class CustomTransactionQueryset(models.QuerySet):
 
                                  user_liked=Exists(Like.objects.filter(
                                      Q(object_id=OuterRef('pk'),
-                                       like_kind__code='Like',
+                                       like_kind__code='like',
                                        user_id=user.id,
                                        is_liked=True))),
                                  user_disliked=Exists(Like.objects.filter(
                                      Q(object_id=OuterRef('pk'),
-                                       like_kind__code='Dislike',
+                                       like_kind__code='dislike',
                                        user_id=user.id,
                                        is_liked=True)
                                      )))
