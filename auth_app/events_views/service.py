@@ -4,7 +4,8 @@ from typing import List, Dict
 
 from django.db.models import F
 
-from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport, LikeStatistics
+from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport, LikeStatistics, \
+    LikeCommentStatistics
 from utils.challenges_logic import update_link_on_thumbnail, update_time
 from utils.thumbnail_link import get_thumbnail_link
 
@@ -72,7 +73,8 @@ def get_events_list(request, offset, limit):
             "photo": f"{get_thumbnail_link(_transaction.photo.url)}" if _transaction.photo else None,
             "updated_at": _transaction.updated_at,
             "tags": _transaction._objecttags.values("tag_id", name=F("tag__name")),
-            "comments_amount": _transaction.comments_amount,
+            "comments_amount": LikeCommentStatistics.objects.get(object_id=_transaction.pk).comment_counter
+,
             "last_like_comment_time": _transaction.last_like_comment_time,
             "user_liked": _transaction.user_liked,
             "user_disliked": _transaction.user_disliked,

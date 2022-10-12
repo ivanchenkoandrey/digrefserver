@@ -225,10 +225,8 @@ class CustomTransactionQueryset(models.QuerySet):
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def feed_version(self, user):
-        comment_statistics = LikeCommentStatistics.objects.filter(object_id=OuterRef('pk'))
 
-        queryset = self.annotate(comments_amount=Subquery(comment_statistics.values(comments_amount=F('comment_counter'))),
-                                 last_like_comment_time=F(
+        queryset = self.annotate(last_like_comment_time=F(
                                      'like_comment_statistics__last_like_or_comment_change_at'),
 
                                  user_liked=Exists(Like.objects.filter(
