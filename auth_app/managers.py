@@ -39,7 +39,7 @@ class CustomChallengeQueryset(models.QuerySet):
         return (self.get_challenges_list(user_id)
                 .filter(pk=pk)).values(
             'id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount', 'description',
-            'creator_id', 'status', 'parameters', 'is_new_reports', 'winners_count', 'end_at',
+            'creator_id', 'parameters', 'is_new_reports', 'winners_count', 'end_at',
             creator_organization_id=F('creator__profile__organization_id'), fund=F('start_balance'),
             creator_name=F('creator__profile__first_name'), creator_surname=F('creator__profile__surname'),
             creator_photo=F('creator__profile__photo'), creator_tg_name=F('creator__profile__tg_name')
