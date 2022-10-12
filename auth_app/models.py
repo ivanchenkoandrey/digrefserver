@@ -227,7 +227,7 @@ class CustomTransactionQueryset(models.QuerySet):
     def feed_version(self, user):
         comment_statistics = LikeCommentStatistics.objects.filter(object_id=OuterRef('pk'))
 
-        queryset = self.annotate(comments_amount=Subquery(comment_statistics.values('comment_counter')),
+        queryset = self.annotate(comments_amount=Subquery(comment_statistics.values(comments_amount=F('comment_counter'))),
                                  last_like_comment_time=F(
                                      'like_comment_statistics__last_like_or_comment_change_at'),
 
