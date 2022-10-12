@@ -7,21 +7,13 @@ from auth_app.models import Comment, LikeCommentStatistics, Transaction, Challen
 from django.contrib.contenttypes.models import ContentType
 
 
-def create_comment(content_type, object_id, text, picture, user, transaction_id):
-    if content_type in ['Transaction', 'transaction']:
-        content_type = ContentType.objects.get_for_model(Transaction)
-    elif content_type in ['Challenge', 'challenge']:
-        content_type = ContentType.objects.get_for_model(Challenge)
-    elif content_type in ['ChallengeReport', 'challengeReport', 'challengereport']:
-        content_type = ContentType.objects.get_for_model(ChallengeReport)
-    elif content_type in ['Comment', 'comment']:
-        content_type = ContentType.objects.get_for_model(Comment)
-    if content_type is None:
-        content_type = ContentType.objects.get_for_model(Transaction)
-        object_id = transaction_id
+def create_comment(content_type, object_id, text, picture, user, transaction, transaction_id, challenge_id, challenge_report_id, comment_id):
+
+    content_type, object_id = get_object(content_type, object_id, transaction, transaction_id, challenge_id, challenge_report_id, comment_id)
 
     if (text is None or text == "") and picture is None:
         raise ValidationError("Не переданы параметры text или picture")
+
     with tr.atomic():
         try:
             previous_comment = Comment.objects.get(content_type=content_type, object_id=object_id,
@@ -71,7 +63,7 @@ def create_comment(content_type, object_id, text, picture, user, transaction_id)
         previous_comment.is_last_comment = False
         previous_comment.save(update_fields=['is_last_comment'])
 
-        comment = Comment(
+        comment = Comment.objects.create(
             content_type=content_type,
             object_id=object_id,
             text=text,
@@ -80,7 +72,6 @@ def create_comment(content_type, object_id, text, picture, user, transaction_id)
             is_last_comment=True,
             previous_comment=previous_comment
         )
-        comment.save()
 
         like_comment_statistics = LikeCommentStatistics.objects.get(content_type=content_type, object_id=object_id)
         comment_counter = like_comment_statistics.comment_counter + 1
@@ -92,8 +83,33 @@ def create_comment(content_type, object_id, text, picture, user, transaction_id)
             update_fields=['last_comment', 'last_event_comment', 'comment_counter'])
 
         if comment.picture.name is not None:
-            comment.picture.name = change_filename(
-                comment.picture.name)
+            comment.picture.name = change_filename(comment.picture.name)
             comment.save(update_fields=['picture'])
             crop_image(comment.picture.name, f"{settings.BASE_DIR}/media/", to_square=False)
         return comment.to_json()
+
+
+def get_object(content_type, object_id, transaction, transaction_id, challenge_id, challenge_report_id, comment_id):
+    if transaction is not None:
+        content_type = ContentType.objects.get_for_model(Transaction)
+        object_id = transaction
+    elif content_type == "Transaction" or transaction_id is not None:
+        content_type = ContentType.objects.get_for_model(Transaction)
+        if object_id is None:
+            object_id = transaction_id
+    elif content_type == 'Challenge' or challenge_id is not None:
+        content_type = ContentType.objects.get_for_model(Challenge)
+        if object_id is None:
+            object_id = challenge_id
+    elif content_type == 'ChallengeReport' or challenge_report_id is not None:
+        content_type = ContentType.objects.get_for_model(ChallengeReport)
+        if object_id is None:
+            object_id = challenge_report_id
+    elif content_type == 'Comment' or comment_id is not None:
+        content_type = ContentType.objects.get_for_model(Comment)
+        if object_id is None:
+            object_id = comment_id
+    else:
+        raise ValidationError("Неверно переданы content_type или object_id или не передан один из параметров: transaction_id, challenge_id, challenge_report_id, comment_id")
+
+    return content_type, object_id

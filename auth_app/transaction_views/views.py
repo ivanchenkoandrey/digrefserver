@@ -195,11 +195,10 @@ class TransactionStatisticsAPIView(APIView):
                    "include_last_comment": include_last_comment,
                    "include_last_event_comment": include_last_event_comment
                    }
-        print("ctype:", content_type)
+
         if content_type is None:
             content_type = ContentType.objects.get_for_model(Transaction).id
             object_id = transaction_id
-            print("OK")
 
         if content_type is not None and object_id is not None:
             model_class = ContentType.objects.get_for_id(content_type).model_class()

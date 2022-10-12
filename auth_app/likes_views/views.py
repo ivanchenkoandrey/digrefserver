@@ -155,7 +155,13 @@ class PressLikeView(APIView):
         object_id = request.data.get('object_id')
         like_kind = request.data.get('like_kind')
         transaction = request.data.get('transaction')
-        response = press_like(user, content_type, object_id, like_kind, transaction)
+        transaction_id = request.data.get('transaction_id')
+        challenge_id = request.data.get('challenge_id')
+        challenge_report_id = request.data.get('challenge_report_id')
+        comment_id = request.data.get('comment_id')
+
+        response = press_like(user, content_type, object_id, like_kind, transaction,
+                              transaction_id, challenge_id, challenge_report_id, comment_id)
         return Response(response)
 
 

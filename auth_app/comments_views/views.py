@@ -2,7 +2,7 @@ from rest_framework import authentication, status
 from rest_framework.generics import CreateAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from auth_app.models import Comment
+from auth_app.models import Comment, Transaction
 from auth_app.serializers import CommentTransactionSerializer
 from rest_framework.response import Response
 from .serializers import UpdateCommentSerializer, DeleteCommentSerializer
@@ -29,7 +29,10 @@ class CommentListAPIView(APIView):
         limit = request.data.get('limit', 20)
         include_name = request.data.get('include_name', False)
         is_reverse_order = request.data.get('is_reverse_order', False)
-
+        transaction_id = request.data.get('transaction_id')
+        if content_type is None:
+            content_type = ContentType.objects.get_for_model(Transaction).id
+            object_id = transaction_id
         if type(offset) != int or type(limit) != int:
             return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
         if type(include_name) != bool or type(is_reverse_order) != bool:
@@ -67,7 +70,12 @@ class CreateCommentView(APIView):
         text = request.data.get('text')
         picture = request.FILES.get('photo')
         transaction_id = request.data.get('transaction_id')
-        response = create_comment(content_type, object_id, text, picture, user, transaction_id)
+        challenge_id = request.data.get('challenge_id')
+        challenge_report_id = request.data.get('challenge_report_id')
+        comment_id = request.data.get('comment_id')
+        transaction = request.data.get('transaction')
+        response = create_comment(content_type, object_id, text, picture, user, transaction,
+                                  transaction_id, challenge_id, challenge_report_id, comment_id)
         return Response(response)
 
 
