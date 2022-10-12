@@ -9,20 +9,6 @@ class CustomChallengeQueryset(models.QuerySet):
         return (self.select_related('creator__profile').prefetch_related(
             Prefetch('reports', queryset=ChallengeReport.objects.select_related('participant__user_participant')))
                 .annotate(approved_reports_amount=Count('reports', filter=Q(reports__state__in=['A', 'W'])),
-                          status=Case(
-                              When(Q(creator_id=user_id),
-                                   then=Value('Вы создатель челленджа')),
-                              When(Q(reports__participant__user_participant__pk=user_id) &
-                                   Q(reports__state__in=['S', 'F', 'R']),
-                                   then=Value('Отчёт отправлен')),
-                              When(Q(reports__participant__user_participant__pk=user_id) & Q(reports__state__in=['A']),
-                                   then=Value('Отчёт подтверждён')),
-                              When(Q(reports__participant__user_participant__pk=user_id) & Q(reports__state__in=['D']),
-                                   then=Value('Отчёт отклонён')),
-                              When(Q(reports__participant__user_participant__pk=user_id) & Q(reports__state__in=['W']),
-                                   then=Value('Получено вознаграждение')),
-                              default=Value('Можно отправить отчёт')
-                          ),
                           is_new_reports=Exists(
                               ChallengeReport.objects.filter(
                                   Q(challenge_id=OuterRef('pk')) &
@@ -31,7 +17,7 @@ class CustomChallengeQueryset(models.QuerySet):
                           )
                           )
                 .only('id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount', 'description',
-                      'start_balance', 'creator_id', 'status', 'parameters', 'is_new_reports', 'winners_count',
+                      'start_balance', 'creator_id', 'parameters', 'is_new_reports', 'winners_count',
                       'creator__profile__first_name', 'creator__profile__surname', 'creator__profile__organization_id',
                       'creator__profile__photo', 'creator__profile__tg_name', 'end_at')
                 .order_by('-pk'))
@@ -39,14 +25,14 @@ class CustomChallengeQueryset(models.QuerySet):
     def get_all_challenges(self, user_id):
         return self.get_challenges_list(user_id).values(
             'id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount',
-            'creator_id', 'status', 'parameters', 'winners_count', 'is_new_reports', fund=F('start_balance')
+            'creator_id', 'parameters', 'winners_count', 'is_new_reports', fund=F('start_balance')
         ).distinct().order_by('-pk')
 
     def get_active_only(self, user_id):
         return (self.get_challenges_list(user_id)
         .filter(~Q(states__contains=['C'])).values(
             'id', 'name', 'photo', 'updated_at', 'states', 'approved_reports_amount',
-            'creator_id', 'status', 'parameters', 'is_new_reports', fund=F('start_balance')
+            'creator_id', 'parameters', 'is_new_reports', fund=F('start_balance')
         )).distinct().order_by('-pk')
 
     def get_challenge_by_pk(self, user_id, pk):
