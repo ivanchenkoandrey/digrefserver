@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import List, Dict
 
 from django.db.models import F
+from django.db.models.functions import Coalesce
 
 from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport, LikeStatistics, \
     LikeCommentStatistics
@@ -57,6 +58,11 @@ def get_events_list(request, offset, limit):
         event_type = get_event_type(request_user_tg_name, recipient_tg_name, is_public, event_types).to_json()
         sender = 'anonymous' if _transaction.is_anonymous else sender
         del event_type['record_type']
+        try:
+            comment_statistics = LikeCommentStatistics.objects.get(object_id=_transaction.pk)
+            comment_counter = comment_statistics.comment_counter
+        except LikeCommentStatistics.DoesNotExist:
+            comment_counter = 0
         transaction_info = {
             "id": _transaction.pk,
             "sender_id": None if _transaction.is_anonymous else _transaction.sender_id,
@@ -73,8 +79,7 @@ def get_events_list(request, offset, limit):
             "photo": f"{get_thumbnail_link(_transaction.photo.url)}" if _transaction.photo else None,
             "updated_at": _transaction.updated_at,
             "tags": _transaction._objecttags.values("tag_id", name=F("tag__name")),
-            "comments_amount": LikeCommentStatistics.objects.get(object_id=_transaction.pk).comment_counter
-,
+            "comments_amount": comment_counter,
             "last_like_comment_time": _transaction.last_like_comment_time,
             "user_liked": _transaction.user_liked,
             "user_disliked": _transaction.user_disliked,
