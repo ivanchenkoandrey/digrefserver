@@ -14,6 +14,7 @@ from rest_framework.authtoken.models import Token
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericRelation
+from django.db.models import Subquery
 
 from auth_app.managers import (CustomChallengeQueryset,
                                CustomChallengeParticipantQueryset,
@@ -224,7 +225,9 @@ class CustomTransactionQueryset(models.QuerySet):
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def feed_version(self, user):
-        queryset = self.annotate(comments_amount=Coalesce(F('like_comment_statistics__comment_counter'), 0),
+        comment_statistics = LikeCommentStatistics.objects.filter(object_id=OuterRef('pk'))
+
+        queryset = self.annotate(comments_amount=Subquery(comment_statistics.values('comment_counter')),
                                  last_like_comment_time=F(
                                      'like_comment_statistics__last_like_or_comment_change_at'),
 
@@ -233,6 +236,7 @@ class CustomTransactionQueryset(models.QuerySet):
                                        like_kind__code='like',
                                        user_id=user.id,
                                        is_liked=True))),
+
                                  user_disliked=Exists(Like.objects.filter(
                                      Q(object_id=OuterRef('pk'),
                                        like_kind__code='dislike',

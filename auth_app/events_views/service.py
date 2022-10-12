@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from django.db.models import F
 
-from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport
+from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport, LikeStatistics
 from utils.challenges_logic import update_link_on_thumbnail, update_time
 from utils.thumbnail_link import get_thumbnail_link
 
@@ -76,8 +76,9 @@ def get_events_list(request, offset, limit):
             "last_like_comment_time": _transaction.last_like_comment_time,
             "user_liked": _transaction.user_liked,
             "user_disliked": _transaction.user_disliked,
-            "reactions": _transaction.like_statistics.values('id', code=F('like_kind__code'),
-                                                             counter=F('like_counter'))
+            "reactions": LikeStatistics.objects.filter(object_id=_transaction.pk).values('id',
+                                                                                         code=F('like_kind__code'),
+                                                                                         counter=F('like_counter'))
         }
         event_data = {
             "id": 0,
