@@ -229,15 +229,16 @@ class CustomTransactionQueryset(models.QuerySet):
                                      'like_comment_statistics__last_like_or_comment_change_at'),
 
                                  user_liked=Exists(Like.objects.filter(
-                                     Q(transaction_id=OuterRef('pk'),
-                                       like_kind__code='like',
+                                     Q(object_id=OuterRef('pk'),
+                                       like_kind__code='Like',
                                        user_id=user.id,
                                        is_liked=True))),
                                  user_disliked=Exists(Like.objects.filter(
-                                     Q(transaction_id=OuterRef('pk'),
-                                       like_kind__code='dislike',
+                                     Q(object_id=OuterRef('pk'),
+                                       like_kind__code='Dislike',
                                        user_id=user.id,
-                                       is_liked=True))))
+                                       is_liked=True)
+                                     )))
 
         return queryset
 
