@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 def create_challenge(creator, name, end_at, description, start_balance, photo, parameter_id, parameter_value):
     period = get_current_period()
 
+    if end_at == "":
+        end_at = None
+
     if period is None:
         raise ValidationError("Сейчас нет активного периода")
 
