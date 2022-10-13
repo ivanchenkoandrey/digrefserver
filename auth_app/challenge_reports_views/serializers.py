@@ -140,8 +140,9 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
 
                     if sender_account.amount > 0:
                         remain = sender_account.amount
-                        sender_account.amount = 0
-                        sender_account.save(update_fields='amount')
+                        print("remain:", remain, sender_account.amount)
+                        sender_account.amount -= remain
+                        sender_account.save(update_fields=['amount'])
                         recipient_account = Transaction.objects.get(to_challenge=challenge).sender_account
                         transaction = Transaction.objects.create(
                             is_anonymous=False,
