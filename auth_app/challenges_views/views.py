@@ -7,11 +7,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from auth_app.models import Challenge, ChallengeParticipant, ChallengeReport
+from utils.challenge_queries import CHALLENGE_LIST_QUERY, CHALLENGE_PK_QUERY
 from utils.challenges_logic import (get_challenge_state_values, add_annotated_fields_to_challenges,
                                     set_active_field, set_completed_field, calculate_remaining_top_places,
                                     check_if_new_reports_exists, set_names_to_null, get_challenge_report_status,
                                     update_link_on_thumbnail, update_time, update_photo_link,
-                                    set_winner_nickname)
+                                    set_winner_nickname, reconfigure_challenges_queryset_into_dictionary)
 from utils.query_debugger import query_debugger
 from .service import create_challenge
 
@@ -55,7 +56,10 @@ class ChallengeListView(APIView):
         if cls.get_boolean_parameter(active_only):
             challenges = Challenge.objects.get_active_only(request.user.id)
         else:
-            challenges = Challenge.objects.get_all_challenges(request.user.id)
+            challenges = Challenge.objects.raw(
+                CHALLENGE_LIST_QUERY, [request.user.id] * 7
+            )
+        challenges = reconfigure_challenges_queryset_into_dictionary(challenges)
         update_time(challenges, 'updated_at')
         add_annotated_fields_to_challenges(challenges)
         set_active_field(challenges)
@@ -76,10 +80,14 @@ class ChallengeDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
+    @query_debugger
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
-        challenges = Challenge.objects.get_challenge_by_pk(request.user.id, pk)
+        challenges = Challenge.objects.raw(
+            CHALLENGE_PK_QUERY, [request.user.pk] * 7 + [pk]
+        )
         if challenges:
+            challenges = reconfigure_challenges_queryset_into_dictionary(challenges, pk=True)
             update_time(challenges, 'updated_at')
             add_annotated_fields_to_challenges(challenges)
             set_active_field(challenges)

@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Dict, List
 
-from django.db.models import Q
+from django.db.models import Q, QuerySet, ImageField
 
 from utils.thumbnail_link import get_thumbnail_link
 
@@ -34,6 +34,37 @@ CHALLENGE_REPORT_STATES = {
     'R': 'Повторно направлено организатору',
     'W': 'Получено вознаграждение'
 }
+
+
+def reconfigure_challenges_queryset_into_dictionary(challenges: QuerySet, pk=False) -> List[Dict]:
+    challenges_list = []
+    for challenge in challenges:
+        data = {
+            'id': challenge.id,
+            'name': challenge.name,
+            'photo': challenge.photo.name,
+            'updated_at': challenge.updated_at,
+            'states': challenge.states,
+            'approved_reports_amount': challenge.approved_reports_amount,
+            'creator_id': challenge.creator_id,
+            'parameters': challenge.parameters,
+            'winners_count': challenge.winners_count,
+            'is_new_reports': challenge.is_new_reports,
+            'fund': challenge.fund,
+            'status': challenge.status
+        }
+        if pk:
+            data.update({
+                "end_at": challenge.end_at,
+                "creator_name": challenge.first_name,
+                "creator_organization_id": challenge.organization_pk,
+                "creator_photo": challenge.profile_photo,
+                "creator_surname": challenge.surname,
+                "creator_tg_name": challenge.tg_name,
+                "description": challenge.description
+            })
+        challenges_list.append(data)
+    return challenges_list
 
 
 def add_annotated_fields_to_challenges(challenges: List[Dict]) -> None:
