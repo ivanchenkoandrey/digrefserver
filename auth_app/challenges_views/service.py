@@ -19,7 +19,10 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
 
     if period is None:
         raise ValidationError("Сейчас нет активного периода")
-    end_at_date = datetime.strptime(end_at, '%Y-%m-%d')
+    try:
+        end_at_date = datetime.strptime(end_at, '%Y-%m-%d')
+    except ValueError:
+        raise ValidationError(f"{end_at} не соответствует формату 'ГГГГ-ММ-ДД'")
     present = datetime.now()
     if end_at_date < present:
         raise ValidationError("Нельзя поставить дату завершения челленжа в прошедшем времени")
@@ -32,6 +35,9 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
     else:
         parameter_id = int(parameter_id)
         parameter_value = int(parameter_value)
+        if parameter_id == 2:
+            if parameter_value > start_balance:
+                parameter_value = start_balance
         if parameter_id != 1 and parameter_id != 2:
             raise ValidationError("parameter_id должен принимать значение 1 или 2")
         parameters = [{"id": parameter_id, "value": parameter_value},
