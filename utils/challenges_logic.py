@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Dict, List
 
-from django.db.models import Q, QuerySet, ImageField
+from django.db.models import Q, QuerySet
 
 from utils.thumbnail_link import get_thumbnail_link
 
@@ -51,7 +51,7 @@ def reconfigure_challenges_queryset_into_dictionary(challenges: QuerySet, pk=Fal
             'winners_count': challenge.winners_count,
             'is_new_reports': challenge.is_new_reports,
             'fund': challenge.fund,
-            'status': challenge.status
+            'status': '' if challenge.status is None else challenge.status
         }
         if pk:
             data.update({
