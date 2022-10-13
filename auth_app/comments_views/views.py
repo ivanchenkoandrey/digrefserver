@@ -10,7 +10,7 @@ from django.contrib.contenttypes.models import ContentType
 from utils.crop_photos import crop_image
 from utils.handle_image import change_filename
 from django.conf import settings
-from .service import create_comment
+from .service import create_comment, get_object
 
 
 class CommentListAPIView(APIView):
@@ -30,9 +30,12 @@ class CommentListAPIView(APIView):
         include_name = request.data.get('include_name', False)
         is_reverse_order = request.data.get('is_reverse_order', False)
         transaction_id = request.data.get('transaction_id')
-        if content_type is None:
-            content_type = ContentType.objects.get_for_model(Transaction).id
-            object_id = transaction_id
+        challenge_id = request.data.get('challenge_id')
+        challenge_report_id = request.data.get('challenge_report_id')
+        comment_id = request.data.get('comment_id')
+        content_type, object_id = get_object(content_type, object_id, None, transaction_id, challenge_id,
+                                             challenge_report_id, comment_id)
+        content_type = content_type.id
         if type(offset) != int or type(limit) != int:
             return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
         if type(include_name) != bool or type(is_reverse_order) != bool:
