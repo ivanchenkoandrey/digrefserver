@@ -499,9 +499,9 @@ class EventTypes(models.Model):
 class Event(models.Model):
     class EventObject(models.TextChoices):
         TRANSACTION = 'T', 'Транзакция'
-        QUEST = 'Q'
-        REPORT = 'R'
-        NEWS = 'N'
+        QUEST = 'Q', 'Челлендж'
+        REPORT = 'R', 'Отчёт'
+        NEWS = 'N', 'Новости'
         ADVERTISEMENT = 'A', 'Объявление'
 
     event_type = models.ForeignKey(EventTypes, on_delete=models.PROTECT, verbose_name='Тип события')
