@@ -19,7 +19,10 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
 
     if period is None:
         raise ValidationError("Сейчас нет активного периода")
-
+    end_at_date = datetime.strptime(end_at, '%Y-%m-%d')
+    present = datetime.now()
+    if end_at_date < present:
+        raise ValidationError("Нельзя поставить дату завершения челленжа в прошедшем времени")
     challenge_modes = ['P']
     states = ['P']
 
