@@ -30,11 +30,11 @@ SELECT DISTINCT
       where c.id = challenges.id 
         and 'C' != all( c.states) 
         --and c.organized_by_id <> %s -- для prod включить!
-        and not exists (
-            select 1 from challenge_reports c1
-              join challenge_participants c2 on c2.id = c1.participant_id
-              where c1.challenge_id = challenges.id 
-                and c2.user_participant_id = %s) -- проверка на то, что отчет уже отправлялся. если челлендж допускает несколько отчетов, то надо отключить
+        --and not exists (
+            --select 1 from challenge_reports c1
+              --join challenge_participants c2 on c2.id = c1.participant_id
+              --where c1.challenge_id = challenges.id 
+                --and c2.user_participant_id = %s) -- проверка на то, что отчет уже отправлялся. если челлендж допускает несколько отчетов, то надо отключить
     union
     select 3, 
       CASE 
@@ -97,11 +97,11 @@ SELECT
       where c.id = challenges.id 
         and 'C' != all( c.states) 
         --and c.organized_by_id <> %s -- для prod включить!
-        and not exists (
-            select 1 from challenge_reports c1
-              join challenge_participants c2 on c2.id = c1.participant_id
-              where c1.challenge_id = challenges.id 
-                and c2.user_participant_id = %s) -- проверка на то, что отчет уже отправлялся. если челлендж допускает несколько отчетов, то надо отключить
+        --and not exists (
+            --select 1 from challenge_reports c1
+              --join challenge_participants c2 on c2.id = c1.participant_id
+              --where c1.challenge_id = challenges.id 
+                --and c2.user_participant_id = %s) -- проверка на то, что отчет уже отправлялся. если челлендж допускает несколько отчетов, то надо отключить
     union
     select 3, 
       CASE 

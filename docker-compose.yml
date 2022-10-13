@@ -22,7 +22,7 @@ services:
       start_period: 10s
 
   app:
-    build: ..
+    build: .
     container_name: tfapp
     ports:
       - "8888:8888"
@@ -66,7 +66,7 @@ services:
 
   celery:
     container_name: tfcelery
-    build: ..
+    build: .
     networks:
       network:
         ipv4_address: 172.16.0.6
@@ -83,7 +83,7 @@ services:
 
   celery-beat:
     container_name: tfcelery-beat
-    build: ..
+    build: .
     networks:
       network:
         ipv4_address: 172.16.0.7

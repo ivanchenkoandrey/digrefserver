@@ -162,6 +162,3 @@ cython_debug/
 *.key
 
 media/
-
-docker-compose.yml
-gunicorn.conf.py
