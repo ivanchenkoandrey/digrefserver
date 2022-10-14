@@ -45,7 +45,7 @@ SELECT DISTINCT
       END
     from challenge_reports c
       where c.challenge_id = challenges.id and c.participant_id in 
-        (select id from challenge_participants c1 where c1.challenge_id = challenges.id and c1.user_participant_id = 1)
+        (select id from challenge_participants c1 where c1.challenge_id = challenges.id and c1.user_participant_id = %s)
     order by c
     ) a 
   ) AS "status", 
@@ -112,7 +112,7 @@ SELECT
       END
     from challenge_reports c
       where c.challenge_id = challenges.id and c.participant_id in 
-        (select id from challenge_participants c1 where c1.challenge_id = challenges.id and c1.user_participant_id = 1)
+        (select id from challenge_participants c1 where c1.challenge_id = challenges.id and c1.user_participant_id = %s)
     order by c
     ) a 
   ) AS "status", 

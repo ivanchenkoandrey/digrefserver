@@ -57,7 +57,7 @@ class ChallengeListView(APIView):
             challenges = Challenge.objects.get_active_only(request.user.id)
         else:
             challenges = Challenge.objects.raw(
-                CHALLENGE_LIST_QUERY, [request.user.id] * 7
+                CHALLENGE_LIST_QUERY, [request.user.id] * 8
             )
         challenges = reconfigure_challenges_queryset_into_dictionary(challenges)
         update_time(challenges, 'updated_at')
@@ -84,7 +84,7 @@ class ChallengeDetailView(APIView):
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
         challenges = Challenge.objects.raw(
-            CHALLENGE_PK_QUERY, [request.user.pk] * 7 + [pk]
+            CHALLENGE_PK_QUERY, [request.user.pk] * 8 + [pk]
         )
         if challenges:
             challenges = reconfigure_challenges_queryset_into_dictionary(challenges, pk=True)
