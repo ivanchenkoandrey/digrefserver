@@ -67,13 +67,13 @@ def press_like(user, content_type, object_id, like_kind, transaction,
             # update statistics for prev like_type from which like is retrieved
             another_like_statistics = LikeStatistics.objects.get(content_type=content_type, object_id=object_id,
                                                                  like_kind_id=another_like_kind)
-            another_like_statistics.like_counter = another_like_statistics.like_counter - 1
+            another_like_statistics.like_counter -= 1
             another_like_statistics.last_change_at = datetime.now()
             another_like_statistics.save(update_fields=['like_counter', 'last_change_at'])
 
             like_statistics = LikeStatistics.objects.get(content_type=content_type, object_id=object_id,
                                                          like_kind=like_kind)
-            like_statistics.like_counter = like_statistics.like_counter + 1
+            like_statistics.like_counter += 1
             like_statistics.last_change_at = datetime.now()
             like_statistics.save(update_fields=['like_counter', 'last_change_at'])
 
@@ -95,7 +95,7 @@ def press_like(user, content_type, object_id, like_kind, transaction,
 
                 like_statistics = LikeStatistics.objects.get(content_type=content_type, object_id=object_id,
                                                              like_kind=like_kind)
-                like_statistics.like_counter = like_statistics.like_counter - 1
+                like_statistics.like_counter -= 1
                 like_statistics.last_change_at = datetime.now()
                 like_statistics.save(update_fields=['like_counter', 'last_change_at'])
 

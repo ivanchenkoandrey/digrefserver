@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from auth_app.models import Transaction, User, LikeKind, Challenge, ChallengeReport, Comment
 from auth_app.serializers import LikeTransactionSerializer, LikeUserSerializer
 from .service import press_like
+from ..comments_views.service import get_object
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,12 @@ class LikesListAPIView(APIView):
         include_code = request.data.get('include_code')
         include_name = request.data.get('include_name')
         transaction_id = request.data.get('transaction_id')
+        challenge_id = request.data.get('challenge_id')
+        challenge_report_id = request.data.get('challenge_report_id')
+        comment_id = request.data.get('comment_id')
+        content_type, object_id = get_object(content_type, object_id, None, transaction_id, challenge_id,
+                                             challenge_report_id, comment_id)
+
         offset = request.data.get('offset')
         limit = request.data.get('limit')
         if content_type in ['Transaction', 'transaction']:
