@@ -4,6 +4,7 @@ from typing import List, Dict
 
 from django.db.models import F
 from django.db.models.functions import Coalesce
+from django.contrib.contenttypes.models import ContentType
 
 from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport, LikeStatistics, \
     LikeCommentStatistics
@@ -50,6 +51,22 @@ def get_events_list(request, offset, limit):
     transactions = get_transactions_queryset(request, offset, limit)
     event_types = get_event_types_data()
     feed_data = []
+    content_type = ContentType.objects.get_for_model(Transaction)
+    like_comment_statistics = LikeCommentStatistics.objects.only('comment_counter').filter(content_type=content_type)
+    like_statistics = LikeStatistics.objects.select_related('like_kind').only('id', 'like_kind__code', 'like_counter').filter(content_type=content_type)
+    transaction_to_comment_counter = {}
+    transaction_to_reactions = {}
+    for statistic in like_statistics:
+        if statistic.object_id in transaction_to_reactions:
+            reactions = transaction_to_reactions[statistic.object_id]
+            reactions.append({"id": statistic.id, 'code': statistic.like_kind.code, 'counter': statistic.like_counter})
+        else:
+            reactions = [{"id": statistic.id, 'code': statistic.like_kind.code, 'counter': statistic.like_counter}]
+        transaction_to_reactions[statistic.object_id] = reactions
+
+    for statistic in like_comment_statistics:
+        transaction_to_comment_counter[statistic.object_id] = statistic.comment_counter
+
     for _transaction in transactions:
         recipient_tg_name = _transaction.recipient.profile.tg_name
         is_public = _transaction.is_public
@@ -58,11 +75,7 @@ def get_events_list(request, offset, limit):
         event_type = get_event_type(request_user_tg_name, recipient_tg_name, is_public, event_types).to_json()
         sender = 'anonymous' if _transaction.is_anonymous else sender
         del event_type['record_type']
-        try:
-            comment_statistics = LikeCommentStatistics.objects.get(object_id=_transaction.pk)
-            comment_counter = comment_statistics.comment_counter
-        except LikeCommentStatistics.DoesNotExist:
-            comment_counter = 0
+
         transaction_info = {
             "id": _transaction.pk,
             "sender_id": None if _transaction.is_anonymous else _transaction.sender_id,
@@ -79,14 +92,20 @@ def get_events_list(request, offset, limit):
             "photo": f"{get_thumbnail_link(_transaction.photo.url)}" if _transaction.photo else None,
             "updated_at": _transaction.updated_at,
             "tags": _transaction._objecttags.values("tag_id", name=F("tag__name")),
-            "comments_amount": comment_counter,
             "last_like_comment_time": _transaction.last_like_comment_time,
             "user_liked": _transaction.user_liked,
             "user_disliked": _transaction.user_disliked,
-            "reactions": LikeStatistics.objects.filter(object_id=_transaction.pk).values('id',
-                                                                                         code=F('like_kind__code'),
-                                                                                         counter=F('like_counter'))
         }
+        if _transaction.pk in transaction_to_comment_counter:
+            transaction_info['comments_amount'] = transaction_to_comment_counter[_transaction.pk]
+        else:
+            transaction_info['comments_amount'] = 0
+
+        if _transaction.pk in transaction_to_reactions:
+            transaction_info['reactions'] = transaction_to_reactions[_transaction.pk]
+        else:
+            transaction_info['reactions'] = []
+
         event_data = {
             "id": 0,
             "time": _transaction.updated_at + timedelta(hours=3),

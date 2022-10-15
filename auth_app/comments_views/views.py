@@ -32,9 +32,8 @@ class CommentListAPIView(APIView):
         transaction_id = request.data.get('transaction_id')
         challenge_id = request.data.get('challenge_id')
         challenge_report_id = request.data.get('challenge_report_id')
-        comment_id = request.data.get('comment_id')
         content_type, object_id = get_object(content_type, object_id, None, transaction_id, challenge_id,
-                                             challenge_report_id, comment_id)
+                                             challenge_report_id, None)
         content_type = content_type.id
         if type(offset) != int or type(limit) != int:
             return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)

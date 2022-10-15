@@ -108,7 +108,9 @@ urlpatterns = [
     # likes
     path('press-like/', likes_views.PressLikeView.as_view()),
     path('get-likes-by-transaction/', likes_views.LikesListAPIView.as_view()),
+    path('get-likes/', likes_views.LikesListAPIView.as_view()),
     path('get-likes-by-user/', likes_views.LikesUserListAPIView.as_view()),
     # statistics
     path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
+    path('get-likes-comments-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
 ]
