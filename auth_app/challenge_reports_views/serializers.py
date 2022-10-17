@@ -30,6 +30,9 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
 
             try:
                 participant = ChallengeParticipant.objects.get(challenge=challenge, user_participant=user)
+                if 'K' in challenge.challenge_mode and 'P' in participant.mode:
+                    raise ValidationError("Данный участник уже отправил отчет для этого челленджа")
+
                 if 'O' in participant.mode and 'P' not in participant.mode:
                     challenge.participants_count += 1
                     challenge.save(update_fields=["participants_count"])
@@ -37,8 +40,7 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
                     mode.append('P')
                     participant.mode = mode
                     participant.save(update_fields=["mode"])
-                if 'K' in challenge.challenge_mode:
-                    raise ValidationError("Данный участник уже отправил отчет для этого челленджа")
+
             except ChallengeParticipant.DoesNotExist:
                 participant = ChallengeParticipant.objects.create(
                     user_participant=user,
