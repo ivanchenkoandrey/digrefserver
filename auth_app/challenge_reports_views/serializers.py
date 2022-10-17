@@ -14,11 +14,13 @@ from utils.current_period import get_current_period
 from utils.handle_image import change_filename
 from django.contrib.contenttypes.models import ContentType
 
+from utils.thumbnail_link import get_thumbnail_link
+
 
 class CreateChallengeReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChallengeReport
-        fields = ['challenge', 'text', 'photo']
+        fields = ['challenge', 'text']
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -33,13 +35,8 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
                 if 'K' in challenge.challenge_mode and 'P' in participant.mode:
                     raise ValidationError("Данный участник уже отправил отчет для этого челленджа")
 
-                if 'O' in participant.mode and 'P' not in participant.mode:
-                    challenge.participants_count += 1
-                    challenge.save(update_fields=["participants_count"])
-                    mode = participant.mode
-                    mode.append('P')
-                    participant.mode = mode
-                    participant.save(update_fields=["mode"])
+                if 'O' in participant.mode:
+                    raise ValidationError("Организатор не может участвовать в своем челлендже")
 
             except ChallengeParticipant.DoesNotExist:
                 participant = ChallengeParticipant.objects.create(
@@ -179,3 +176,42 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         new_reports_exists = check_if_new_reports_exists(reviewer)
         validated_data['new_reports_exists'] = new_reports_exists
         return {"state": state, 'new_reports_exists': new_reports_exists}
+
+
+class ChallengeReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChallengeReport
+        fields = ['challenge', 'user', 'text', 'photo']
+
+    challenge = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
+    text = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+
+    def get_challenge(self, obj):
+        challenge = {
+            "id": self.context.get('challenge').id,
+            "name": self.context.get('challenge').name
+        }
+        return challenge
+
+    def get_user(self, obj):
+        user = {
+            "id": self.context.get('user').id,
+            "tg_name": self.context.get('user_profile').tg_name,
+            "name": self.context.get('user_profile').first_name,
+            "surname": self.context.get('user_profile').surname
+        }
+        return user
+
+    def get_text(self, obj):
+        text = obj.text
+        return text
+
+    def get_photo(self, obj):
+
+        if getattr(obj, "photo"):
+            photo = get_thumbnail_link(obj.photo.url)
+        else:
+            photo = None
+        return photo
