@@ -200,8 +200,13 @@ class ChallengeReportSerializer(serializers.ModelSerializer):
             "id": self.context.get('user').id,
             "tg_name": self.context.get('user_profile').tg_name,
             "name": self.context.get('user_profile').first_name,
-            "surname": self.context.get('user_profile').surname
+            "surname": self.context.get('user_profile').surname,
+            'avatar': self.context.get('user_profile').get_photo_url()
         }
+        if getattr(obj, "photo"):
+            photo = obj.photo.url
+        else:
+            photo = None
         return user
 
     def get_text(self, obj):
@@ -209,9 +214,8 @@ class ChallengeReportSerializer(serializers.ModelSerializer):
         return text
 
     def get_photo(self, obj):
-
         if getattr(obj, "photo"):
-            photo = get_thumbnail_link(obj.photo.url)
+            photo = obj.photo.url
         else:
             photo = None
         return photo
