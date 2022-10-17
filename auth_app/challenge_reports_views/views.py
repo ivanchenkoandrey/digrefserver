@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from .serializers import ChallengeReportSerializer
 from utils.challenges_logic import check_if_new_reports_exists
 from .serializers import CreateChallengeReportSerializer, CheckChallengeReportSerializer
-
+from rest_framework.exceptions import ValidationError
 
 class CreateChallengeReportView(CreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -61,5 +61,5 @@ class ChallengeReportDetailAPIView(APIView):
             serializer = ChallengeReportSerializer(challenge_report, context=context)
             return Response(serializer.data)
         except ChallengeReport.DoesNotExist:
-            raise ValueError("Данного отчета не существует")
+            raise ValidationError("Данного отчета не существует")
 
