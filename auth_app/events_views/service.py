@@ -2,12 +2,12 @@ import logging
 from datetime import timedelta
 from typing import List, Dict
 
-from django.db.models import F
-from django.db.models.functions import Coalesce
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import F
 
-from auth_app.models import EventTypes, Transaction, Profile, Event, Challenge, ChallengeReport, LikeStatistics, \
-    LikeCommentStatistics
+from auth_app.models import (EventTypes, Transaction, Profile,
+                             Event, Challenge, ChallengeReport,
+                             LikeStatistics, LikeCommentStatistics)
 from utils.challenges_logic import update_link_on_thumbnail, update_time
 from utils.thumbnail_link import get_thumbnail_link
 
@@ -53,7 +53,9 @@ def get_events_list(request, offset, limit):
     feed_data = []
     content_type = ContentType.objects.get_for_model(Transaction)
     like_comment_statistics = LikeCommentStatistics.objects.only('comment_counter').filter(content_type=content_type)
-    like_statistics = LikeStatistics.objects.select_related('like_kind').only('id', 'like_kind__code', 'like_counter').filter(content_type=content_type)
+    like_statistics = (LikeStatistics.objects.select_related('like_kind')
+                       .only('id', 'like_kind__code', 'like_counter')
+                       .filter(content_type=content_type))
     transaction_to_comment_counter = {}
     transaction_to_reactions = {}
     for statistic in like_statistics:
@@ -195,17 +197,33 @@ def get_transactions_from_events(transaction_id_array: List[int]) -> Dict:
                           'updated_at',
                           'is_anonymous',
                           'id')
-                    .values('id', 'amount', 'updated_at', 'sender_id',
-                            'recipient_id', 'is_anonymous',
-                            sender_tg_name=F('sender__profile__tg_name'),
-                            recipient_tg_name=F('recipient__profile__tg_name'),
-                            recipient_photo=F('recipient__profile__photo')))
+                    )
+    transactions = get_transactions_list_from_queryset(transactions)
     update_link_on_thumbnail(transactions, 'recipient_photo')
     update_time(transactions, 'updated_at')
     for tr in transactions:
         if tr.get('is_anonymous'):
             tr.update({'sender_id': None, 'sender_tg_name': None})
     return transactions
+
+
+def get_transactions_list_from_queryset(transactions):
+    transactions_list = []
+    for transaction in transactions:
+        transaction_data = {
+            "id": transaction.pk,
+            "amount": transaction.amount,
+            "updated_at": transaction.updated_at,
+            "sender_id": transaction.sender_id,
+            "recipient_id": transaction.recipient_id,
+            "is_anonymous": transaction.is_anonymous,
+            "sender_tg_name": transaction.sender.profile.tg_name,
+            "recipient_tg_name": transaction.recipient.profile.tg_name,
+            "recipient_photo": transaction.recipient.profile.get_photo_url(),
+            "tags": transaction._objecttags.values("tag_id", name=F("tag__name"))
+        }
+        transactions_list.append(transaction_data)
+    return transactions_list
 
 
 def get_challenges_from_events(challenge_id_array: List[int]) -> Dict:
