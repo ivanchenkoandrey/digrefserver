@@ -72,6 +72,7 @@ urlpatterns = [
     # events
     path('feed/', events_views.EventListView.as_view()),
     path('events/', events_views.FeedView.as_view()),
+    path('events/transactions/<int:pk>/', events_views.EventTransactionDetailView.as_view()),
 
     # periods
     path('periods/', periods_views.PeriodListView.as_view()),

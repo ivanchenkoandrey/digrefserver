@@ -199,11 +199,12 @@ def get_transactions_from_events(transaction_id_array: List[int]) -> Dict:
                           'id')
                     )
     transactions = get_transactions_list_from_queryset(transactions)
-    update_link_on_thumbnail(transactions, 'recipient_photo')
     update_time(transactions, 'updated_at')
     for tr in transactions:
         if tr.get('is_anonymous'):
             tr.update({'sender_id': None, 'sender_tg_name': None})
+        if recipient_photo := tr.get('recipient_photo'):
+            tr.update({"recipient_photo": get_thumbnail_link(recipient_photo)})
     return transactions
 
 
@@ -265,3 +266,51 @@ def get_winners_from_events(winners_id_array: List[int]) -> Dict:
                        winner_photo=F('participant__user_participant__profile__photo')))
     update_link_on_thumbnail(winners, 'winner_photo')
     return winners
+
+
+def get_events_transaction_queryset(pk: int) -> Transaction:
+    transaction = (Transaction.objects.select_related('sender__profile', 'recipient__profile')
+                   .prefetch_related('_objecttags')
+                   .filter(pk=pk)
+                   .only('id', 'updated_at', 'sender_id',
+                         'recipient_id', 'sender__profile__tg_name',
+                         'sender__profile__photo',
+                         'sender__profile__first_name',
+                         'sender__profile__surname',
+                         'recipient__profile__tg_name',
+                         'recipient__profile__photo',
+                         'recipient__profile__first_name',
+                         'recipient__profile__surname',
+                         'is_anonymous',
+                         'reason',
+                         'photo',
+                         'amount',
+                         'is_public'
+                         ).first())
+    return transaction
+
+
+def get_transaction_data_from_transaction_object(transaction: Transaction) -> Dict:
+    recipient_photo = transaction.recipient.profile.get_photo_url()
+    sender_photo = transaction.sender.profile.get_photo_url()
+    transaction_data = {
+        "id": transaction.pk,
+        "photo": transaction.get_photo_url(),
+        "reason": transaction.reason,
+        "amount": transaction.amount,
+        "updated_at": transaction.updated_at,
+        "sender_id": None if transaction.is_anonymous else transaction.sender_id,
+        "sender_first_name": None if transaction.is_anonymous else transaction.sender.profile.first_name,
+        "sender_surname": None if transaction.is_anonymous else transaction.sender.profile.surname,
+        "sender_photo": None if transaction.is_anonymous or sender_photo is None else get_thumbnail_link(sender_photo),
+        "sender_tg_name": None if transaction.is_anonymous else transaction.sender.profile.tg_name,
+        "recipient_id": transaction.recipient_id,
+        "recipient_first_name": transaction.recipient.profile.first_name,
+        "recipient_surname": transaction.recipient.profile.surname,
+        "is_anonymous": transaction.is_anonymous,
+        "recipient_tg_name": transaction.recipient.profile.tg_name,
+        "recipient_photo": None if recipient_photo is None else get_thumbnail_link(recipient_photo),
+        "tags": transaction._objecttags.values("tag_id", name=F("tag__name"))
+    }
+    update_time([transaction_data], 'updated_at')
+    return transaction_data
