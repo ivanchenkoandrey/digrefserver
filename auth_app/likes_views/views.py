@@ -39,18 +39,7 @@ class LikesListAPIView(APIView):
 
         offset = request.data.get('offset')
         limit = request.data.get('limit')
-        if content_type in ['Transaction', 'transaction']:
-            content_type = ContentType.objects.get_for_model(Transaction).id
-        elif content_type in ['Challenge', 'challenge']:
-            content_type = ContentType.objects.get_for_model(Challenge).id
-        elif content_type in ['ChallengeReport', 'challengeReport', 'challengereport']:
-            content_type = ContentType.objects.get_for_model(ChallengeReport).id
-        elif content_type in ['Comment', 'comment']:
-            content_type = ContentType.objects.get_for_model(Comment).id
-
-        if content_type is None:
-            content_type = ContentType.objects.get_for_model(Transaction).id
-            object_id = transaction_id
+        content_type = content_type.id
 
         if offset is None:
             offset = 0
