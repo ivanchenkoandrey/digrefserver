@@ -75,7 +75,7 @@ urlpatterns = [
     path('events/', events_views.FeedView.as_view()),
     path('events/transactions/', events_views.TransactionFeedView.as_view()),
     path('events/transactions/<int:pk>/', events_views.EventTransactionDetailView.as_view()),
-    path('events/reports/', events_views.ReportFeedView.as_view()),
+    path('events/winners/', events_views.ReportFeedView.as_view()),
     path('events/challenges/', events_views.ChallengeFeedView.as_view()),
 
     # periods
