@@ -12,7 +12,8 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
                                     set_active_field, set_completed_field, calculate_remaining_top_places,
                                     check_if_new_reports_exists, set_names_to_null, get_challenge_report_status,
                                     update_link_on_thumbnail, update_time, update_photo_link,
-                                    set_winner_nickname, reconfigure_challenges_queryset_into_dictionary)
+                                    set_winner_nickname, reconfigure_challenges_queryset_into_dictionary,
+                                    get_reports_data_from_queryset, add_transaction_amount_for_winner_reports)
 from utils.query_debugger import query_debugger
 from .service import create_challenge
 
@@ -50,7 +51,6 @@ class ChallengeListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
-    @query_debugger
     def get(cls, request, *args, **kwargs):
         active_only = request.GET.get('active_only')
         if cls.get_boolean_parameter(active_only):
@@ -80,7 +80,6 @@ class ChallengeDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
-    @query_debugger
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
         challenges = Challenge.objects.raw(
@@ -118,6 +117,28 @@ class ChallengeWinnersList(APIView):
         update_time(winners, 'awarded_at')
         update_link_on_thumbnail(winners, 'participant_photo')
         return Response(data=winners)
+
+
+class ChallengeWinnersReportsList(APIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @classmethod
+    @query_debugger
+    def get(cls, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        challenge = get_object_or_404(Challenge, pk=pk)
+        challenge_id = challenge.pk
+        is_nickname_allowed = 'N' in challenge.challenge_mode
+        winners = ChallengeReport.objects.get_winners_reports_by_challenge_id(challenge_id)
+        winners = get_reports_data_from_queryset(winners) if winners else []
+        if is_nickname_allowed:
+            set_names_to_null(winners)
+        set_winner_nickname(winners)
+        update_time(winners, 'awarded_at')
+        add_transaction_amount_for_winner_reports(winners)
+        return Response(winners)
 
 
 class ChallengeContendersList(APIView):

@@ -178,6 +178,57 @@ def get_events_data(offset, limit):
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
 
+def get_transactions_events_data(offset, limit):
+    events = {event.id: event.to_json() for event in
+              (Event.objects
+               .filter(object_selector='T')
+               .order_by('-time')
+              [offset * limit: offset * limit + limit])}
+    events_data = []
+    transaction_event_pairs = get_event_objects_pairs(events, TRANSACTION_TYPE_ID)
+    transactions = get_transactions_from_events(list(transaction_event_pairs.keys()))
+    for tr in transactions:
+        transaction_event_pairs.get(tr.get('id')).update({'transaction': tr})
+    for tr in transaction_event_pairs.values():
+        events_data.append(tr)
+    update_time(events_data, 'time')
+    return sorted(events_data, key=lambda item: item['time'], reverse=True)
+
+
+def get_reports_events_data(offset, limit):
+    events = {event.id: event.to_json() for event in
+              (Event.objects
+               .filter(object_selector='R')
+               .order_by('-time')
+              [offset * limit: offset * limit + limit])}
+    events_data = []
+    winners_event_pairs = get_event_objects_pairs(events, WINNER_TYPE_ID)
+    winners = get_winners_from_events(list(winners_event_pairs.keys()))
+    for w in winners:
+        winners_event_pairs.get(w.get('id')).update({'winner': w})
+    for w in winners_event_pairs.values():
+        events_data.append(w)
+    update_time(events_data, 'time')
+    return sorted(events_data, key=lambda item: item['time'], reverse=True)
+
+
+def get_challenges_events_data(offset, limit):
+    events = {event.id: event.to_json() for event in
+              (Event.objects
+               .filter(object_selector='Q')
+               .order_by('-time')
+              [offset * limit: offset * limit + limit])}
+    events_data = []
+    event_pairs = get_event_objects_pairs(events, CHALLENGE_TYPE_ID)
+    challenges = get_challenges_from_events(list(event_pairs.keys()))
+    for challenge in challenges:
+        event_pairs.get(challenge.get('id')).update({'challenge': challenge})
+    for challenge in event_pairs.values():
+        events_data.append(challenge)
+    update_time(events_data, 'time')
+    return sorted(events_data, key=lambda item: item['time'], reverse=True)
+
+
 def get_event_objects_pairs(events: Dict[int, Dict], type_id: int) -> Dict[int, Dict]:
     return {event['event_object_id']: event
             for event in events.values() if event['event_type_id'] == type_id}
@@ -264,6 +315,7 @@ def get_winners_from_events(winners_id_array: List[int]) -> Dict:
                        winner_surname=F('participant__user_participant__profile__surname'),
                        winner_tg_name=F('participant__user_participant__profile__tg_name'),
                        winner_photo=F('participant__user_participant__profile__photo')))
+    update_time(winners, 'updated_at')
     update_link_on_thumbnail(winners, 'winner_photo')
     return winners
 

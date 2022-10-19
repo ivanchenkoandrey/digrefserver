@@ -84,8 +84,6 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
             raise ValidationError("Отправивший запрос не является создателем челленджа")
         if 'C' in challenge_report.challenge.states and state == 'W':
             raise ValidationError("Челлендж уже завершен")
-        # if reason is None and state == 'D':
-        #     raise ValidationError("Не указана причина отклонения")
         if (reason is not None and reason != '') and state == 'D':
             content_type = "ChallengeReport"
             create_comment(content_type, challenge_report.id, reason, None, reviewer, None, None, None, None, None)
@@ -123,6 +121,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     transaction_class='W',
                     status='R',
                     period=current_period,
+                    challenge_report=self.instance
                 )
                 Event.objects.create(
                     event_type=EventTypes.objects.get(name='Новый победитель челленджа'),

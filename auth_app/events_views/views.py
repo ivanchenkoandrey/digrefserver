@@ -10,7 +10,11 @@ from rest_framework.views import APIView
 from utils.paginates import process_offset_and_limit
 from .service import (get_events_list, get_events_data,
                       get_events_transaction_queryset,
-                      get_transaction_data_from_transaction_object)
+                      get_transaction_data_from_transaction_object,
+                      get_transactions_events_data,
+                      get_reports_events_data,
+                      get_challenges_events_data)
+from utils.query_debugger import query_debugger
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +37,51 @@ class FeedView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
+    @query_debugger
     def get(cls, request, *args, **kwargs):
         offset = request.GET.get('offset')
         limit = request.GET.get('limit')
         offset, limit = process_offset_and_limit(offset, limit)
         return Response(get_events_data(offset, limit))
+
+
+class TransactionFeedView(APIView):
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @classmethod
+    @query_debugger
+    def get(cls, request, *args, **kwargs):
+        offset = request.GET.get('offset')
+        limit = request.GET.get('limit')
+        offset, limit = process_offset_and_limit(offset, limit)
+        return Response(get_transactions_events_data(offset, limit))
+
+
+class ChallengeFeedView(APIView):
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @classmethod
+    @query_debugger
+    def get(cls, request, *args, **kwargs):
+        offset = request.GET.get('offset')
+        limit = request.GET.get('limit')
+        offset, limit = process_offset_and_limit(offset, limit)
+        return Response(get_challenges_events_data(offset, limit))
+
+
+class ReportFeedView(APIView):
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @classmethod
+    @query_debugger
+    def get(cls, request, *args, **kwargs):
+        offset = request.GET.get('offset')
+        limit = request.GET.get('limit')
+        offset, limit = process_offset_and_limit(offset, limit)
+        return Response(get_reports_events_data(offset, limit))
 
 
 class EventTransactionDetailView(APIView):

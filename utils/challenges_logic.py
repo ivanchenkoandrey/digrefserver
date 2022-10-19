@@ -3,6 +3,7 @@ from typing import Dict, List
 
 from django.db.models import Q, QuerySet
 
+from auth_app.models import ChallengeReport, Transaction
 from utils.thumbnail_link import get_thumbnail_link
 
 MODES = {
@@ -158,3 +159,37 @@ def set_winner_nickname(winners: List[Dict]) -> None:
         if winner.get('nickname') is None:
             winner['nickname'] = winner.get('participant_tg_name')
         del winner['participant_tg_name']
+
+
+def get_reports_data_from_queryset(reports: QuerySet[ChallengeReport]) -> List[Dict]:
+    reports_list = []
+    for report in reports:
+        participant_photo = report.participant.user_participant.profile.get_photo_url()
+        report_photo = report.get_photo_url
+        report_data = {
+            "id": report.pk,
+            "nickname": report.participant.nickname,
+            "awarded_at": report.updated_at,
+            "photo": get_thumbnail_link(report_photo) if report_photo is not None else None,
+            "challenge_id": report.challenge_id,
+            "participant_id": report.participant.user_participant_id,
+            "participant_tg_name": report.participant.user_participant.profile.tg_name,
+            "participant_name": report.participant.user_participant.profile.first_name,
+            "participant_surname": report.participant.user_participant.profile.surname,
+            "participant_photo": get_thumbnail_link(participant_photo) if participant_photo is not None else None
+        }
+        reports_list.append(report_data)
+    return reports_list
+
+
+def add_transaction_amount_for_winner_reports(reports):
+    reports_ids = [report.get('id') for report in reports]
+    transactions = {transaction.challenge_report_id: transaction.amount
+                    for transaction in (Transaction.objects
+                                        .filter(challenge_report_id__in=reports_ids)
+                                        .only('challenge_report_id', 'amount'))}
+
+    for report in reports:
+        report_id = report.get('id')
+        award = transactions.get(report_id)
+        report.update({"award": int(award)})

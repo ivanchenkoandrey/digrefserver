@@ -52,6 +52,7 @@ urlpatterns = [
     path('challenges/', challenges_views.ChallengeListView.as_view()),
     path('challenges/<int:pk>/', challenges_views.ChallengeDetailView.as_view()),
     path('challenge-winners/<int:pk>/', challenges_views.ChallengeWinnersList.as_view()),
+    path('challenge-winners-reports/<int:pk>/', challenges_views.ChallengeWinnersReportsList.as_view()),
     path('challenge-contenders/<int:pk>/', challenges_views.ChallengeContendersList.as_view()),
     path('check-new-reports/', challenges_views.CheckIfNewReportsExistView.as_view()),
     path('challenge-result/<int:pk>/', challenges_views.GetUserChallengeReportView.as_view()),
@@ -72,7 +73,10 @@ urlpatterns = [
     # events
     path('feed/', events_views.EventListView.as_view()),
     path('events/', events_views.FeedView.as_view()),
+    path('events/transactions/', events_views.TransactionFeedView.as_view()),
     path('events/transactions/<int:pk>/', events_views.EventTransactionDetailView.as_view()),
+    path('events/reports/', events_views.ReportFeedView.as_view()),
+    path('events/challenges/', events_views.ChallengeFeedView.as_view()),
 
     # periods
     path('periods/', periods_views.PeriodListView.as_view()),

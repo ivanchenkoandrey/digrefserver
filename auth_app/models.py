@@ -293,7 +293,8 @@ class Transaction(models.Model):
 
     is_commentable = models.BooleanField(default=True,
                                          verbose_name="Разрешение на добавление/изменение/удаления комментариев")
-
+    challenge_report = models.ForeignKey('ChallengeReport', null=True, blank=True, related_name='rewards',
+                                         on_delete=models.SET_NULL, verbose_name='Отчёт о выполнении челленджа')
     comments = GenericRelation('Comment')
     likes = GenericRelation('Like')
 
@@ -357,7 +358,7 @@ class Account(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Количество')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Время обновления')
     transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True)
-    challenge = models.ForeignKey('Challenge', on_delete=models.SET_NULL, null=True, blank=True,
+    challenge = models.ForeignKey('Challenge', on_delete=models.CASCADE, null=True, blank=True,
                                   related_name='challengeaccount', verbose_name='Челлендж')
 
     def to_json(self):

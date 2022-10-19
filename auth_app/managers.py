@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q, F, Exists, OuterRef, Count, When, Value, Case, Prefetch
+from django.db.models import Q, F, Exists, OuterRef, Count, Prefetch
 
 
 class CustomChallengeQueryset(models.QuerySet):
@@ -105,3 +105,14 @@ class CustomChallengeReportQueryset(models.QuerySet):
         return (self.select_related('participant').filter(challenge_id=challenge_id, participant__user_participant=user)
                 .only('updated_at', 'text', 'photo', 'participant__total_received', 'state')
                 .values('updated_at', 'text', 'photo', status=F('state'), received=F('participant__total_received')))
+
+    def get_winners_reports_by_challenge_id(self, challenge_id):
+        return (self.select_related('participant__user_participant__profile', 'challenge')
+                .filter(challenge_id=challenge_id, state='W')
+                .only('id', 'participant__nickname', 'updated_at', 'photo',
+                      'challenge_id',
+                      'participant__user_participant__id',
+                      'participant__user_participant__profile__first_name',
+                      'participant__user_participant__profile__surname',
+                      'participant__user_participant__profile__tg_name',
+                      'participant__user_participant__profile__photo'))
