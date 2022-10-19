@@ -192,4 +192,4 @@ def add_transaction_amount_for_winner_reports(reports):
     for report in reports:
         report_id = report.get('id')
         award = transactions.get(report_id)
-        report.update({"award": int(award)})
+        report.update({"award": int(award) if award else None})
