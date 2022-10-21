@@ -232,12 +232,16 @@ def get_transactions_events_data(offset, limit, user_id):
                .order_by('-time')
               [offset * limit: offset * limit + limit])}
     events_data = []
+    object_pks = set()
     transaction_event_pairs = get_event_objects_pairs(events, TRANSACTION_TYPE_ID)
     transactions = get_transactions_from_events(list(transaction_event_pairs.keys()), user_id)
     for transaction in transactions:
         transaction_event_pairs.get(transaction.get('id')).update({'transaction': transaction})
     for transaction in transaction_event_pairs.values():
+        object_pks.add(transaction.get('transaction').get('id'))
         events_data.append(transaction)
+    get_likes_statistics_for_events(object_pks, events_data)
+    get_comments_statistics_for_events(object_pks, events_data)
     update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
@@ -249,12 +253,16 @@ def get_reports_events_data(offset, limit, user_id):
                .order_by('-time')
               [offset * limit: offset * limit + limit])}
     events_data = []
+    object_pks = set()
     winners_event_pairs = get_event_objects_pairs(events, WINNER_TYPE_ID)
     winners = get_winners_from_events(list(winners_event_pairs.keys()), user_id)
     for winner in winners:
         winners_event_pairs.get(winner.get('id')).update({'winner': winner})
     for winner in winners_event_pairs.values():
+        object_pks.add(winner.get('winner').get('id'))
         events_data.append(winner)
+    get_likes_statistics_for_events(object_pks, events_data)
+    get_comments_statistics_for_events(object_pks, events_data)
     update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
@@ -266,12 +274,16 @@ def get_challenges_events_data(offset, limit, user_id):
                .order_by('-time')
               [offset * limit: offset * limit + limit])}
     events_data = []
+    object_pks = set()
     event_pairs = get_event_objects_pairs(events, CHALLENGE_TYPE_ID)
     challenges = get_challenges_from_events(list(event_pairs.keys()), user_id)
     for challenge in challenges:
         event_pairs.get(challenge.get('id')).update({'challenge': challenge})
     for challenge in event_pairs.values():
+        object_pks.add(challenge.get('challenge').get('id'))
         events_data.append(challenge)
+    get_likes_statistics_for_events(object_pks, events_data)
+    get_comments_statistics_for_events(object_pks, events_data)
     update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
