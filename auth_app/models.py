@@ -2,19 +2,16 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import CITextField, CICharField
 from django.db import models
 from django.db.models import Q, F, ExpressionWrapper, Exists, OuterRef
 from django.db.models.fields import DateTimeField
-from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes.fields import GenericRelation
-from django.db.models import Subquery
 
 from auth_app.managers import (CustomChallengeQueryset,
                                CustomChallengeParticipantQueryset,
@@ -183,7 +180,9 @@ class CustomTransactionQueryset(models.QuerySet):
         """
         queryset = (self
                     .select_related('sender__profile', 'recipient__profile', 'reason_def',
-                                    'sender_account', 'recipient_account')
+                                    'sender_account__owner__profile',
+                                    'recipient_account__owner__profile', 'from_challenge',
+                                    'to_challenge')
                     .prefetch_related('_objecttags')
                     .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
                              (Q(transaction_class='H') & Q(sender_account__owner=current_user)) |
@@ -211,17 +210,11 @@ class CustomTransactionQueryset(models.QuerySet):
                     .filter(status='W'))
         return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
 
-    def filter_by_period(self, current_user, period):
+    def filter_by_period(self, current_user, period_id):
         """
         Возвращает список транзакций пользователя, совершенных в рамках конкретного периода
         """
-
-        queryset = (self
-                    .select_related('sender__profile', 'recipient__profile', 'reason_def')
-                    .prefetch_related('_objecttags')
-                    .filter((Q(sender=current_user) | Q(recipient=current_user)) &
-                            Q(created_at__gte=period.start_date) & Q(created_at__lte=period.end_date)
-                            ))
+        queryset = self.filter_by_user(current_user).filter(period_id=period_id)
         return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
 
     def feed_version(self, user):

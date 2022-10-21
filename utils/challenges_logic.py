@@ -40,8 +40,13 @@ CHALLENGE_REPORT_STATES = {
 def reconfigure_challenges_queryset_into_dictionary(challenges: QuerySet, pk=False) -> List[Dict]:
     challenges_list = []
     for challenge in challenges:
+        comments_amount = challenge.comments_amount
+        likes_amount = challenge.likes_amount
         data = {
             'id': challenge.id,
+            'user_liked': challenge.user_liked,
+            'likes_amount': likes_amount if likes_amount is not None else 0,
+            'comments_amount': comments_amount if comments_amount is not None else 0,
             'name': challenge.name,
             'photo': challenge.photo.name,
             'updated_at': challenge.updated_at,

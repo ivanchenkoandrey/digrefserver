@@ -4,16 +4,14 @@ from django.conf import settings
 from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+
 from auth_app.comments_views.service import create_comment
 from auth_app.models import (ChallengeReport, Event, EventTypes,
                              ChallengeParticipant, Account, Transaction, UserStat)
-
 from utils.challenges_logic import check_if_new_reports_exists
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
 from utils.handle_image import change_filename
-from django.contrib.contenttypes.models import ContentType
-
 from utils.thumbnail_link import get_thumbnail_link
 
 
@@ -145,7 +143,6 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
 
                     if sender_account.amount > 0:
                         remain = sender_account.amount
-                        print("remain:", remain, sender_account.amount)
                         sender_account.amount -= remain
                         sender_account.save(update_fields=['amount'])
                         recipient_account = Transaction.objects.get(to_challenge=challenge).sender_account
@@ -195,17 +192,14 @@ class ChallengeReportSerializer(serializers.ModelSerializer):
         return challenge
 
     def get_user(self, obj):
+        avatar = self.context.get('user_profile').get_photo_url()
         user = {
             "id": self.context.get('user').id,
             "tg_name": self.context.get('user_profile').tg_name,
             "name": self.context.get('user_profile').first_name,
             "surname": self.context.get('user_profile').surname,
-            'avatar': self.context.get('user_profile').get_photo_url()
+            'avatar': get_thumbnail_link(avatar) if avatar is not None else None
         }
-        if getattr(obj, "photo"):
-            photo = obj.photo.url
-        else:
-            photo = None
         return user
 
     def get_text(self, obj):

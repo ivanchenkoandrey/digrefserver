@@ -171,11 +171,12 @@ class CommentTransactionSerializer(serializers.ModelSerializer):
                 comment_info['picture'] = None
 
             if include_name:
+                avatar = comments_on_transaction_cut[i].user.profile.get_photo_url()
                 user_info = {
                     "id": comments_on_transaction_cut[i].user_id,
                     "name": comments_on_transaction_cut[i].user.profile.first_name,
                     "surname": comments_on_transaction_cut[i].user.profile.surname,
-                    "avatar": comments_on_transaction_cut[i].user.profile.get_photo_url()
+                    "avatar": get_thumbnail_link(avatar) if avatar is not None else None
                 }
 
             else:
@@ -687,13 +688,16 @@ class TransactionFullSerializer(serializers.ModelSerializer):
             }
         if obj.sender_account is not None:
             sender_photo_url = obj.sender_account.owner.profile.get_photo_url()
-            return {
+            sender_data = {
                 'sender_id': obj.sender_account.owner.id,
                 'sender_tg_name': obj.sender_account.owner.profile.tg_name,
                 'sender_first_name': obj.sender_account.owner.profile.first_name,
                 'sender_surname': obj.sender_account.owner.profile.surname,
                 'sender_photo': get_thumbnail_link(sender_photo_url) if sender_photo_url else None
             }
+            if obj.transaction_class == 'H' and obj.to_challenge is not None:
+                sender_data.update({"challenge_name": obj.to_challenge.name})
+            return sender_data
 
     def get_sender_id(self, obj):
         if obj.sender is not None:
@@ -716,13 +720,16 @@ class TransactionFullSerializer(serializers.ModelSerializer):
             }
         if obj.recipient_account is not None:
             recipient_photo_url = obj.recipient_account.owner.profile.get_photo_url()
-            return {
+            recipient_data = {
                 'recipient_id': obj.recipient_account.owner_id,
                 'recipient_tg_name': obj.recipient_account.owner.profile.tg_name,
                 'recipient_first_name': obj.recipient_account.owner.profile.first_name,
                 'recipient_surname': obj.recipient_account.owner.profile.surname,
                 'recipient_photo': get_thumbnail_link(recipient_photo_url) if recipient_photo_url else None
             }
+            if obj.transaction_class == 'W' and obj.from_challenge is not None:
+                recipient_data.update({'challenge_name': obj.from_challenge.name})
+            return recipient_data
 
     def get_recipient_id(self, obj):
         if obj.recipient is not None:

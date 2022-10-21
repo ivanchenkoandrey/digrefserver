@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, authentication
@@ -11,7 +12,6 @@ from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.contenttypes.models import ContentType
 
 from auth_app.comments_views.service import get_object
 from auth_app.models import Transaction, Period
@@ -23,7 +23,6 @@ from auth_app.service import (update_transactions_by_controller,
                               AlreadyUpdatedByControllerError, NotWaitingTransactionError)
 from utils.custom_permissions import IsController
 from utils.paginates import process_offset_and_limit
-from utils.query_debugger import query_debugger
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +114,6 @@ class TransactionsByUserView(ListAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionFullSerializer
 
-    @query_debugger
     def get(self, request, *args, **kwargs):
         logger.info(f"Пользователь {request.user} смотрит список транзакций")
         offset = request.GET.get('offset')
@@ -220,7 +218,7 @@ class TransactionStatisticsAPIView(APIView):
                          authentication.TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_user_transaction_list_by_period(request, period_id):
-    period = get_object_or_404(Period, pk=period_id)
-    transactions_queryset = Transaction.objects.filter_by_period(request.user, period)
+    get_object_or_404(Period, pk=period_id)
+    transactions_queryset = Transaction.objects.filter_by_period(request.user, period_id)
     serializer = TransactionFullSerializer(transactions_queryset, many=True, context={"user": request.user})
     return Response(serializer.data)

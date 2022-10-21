@@ -1,13 +1,16 @@
 from rest_framework import authentication, status
 from rest_framework.generics import CreateAPIView, UpdateAPIView
-from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from auth_app.models import ChallengeReport
 from rest_framework.response import Response
-from .serializers import ChallengeReportSerializer
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+
+from auth_app.models import ChallengeReport
 from utils.challenges_logic import check_if_new_reports_exists
+from utils.query_debugger import query_debugger
+from .serializers import ChallengeReportSerializer
 from .serializers import CreateChallengeReportSerializer, CheckChallengeReportSerializer
-from rest_framework.exceptions import ValidationError
+
 
 class CreateChallengeReportView(CreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -45,10 +48,20 @@ class ChallengeReportDetailAPIView(APIView):
                               authentication.TokenAuthentication]
 
     @classmethod
+    @query_debugger
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
-        try:
-            challenge_report = ChallengeReport.objects.get(id=pk)
+        challenge_report = (ChallengeReport.objects
+                            .select_related('challenge', 'participant__user_participant__profile')
+                            .filter(pk=pk)
+                            .only('challenge_id', 'challenge__name', 'text', 'photo',
+                                  'participant__user_participant__id',
+                                  'participant__user_participant__profile__tg_name',
+                                  'participant__user_participant__profile__first_name',
+                                  'participant__user_participant__profile__surname',
+                                  'participant__user_participant__profile__photo')
+                            .first())
+        if challenge_report is not None:
             challenge = challenge_report.challenge
             participant = challenge_report.participant
             user = participant.user_participant
@@ -60,6 +73,4 @@ class ChallengeReportDetailAPIView(APIView):
             }
             serializer = ChallengeReportSerializer(challenge_report, context=context)
             return Response(serializer.data)
-        except ChallengeReport.DoesNotExist:
-            raise ValidationError("Данного отчета не существует")
-
+        return Response(status=status.HTTP_404_NOT_FOUND)

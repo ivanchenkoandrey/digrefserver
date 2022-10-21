@@ -1,19 +1,21 @@
 import logging
 from datetime import timedelta
 from typing import List, Dict
+from collections import defaultdict
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import F
+from django.db.models import F, Exists, OuterRef
 
 from auth_app.models import (EventTypes, Transaction, Profile,
                              Event, Challenge, ChallengeReport,
-                             LikeStatistics, LikeCommentStatistics)
+                             LikeStatistics, LikeCommentStatistics, Like)
 from utils.challenges_logic import update_link_on_thumbnail, update_time
 from utils.thumbnail_link import get_thumbnail_link
 
 logger = logging.getLogger(__name__)
 
 event_types_data = {event_type.name: event_type.to_json() for event_type in EventTypes.objects.all()}
+object_selectors = {"T": "transaction", "Q": "challenge", "R": "challengereport"}
 
 TRANSACTION_TYPE_ID = event_types_data.get('Новая публичная транзакция').get('id')
 WINNER_TYPE_ID = event_types_data.get('Новый победитель челленджа').get('id')
@@ -152,33 +154,78 @@ def get_transactions_queryset(request, offset, limit):
     return extended_transactions
 
 
-def get_events_data(offset, limit):
+def get_events_data(offset, limit, user_id):
     events = {event.id: event.to_json() for event in
               Event.objects.order_by('-time')[offset * limit: offset * limit + limit]}
     events_data = []
+    objects_pks = set()
     transaction_event_pairs = get_event_objects_pairs(events, TRANSACTION_TYPE_ID)
-    transactions = get_transactions_from_events(list(transaction_event_pairs.keys()))
-    for tr in transactions:
-        transaction_event_pairs.get(tr.get('id')).update({'transaction': tr})
+    transactions = get_transactions_from_events(list(transaction_event_pairs.keys()), user_id)
+    for transaction in transactions:
+        transaction_event_pairs.get(transaction.get('id')).update({'transaction': transaction})
     winners_event_pairs = get_event_objects_pairs(events, WINNER_TYPE_ID)
-    winners = get_winners_from_events(list(winners_event_pairs.keys()))
-    for w in winners:
-        winners_event_pairs.get(w.get('id')).update({'winner': w})
+    winners = get_winners_from_events(list(winners_event_pairs.keys()), user_id)
+    for winner in winners:
+        winners_event_pairs.get(winner.get('id')).update({'winner': winner})
     challenge_event_pairs = get_event_objects_pairs(events, CHALLENGE_TYPE_ID)
-    challenges = get_challenges_from_events(list(challenge_event_pairs.keys()))
-    for ch in challenges:
-        challenge_event_pairs.get(ch.get('id')).update({'challenge': ch})
-    for tr in transaction_event_pairs.values():
-        events_data.append(tr)
-    for w in winners_event_pairs.values():
-        events_data.append(w)
-    for ch in challenge_event_pairs.values():
-        events_data.append(ch)
+    challenges = get_challenges_from_events(list(challenge_event_pairs.keys()), user_id)
+    for challenge in challenges:
+        challenge_event_pairs.get(challenge.get('id')).update({'challenge': challenge})
+    for transaction in transaction_event_pairs.values():
+        objects_pks.add(transaction.get('transaction').get('id'))
+        events_data.append(transaction)
+    for winner in winners_event_pairs.values():
+        objects_pks.add(winner.get('winner').get('id'))
+        events_data.append(winner)
+    for challenge in challenge_event_pairs.values():
+        objects_pks.add(challenge.get('challenge').get('id'))
+        events_data.append(challenge)
+    get_likes_statistics_for_events(objects_pks, events_data)
+    get_comments_statistics_for_events(objects_pks, events_data)
     update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
 
-def get_transactions_events_data(offset, limit):
+def get_likes_statistics_for_events(pk_list, events):
+    stats = [(stats.object_id, stats.content_type.model, stats.like_counter)
+             for stats in LikeStatistics.objects
+             .select_related('content_type', 'like_kind')
+             .filter(object_id__in=pk_list, like_kind__name='like')
+             .only('content_type__model',
+                   'like_kind__name',
+                   'like_counter',
+                   'object_id')]
+    stats_data = defaultdict(dict)
+    for pk, content_type, amount in stats:
+        stats_data[pk].update({content_type: amount})
+    for item in events:
+        item_selector = object_selectors.get(item.get('object_selector'))
+        item_id = item.get('event_object_id')
+        item.setdefault("likes_amount",
+                        stats_data.get(item_id).get(item_selector, 0)
+                        if stats_data.get(item_id) is not None else 0)
+
+
+def get_comments_statistics_for_events(pk_list, events):
+    stats = {(stats.object_id, stats.content_type.model, stats.comment_counter)
+             for stats in LikeCommentStatistics.objects
+             .select_related('content_type')
+             .filter(object_id__in=pk_list)
+             .only('content_type__model',
+                   'comment_counter',
+                   'object_id')}
+    stats_data = defaultdict(dict)
+    for pk, content_type, amount in stats:
+        stats_data[pk].update({content_type: amount})
+    for item in events:
+        item_selector = object_selectors.get(item.get('object_selector'))
+        item_id = item.get('event_object_id')
+        item.setdefault("comments_amount",
+                        stats_data.get(item_id).get(item_selector, 0)
+                        if stats_data.get(item_id) is not None else 0)
+
+
+def get_transactions_events_data(offset, limit, user_id):
     events = {event.id: event.to_json() for event in
               (Event.objects
                .filter(object_selector='T')
@@ -186,16 +233,16 @@ def get_transactions_events_data(offset, limit):
               [offset * limit: offset * limit + limit])}
     events_data = []
     transaction_event_pairs = get_event_objects_pairs(events, TRANSACTION_TYPE_ID)
-    transactions = get_transactions_from_events(list(transaction_event_pairs.keys()))
-    for tr in transactions:
-        transaction_event_pairs.get(tr.get('id')).update({'transaction': tr})
-    for tr in transaction_event_pairs.values():
-        events_data.append(tr)
+    transactions = get_transactions_from_events(list(transaction_event_pairs.keys()), user_id)
+    for transaction in transactions:
+        transaction_event_pairs.get(transaction.get('id')).update({'transaction': transaction})
+    for transaction in transaction_event_pairs.values():
+        events_data.append(transaction)
     update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
 
-def get_reports_events_data(offset, limit):
+def get_reports_events_data(offset, limit, user_id):
     events = {event.id: event.to_json() for event in
               (Event.objects
                .filter(object_selector='R')
@@ -203,16 +250,16 @@ def get_reports_events_data(offset, limit):
               [offset * limit: offset * limit + limit])}
     events_data = []
     winners_event_pairs = get_event_objects_pairs(events, WINNER_TYPE_ID)
-    winners = get_winners_from_events(list(winners_event_pairs.keys()))
-    for w in winners:
-        winners_event_pairs.get(w.get('id')).update({'winner': w})
-    for w in winners_event_pairs.values():
-        events_data.append(w)
+    winners = get_winners_from_events(list(winners_event_pairs.keys()), user_id)
+    for winner in winners:
+        winners_event_pairs.get(winner.get('id')).update({'winner': winner})
+    for winner in winners_event_pairs.values():
+        events_data.append(winner)
     update_time(events_data, 'time')
     return sorted(events_data, key=lambda item: item['time'], reverse=True)
 
 
-def get_challenges_events_data(offset, limit):
+def get_challenges_events_data(offset, limit, user_id):
     events = {event.id: event.to_json() for event in
               (Event.objects
                .filter(object_selector='Q')
@@ -220,7 +267,7 @@ def get_challenges_events_data(offset, limit):
               [offset * limit: offset * limit + limit])}
     events_data = []
     event_pairs = get_event_objects_pairs(events, CHALLENGE_TYPE_ID)
-    challenges = get_challenges_from_events(list(event_pairs.keys()))
+    challenges = get_challenges_from_events(list(event_pairs.keys()), user_id)
     for challenge in challenges:
         event_pairs.get(challenge.get('id')).update({'challenge': challenge})
     for challenge in event_pairs.values():
@@ -234,11 +281,17 @@ def get_event_objects_pairs(events: Dict[int, Dict], type_id: int) -> Dict[int, 
             for event in events.values() if event['event_type_id'] == type_id}
 
 
-def get_transactions_from_events(transaction_id_array: List[int]) -> Dict:
+def get_transactions_from_events(transaction_id_array: List[int], user_id: int) -> Dict:
     transactions = (Transaction.objects
                     .select_related('sender__profile', 'recipient__profile')
                     .prefetch_related('_objecttags')
                     .filter(pk__in=transaction_id_array)
+                    .annotate(user_liked=Exists(Like.objects
+                                                .filter(content_type__model='transaction',
+                                                        object_id=OuterRef('pk'),
+                                                        like_kind__code='like',
+                                                        user_id=user_id
+                                                        )))
                     .only('sender__profile__tg_name',
                           'sender_id',
                           'recipient_id',
@@ -264,6 +317,7 @@ def get_transactions_list_from_queryset(transactions):
     for transaction in transactions:
         transaction_data = {
             "id": transaction.pk,
+            "user_liked": transaction.user_liked,
             "amount": transaction.amount,
             "updated_at": transaction.updated_at,
             "sender_id": transaction.sender_id,
@@ -278,17 +332,23 @@ def get_transactions_list_from_queryset(transactions):
     return transactions_list
 
 
-def get_challenges_from_events(challenge_id_array: List[int]) -> Dict:
+def get_challenges_from_events(challenge_id_array: List[int], user_id) -> Dict:
     challenges = (Challenge.objects
                   .select_related('creator__profile')
                   .filter(pk__in=challenge_id_array)
+                  .annotate(user_liked=Exists(Like.objects
+                                              .filter(content_type__model='challenge',
+                                                      object_id=OuterRef('pk'),
+                                                      like_kind__code='like',
+                                                      user_id=user_id
+                                                      )))
                   .only('photo', 'created_at', 'name', 'end_at',
                         'creator_id', 'id',
                         'creator__profile__first_name',
                         'creator__profile__surname',
                         'creator__profile__tg_name'
                         )
-                  .values('id', 'photo', 'created_at', 'name', 'creator_id',
+                  .values('id', 'photo', 'created_at', 'name', 'creator_id', 'user_liked',
                           creator_first_name=F('creator__profile__first_name'),
                           creator_surname=F('creator__profile__surname'),
                           creator_tg_name=F('creator__profile__tg_name')))
@@ -297,11 +357,16 @@ def get_challenges_from_events(challenge_id_array: List[int]) -> Dict:
     return challenges
 
 
-def get_winners_from_events(winners_id_array: List[int]) -> Dict:
+def get_winners_from_events(winners_id_array: List[int], user_id) -> Dict:
     winners = (ChallengeReport.objects
                .select_related('challenge__organized_by',
                                'participant__user_participant__profile')
                .filter(pk__in=winners_id_array)
+               .annotate(user_liked=Exists(Like.objects
+                                           .filter(content_type__model='challengereport',
+                                                   object_id=OuterRef('pk'),
+                                                   like_kind__code='like',
+                                                   user_id=user_id)))
                .only('id', 'updated_at', 'challenge__name',
                      'challenge_id', 'challenge__creator_id',
                      'participant__user_participant_id',
@@ -309,7 +374,7 @@ def get_winners_from_events(winners_id_array: List[int]) -> Dict:
                      'participant__user_participant__profile__surname',
                      'participant__user_participant__profile__tg_name',
                      'participant__user_participant__profile__photo')
-               .values('id', 'updated_at', challenge_name=F('challenge__name'),
+               .values('id', 'updated_at', 'user_liked', challenge_name=F('challenge__name'),
                        winner_id=F('participant__user_participant_id'),
                        winner_first_name=F('participant__user_participant__profile__first_name'),
                        winner_surname=F('participant__user_participant__profile__surname'),
@@ -320,10 +385,16 @@ def get_winners_from_events(winners_id_array: List[int]) -> Dict:
     return winners
 
 
-def get_events_transaction_queryset(pk: int) -> Transaction:
+def get_events_transaction_queryset(pk: int, user_id) -> Transaction:
     transaction = (Transaction.objects.select_related('sender__profile', 'recipient__profile')
                    .prefetch_related('_objecttags')
                    .filter(pk=pk)
+                   .annotate(user_liked=Exists(Like.objects
+                                               .filter(content_type__model='transaction',
+                                                       object_id=OuterRef('pk'),
+                                                       like_kind__code='like',
+                                                       user_id=user_id
+                                                       )))
                    .only('id', 'updated_at', 'sender_id',
                          'recipient_id', 'sender__profile__tg_name',
                          'sender__profile__photo',
@@ -362,7 +433,8 @@ def get_transaction_data_from_transaction_object(transaction: Transaction) -> Di
         "is_anonymous": transaction.is_anonymous,
         "recipient_tg_name": transaction.recipient.profile.tg_name,
         "recipient_photo": None if recipient_photo is None else get_thumbnail_link(recipient_photo),
-        "tags": transaction._objecttags.values("tag_id", name=F("tag__name"))
+        "tags": transaction._objecttags.values("tag_id", name=F("tag__name")),
+        "user_liked": transaction.user_liked
     }
     update_time([transaction_data], 'updated_at')
     return transaction_data
