@@ -448,5 +448,26 @@ def get_transaction_data_from_transaction_object(transaction: Transaction) -> Di
         "tags": transaction._objecttags.values("tag_id", name=F("tag__name")),
         "user_liked": transaction.user_liked
     }
+    get_likes_stats_for_transaction(transaction.pk, transaction_data)
+    get_comments_stats_for_transaction(transaction.pk, transaction_data)
     update_time([transaction_data], 'updated_at')
     return transaction_data
+
+
+def get_likes_stats_for_transaction(transaction_id, data):
+    stat = (LikeStatistics.objects
+            .select_related('content_type', 'like_kind')
+            .filter(object_id=transaction_id,
+                    like_kind__name='like',
+                    content_type__model='transaction')
+            .only('content_type_id', 'like_kind_id', 'like_counter').first())
+    data.setdefault('like_amount', stat.like_counter if stat is not None else 0)
+
+
+def get_comments_stats_for_transaction(transaction_id, data):
+    stat = (LikeCommentStatistics.objects
+            .select_related('content_type')
+            .filter(object_id=transaction_id,
+                    content_type__model='transaction')
+            .only('content_type_id', 'comment_counter').first())
+    data.setdefault('comments_amount', stat.comment_counter if stat is not None else 0)

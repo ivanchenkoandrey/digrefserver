@@ -89,6 +89,7 @@ class EventTransactionDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     @classmethod
+    @query_debugger
     def get(cls, request, *args, **kwargs):
         pk = kwargs.get('pk')
         transaction = get_events_transaction_queryset(pk, request.user.pk)
