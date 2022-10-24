@@ -302,6 +302,7 @@ def get_transactions_from_events(transaction_id_array: List[int], user_id: int) 
                                                 .filter(content_type__model='transaction',
                                                         object_id=OuterRef('pk'),
                                                         like_kind__code='like',
+                                                        is_liked=True,
                                                         user_id=user_id
                                                         )))
                     .only('sender__profile__tg_name',
@@ -405,6 +406,7 @@ def get_events_transaction_queryset(pk: int, user_id) -> Transaction:
                                                .filter(content_type__model='transaction',
                                                        object_id=OuterRef('pk'),
                                                        like_kind__code='like',
+                                                       is_liked=True,
                                                        user_id=user_id
                                                        )))
                    .only('id', 'updated_at', 'sender_id',
