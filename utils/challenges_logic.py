@@ -53,6 +53,8 @@ def reconfigure_challenges_queryset_into_dictionary(challenges: QuerySet, pk=Fal
             'states': challenge.states,
             'approved_reports_amount': challenge.approved_reports_amount,
             'creator_id': challenge.creator_id,
+            'creator_name': challenge.first_name,
+            'creator_surname': challenge.surname,
             'parameters': challenge.parameters,
             'winners_count': challenge.winners_count,
             'is_new_reports': challenge.is_new_reports,

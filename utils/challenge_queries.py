@@ -8,6 +8,8 @@ SELECT DISTINCT
   "challenges"."creator_id", 
   "challenges"."parameters", 
   "challenges"."winners_count",
+  "profiles"."first_name" as "first_name",
+  "profiles"."surname" as "surname",
   (select count(*) from challenge_reports 
      where challenge_reports.challenge_id = challenges.id 
        and "state" IN ('A', 'W')
@@ -76,6 +78,8 @@ SELECT DISTINCT
     join django_content_type ct3 on (lcs1.content_type_id = ct3.id)
     where ct3.model = 'challenge' and lcs1.object_id = challenges.id) as "comments_amount"
 FROM challenges
+JOIN auth_user ON (challenges.creator_id = auth_user.id)
+JOIN profiles ON (auth_user.id = profiles.user_id)
 ORDER BY 1 DESC
 OFFSET %s LIMIT %s
 """
@@ -90,6 +94,8 @@ SELECT DISTINCT
   "challenges"."creator_id", 
   "challenges"."parameters", 
   "challenges"."winners_count",
+  "profiles"."first_name" as "first_name",
+  "profiles"."surname" as "surname",
   (select count(*) from challenge_reports 
      where challenge_reports.challenge_id = challenges.id 
        and "state" IN ('A', 'W')
@@ -158,6 +164,8 @@ SELECT DISTINCT
     join django_content_type ct3 on (lcs1.content_type_id = ct3.id)
     where ct3.model = 'challenge' and lcs1.object_id = challenges.id) as "comments_amount"
 FROM challenges
+JOIN auth_user ON (challenges.creator_id = auth_user.id)
+JOIN profiles ON (auth_user.id = profiles.user_id)
 WHERE NOT ('C'=any("challenges"."states"))
 ORDER BY 1 DESC
 OFFSET %s LIMIT %s
