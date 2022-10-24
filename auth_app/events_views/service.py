@@ -353,6 +353,7 @@ def get_challenges_from_events(challenge_id_array: List[int], user_id) -> Dict:
                                               .filter(content_type__model='challenge',
                                                       object_id=OuterRef('pk'),
                                                       like_kind__code='like',
+                                                      is_liked=True,
                                                       user_id=user_id
                                                       )))
                   .only('photo', 'created_at', 'name', 'end_at',
@@ -379,6 +380,7 @@ def get_winners_from_events(winners_id_array: List[int], user_id) -> Dict:
                                            .filter(content_type__model='challengereport',
                                                    object_id=OuterRef('pk'),
                                                    like_kind__code='like',
+                                                   is_liked=True,
                                                    user_id=user_id)))
                .only('id', 'updated_at', 'challenge__name',
                      'challenge_id', 'challenge__creator_id',
