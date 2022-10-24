@@ -53,11 +53,12 @@ def get_events_list(request, offset, limit):
     transactions = get_transactions_queryset(request, offset, limit)
     event_types = get_event_types_data()
     feed_data = []
-    content_type = ContentType.objects.get_for_model(Transaction)
-    like_comment_statistics = LikeCommentStatistics.objects.only('comment_counter').filter(content_type=content_type)
-    like_statistics = (LikeStatistics.objects.select_related('like_kind')
-                       .only('id', 'like_kind__code', 'like_counter')
-                       .filter(content_type=content_type))
+    like_comment_statistics = (LikeCommentStatistics.objects.select_related('content_type')
+                               .only('comment_counter', 'object_id', 'content_type__model')
+                               .filter(content_type__model='transaction'))
+    like_statistics = (LikeStatistics.objects.select_related('like_kind', 'content_type')
+                       .only('id', 'like_kind__code', 'like_counter', 'object_id', 'content_type__model')
+                       .filter(content_type__model='transaction'))
     transaction_to_comment_counter = {}
     transaction_to_reactions = {}
     for statistic in like_statistics:
