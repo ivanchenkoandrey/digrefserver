@@ -63,7 +63,7 @@ SELECT DISTINCT
         join django_content_type ct1 on (l1.content_type_id = ct1.id) 
         join like_kind lk1 on (lk1.id = l1.like_kind_id)
         where ct1.model = 'challenge' and l1.object_id=challenges.id 
-            and lk1.code = 'like' and l1.user_id = %s) as "user_liked",
+        and l1.is_liked=true and lk1.code = 'like' and l1.user_id = %s) as "user_liked",
     (select 
         ls1.like_counter
     from like_statistics ls1
@@ -145,7 +145,7 @@ SELECT DISTINCT
         join django_content_type ct1 on (l1.content_type_id = ct1.id) 
         join like_kind lk1 on (lk1.id = l1.like_kind_id)
         where ct1.model = 'challenge' and l1.object_id=challenges.id 
-            and lk1.code = 'like' and l1.user_id = %s) as "user_liked",
+        and l1.is_liked=true and lk1.code = 'like' and l1.user_id = %s) as "user_liked",
     (select 
         ls1.like_counter
     from like_statistics ls1
@@ -235,7 +235,7 @@ SELECT
         join django_content_type ct1 on (l1.content_type_id = ct1.id) 
         join like_kind lk3 on (lk3.id = l1.like_kind_id)
         where ct1.model = 'challenge' and l1.object_id=challenges.id 
-            and lk3.code = 'like' and l1.user_id = %s) as "user_liked",
+            and l1.is_liked=true and lk3.code = 'like' and l1.user_id = %s) as "user_liked",
     (select 
         ls1.like_counter
     from like_statistics ls1
