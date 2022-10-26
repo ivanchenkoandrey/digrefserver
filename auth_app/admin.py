@@ -105,3 +105,9 @@ class ChallengeParticipantAdmin(admin.ModelAdmin):
 @admin.register(ChallengeReport)
 class ChallengeReportAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(FCMToken)
+class FCMTokenAdmin(admin.ModelAdmin):
+    list_display = ['token', 'device', 'user']
+    list_select_related = ['user']

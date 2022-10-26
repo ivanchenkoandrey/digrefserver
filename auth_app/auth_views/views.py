@@ -11,11 +11,13 @@ from rest_framework.views import APIView
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
 
-from auth_app.models import Contact, Profile
+from auth_app.models import Contact, Profile, FCMToken
 from auth_app.serializers import (FindUserSerializer, VerifyCodeSerializer)
 from auth_app.tasks import send
 from utils.crypts import decrypt_message, encrypt_message
 from utils.custom_permissions import IsAnonymous
+from utils.fcm_manager import send_multiple_push
+
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -108,6 +110,10 @@ class VerifyCodeView(APIView):
                         "token": token,
                         "sessionid": request.session.session_key}
                 logger.info(f"Пользователь {user} успешно аутентифицирован.")
+                user_fcm_tokens = [fcm_data.token for fcm_data in
+                                   FCMToken.objects.filter(user=user).only('token')]
+                if user_fcm_tokens:
+                    send_multiple_push('Вход в систему', 'Вы успешно зашли в систему', user_fcm_tokens)
                 return Response(data)
             logger.info(f"Введён неправильный код подтверждения: {code}, "
                         f"IP: {request.META.get('REMOTE_ADDR')}")

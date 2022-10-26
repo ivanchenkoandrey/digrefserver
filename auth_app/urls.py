@@ -104,8 +104,7 @@ urlpatterns = [
     path('tg-balance/', tg_bot_views.ExportUserBalance.as_view()),
 
     # fcm
-    path('fcm-token/', fcm_views.SaveFCMToken.as_view()),
-    path('refresh-fcm-token/', fcm_views.RefreshFCMToken.as_view()),
+    path('set-fcm-token/', fcm_views.SetFCMToken.as_view()),
 
     path('burn-thanks/', views.BurnThanksView.as_view()),
     path('burn-income-thanks/', views.BurnIncomeThanksView.as_view()),
