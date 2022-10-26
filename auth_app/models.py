@@ -984,6 +984,18 @@ class ChallengeReport(models.Model):
             return self.photo.url
 
 
+class FCMToken(models.Model):
+    token = models.CharField(max_length=255, verbose_name='Токен', db_index=True)
+    device = models.CharField(max_length=255, verbose_name='Устройство', default='')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='fcmtokens')
+
+    class Meta:
+        db_table = 'fcm_tokens'
+
+    def __str__(self):
+        return self.token
+
+
 @receiver(post_save, sender=User)
 def create_auth_token(instance: User, created: bool, **kwargs):
     if created:

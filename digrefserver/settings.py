@@ -143,7 +143,7 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
-        'utils.events_service': {
+        'utils.handle_image': {
             'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
@@ -191,3 +191,4 @@ DATETIME_INPUT_FORMATS = [
 
 TELEGRAM_BOT_AUTH_TOKEN = env('TELEGRAM_BOT_AUTH_TOKEN')
 THUMBNAIL_SUFFIX = '_thumb'
+CREDENTIALS_PATH = env('CREDENTIALS_PATH')

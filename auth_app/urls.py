@@ -16,6 +16,7 @@ from auth_app.tg_bot_views import views as tg_bot_views
 from auth_app.challenge_reports_views import views as challenge_reports_views
 from auth_app.transaction_views import views as transaction_views
 from auth_app.user_stat_views import views as stat_views
+from auth_app.fcm_views import views as fcm_views
 from . import views
 
 urlpatterns = [
@@ -102,6 +103,10 @@ urlpatterns = [
     path('tg-export/', tg_bot_views.ExportUserTransactions.as_view()),
     path('tg-balance/', tg_bot_views.ExportUserBalance.as_view()),
 
+    # fcm
+    path('fcm-token/', fcm_views.SaveFCMToken.as_view()),
+    path('refresh-fcm-token/', fcm_views.RefreshFCMToken.as_view()),
+
     path('burn-thanks/', views.BurnThanksView.as_view()),
     path('burn-income-thanks/', views.BurnIncomeThanksView.as_view()),
     path('create-user-stats/', stat_views.CreateUserStats.as_view()),
@@ -118,5 +123,5 @@ urlpatterns = [
     path('get-likes-by-user/', likes_views.LikesUserListAPIView.as_view()),
     # statistics
     path('get-transaction-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
-    path('get-likes-comments-statistics/', transaction_views.TransactionStatisticsAPIView.as_view()),
+    path('get-likes-comments-statistics/', transaction_views.TransactionStatisticsAPIView.as_view())
 ]

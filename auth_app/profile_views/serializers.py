@@ -18,13 +18,17 @@ User = get_user_model()
 
 
 class ProfileImageSerializer(serializers.ModelSerializer):
+    cropped_photo = serializers.ImageField(required=False)
+
     class Meta:
         model = Profile
-        fields = ['photo']
+        fields = ['photo', 'cropped_photo']
 
     def update(self, instance, validated_data):
+        request = self.context.get('request')
+        cropped_photo = request.FILES.get('cropped_photo')
         profile = super().update(instance, validated_data)
-        process_profile_image(profile)
+        process_profile_image(profile, cropped_photo)
         return profile
 
 

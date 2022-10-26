@@ -37,6 +37,11 @@ class UpdateProfileImageView(UpdateAPIView):
     def post(self, request, *args, **kwargs):
         return self.put(request, *args, **kwargs)
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'request': self.request})
+        return context
+
 
 class CreateEmployeeView(APIView):
     authentication_classes = [authentication.SessionAuthentication,
