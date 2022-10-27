@@ -12,4 +12,12 @@ def validate_token_request(device, token):
 
 
 def update_or_create_fcm_token(device, token, user):
-    return FCMToken.objects.update_or_create(device=device, token=token, user=user)
+    fcm_token_entry = FCMToken.objects.filter(device=device, user=user).first()
+    if fcm_token_entry is not None:
+        fcm_token_entry.token = token
+        fcm_token_entry.save(update_fields=['token'])
+        created = False
+    else:
+        fcm_token_entry = FCMToken.objects.create(device=device, token=token, user=user)
+        created = True
+    return fcm_token_entry, created
