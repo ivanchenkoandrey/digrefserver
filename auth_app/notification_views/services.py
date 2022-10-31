@@ -3,7 +3,7 @@ from typing import Dict, List
 from auth_app.models import Notification
 
 FIELDS = (
-    'type', 'object_id', 'theme',
+    'id', 'type', 'object_id', 'theme',
     'text', 'read', 'created_at', 'updated_at'
 )
 
@@ -20,6 +20,7 @@ def get_notification_list_by_user(user_id: int, offset: int, limit: int) -> List
         set_read_true_to_notification(not_read_notifications)
     for notification in notifications:
         notification_data = {
+            "id": notification.id,
             "type": notification.type,
             "object_id": notification.object_id,
             "theme": notification.theme,
