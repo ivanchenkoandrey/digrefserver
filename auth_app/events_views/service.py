@@ -363,7 +363,7 @@ def get_challenges_from_events(challenge_id_array: List[int], user_id) -> Dict:
                         'creator__profile__surname',
                         'creator__profile__tg_name'
                         )
-                  .values('id', 'photo', 'created_at', 'name', 'creator_id', 'user_liked',
+                  .values('id', 'photo', 'created_at', 'name', 'creator_id', 'user_liked', 'end_at',
                           creator_first_name=F('creator__profile__first_name'),
                           creator_surname=F('creator__profile__surname'),
                           creator_tg_name=F('creator__profile__tg_name')))
@@ -390,7 +390,8 @@ def get_winners_from_events(winners_id_array: List[int], user_id) -> Dict:
                      'participant__user_participant__profile__surname',
                      'participant__user_participant__profile__tg_name',
                      'participant__user_participant__profile__photo')
-               .values('id', 'updated_at', 'user_liked', challenge_name=F('challenge__name'),
+               .values('id', 'updated_at', 'user_liked', 'challenge_id',
+                       challenge_name=F('challenge__name'),
                        winner_id=F('participant__user_participant_id'),
                        winner_first_name=F('participant__user_participant__profile__first_name'),
                        winner_surname=F('participant__user_participant__profile__surname'),

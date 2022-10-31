@@ -1,22 +1,23 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 
-from auth_app.challenges_views import views as challenges_views
 from auth_app.accounts_views import views as account_views
 from auth_app.auth_views import views as auth_views
+from auth_app.challenge_reports_views import views as challenge_reports_views
+from auth_app.challenges_views import views as challenges_views
 from auth_app.comments_views import views as comments_views
 from auth_app.contacts_views import views as contact_views
 from auth_app.events_views import views as events_views
+from auth_app.fcm_views import views as fcm_views
 from auth_app.likes_views import views as likes_views
 from auth_app.organization_views import views as organization_views
 from auth_app.periods_views import views as periods_views
 from auth_app.profile_views import views as profile_views
 from auth_app.tags_views import views as tag_views
 from auth_app.tg_bot_views import views as tg_bot_views
-from auth_app.challenge_reports_views import views as challenge_reports_views
 from auth_app.transaction_views import views as transaction_views
 from auth_app.user_stat_views import views as stat_views
-from auth_app.fcm_views import views as fcm_views
+from auth_app.notification_views import views as notification_views
 from . import views
 
 urlpatterns = [
@@ -79,6 +80,9 @@ urlpatterns = [
     path('events/winners/', events_views.ReportFeedView.as_view()),
     path('events/challenges/', events_views.ChallengeFeedView.as_view()),
 
+    # notifications
+    path('notifications/', notification_views.NotificationList.as_view()),
+
     # periods
     path('periods/', periods_views.PeriodListView.as_view()),
     path('create-period/', periods_views.CreatePeriodView.as_view()),
@@ -105,6 +109,7 @@ urlpatterns = [
 
     # fcm
     path('set-fcm-token/', fcm_views.SetFCMToken.as_view()),
+    path('remove-fcm-token/', fcm_views.RemoveFCMToken.as_view()),
 
     path('burn-thanks/', views.BurnThanksView.as_view()),
     path('burn-income-thanks/', views.BurnIncomeThanksView.as_view()),

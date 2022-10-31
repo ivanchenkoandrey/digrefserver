@@ -111,3 +111,9 @@ class ChallengeReportAdmin(admin.ModelAdmin):
 class FCMTokenAdmin(admin.ModelAdmin):
     list_display = ['token', 'device', 'user']
     list_select_related = ['user']
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['user', 'type', 'theme', 'text', 'read', 'updated_at']
+    list_select_related = ['user']

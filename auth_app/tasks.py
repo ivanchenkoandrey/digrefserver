@@ -34,6 +34,9 @@ def validate_transactions_after_grace_period():
     from django.db import transaction
     from datetime import datetime, timezone
     from utils.current_period import get_current_period
+    from utils.notification_services import (create_notification,
+                                             get_notification_message_for_thanks_sender,
+                                             get_notification_message_for_thanks_receiver)
 
     grace_period = settings.GRACE_PERIOD
     now = datetime.now(timezone.utc)
@@ -41,16 +44,20 @@ def validate_transactions_after_grace_period():
     if period is None:
         return
     transactions_to_check = [t for t in Transaction.objects
-                             .select_related('sender_account', 'recipient_account')
+                             .select_related('sender_account', 'recipient_account',
+                                             'sender__profile', 'recipient__profile')
                              .filter(status='G')
-                             .only('sender_id', 'recipient_id', 'status', 'amount',
-                             'period', 'created_at', 'sender_account', 'recipient_account')]
+                             .only('sender_id', 'recipient_id', 'sender__profile__first_name',
+                                   'sender__profile__surname', 'recipient__profile__surname',
+                                   'sender__profile__tg_name', 'recipient__profile__tg_name',
+                                   'recipient__profile__surname', 'status', 'amount',
+                                   'period', 'created_at', 'sender_account', 'recipient_account')]
     with transaction.atomic():
         accounts = (Account.objects.filter(organization_id=None, challenge_id=None)
                     .only('owner_id', 'amount', 'account_type', 'transaction'))
         user_stats = (UserStat.objects
                       .filter(period=period)
-                      .only('period', 'income_thanks'))
+                      .only('user_id', 'period', 'income_thanks'))
         for _transaction in transactions_to_check:
             amount = _transaction.amount
             if (now - _transaction.created_at).seconds >= grace_period:
@@ -73,6 +80,28 @@ def validate_transactions_after_grace_period():
                 _transaction.recipient_account = recipient_income_account
                 _transaction.save(update_fields=['status', 'updated_at', 'recipient_account'])
                 state = TransactionState.objects.create(transaction=_transaction, status='R')
+                notification_theme_sender, notification_text_sender = get_notification_message_for_thanks_sender(
+                    receiver_tg_name=_transaction.recipient.profile.tg_name,
+                    amount=amount
+                )
+                notification_theme_receiver, notification_text_receiver = get_notification_message_for_thanks_receiver(
+                    sender_tg_name=_transaction.sender.profile.tg_name,
+                    amount=amount
+                )
+                create_notification(
+                    user_id=_transaction.sender_id,
+                    object_id=_transaction.id,
+                    _type='T',
+                    theme=notification_theme_sender,
+                    text=notification_text_sender
+                )
+                create_notification(
+                    user_id=_transaction.recipient_id,
+                    object_id=_transaction.id,
+                    _type='T',
+                    theme=notification_theme_receiver,
+                    text=notification_text_receiver
+                )
                 Event.objects.create(
                     event_type=EventTypes.objects.get(name='Новая публичная транзакция'),
                     event_record_id=state.pk,

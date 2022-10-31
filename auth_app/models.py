@@ -1,21 +1,14 @@
-from datetime import timedelta
-
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import CITextField, CICharField
-from django.db import models
-from django.db.models import Q, F, ExpressionWrapper, Exists, OuterRef
-from django.db.models.fields import DateTimeField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
+from django.db.models.constraints import UniqueConstraint
 
-from auth_app.managers import (CustomChallengeQueryset,
-                               CustomChallengeParticipantQueryset,
-                               CustomChallengeReportQueryset)
+from auth_app.managers import *
 
 User = get_user_model()
 
@@ -168,85 +161,6 @@ class TransactionClass(models.TextChoices):
     RETURN_FROM_CHALLENGE = 'F', 'Возврат из челленджа'
 
 
-class CustomTransactionQueryset(models.QuerySet):
-    """
-    Объект, инкапсулирующий в себе логику кастомных запросов к БД
-    в рамках менеджера objects в инстансах модели Transaction
-    """
-
-    def filter_by_user(self, current_user):
-        """
-        Возвращает список транзакций пользователя
-        """
-        queryset = (self
-                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
-                                    'sender_account__owner__profile',
-                                    'recipient_account__owner__profile', 'from_challenge',
-                                    'to_challenge')
-                    .prefetch_related('_objecttags')
-                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
-                             (Q(transaction_class='H') & Q(sender_account__owner=current_user)) |
-                             (Q(transaction_class__in=['W', 'F']) & Q(recipient_account__owner=current_user)))))
-        return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
-
-    def filter_by_user_limited(self, user, offset, limit):
-        return self.filter_by_user(user)[offset * limit: offset * limit + limit]
-
-    def filter_by_user_sent_only(self, user, offset, limit):
-        return self.filter_by_user(user).filter(sender=user)[offset * limit: offset * limit + limit]
-
-    def filter_by_user_received_only(self, user, offset, limit):
-        return self.filter_by_user(user).filter(recipient=user)[offset * limit: offset * limit + limit]
-
-    def filter_to_use_by_controller(self):
-        """
-        Возвращает список транзакций со статусом 'Ожидает подтверждения'
-        """
-        queryset = (self
-                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
-                                    'sender_account__owner__profile',
-                                    'recipient_account__owner__profile')
-                    .prefetch_related('_objecttags')
-                    .filter(status='W'))
-        return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
-
-    def filter_by_period(self, current_user, period_id):
-        """
-        Возвращает список транзакций пользователя, совершенных в рамках конкретного периода
-        """
-        queryset = self.filter_by_user(current_user).filter(period_id=period_id)
-        return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
-
-    def feed_version(self, user):
-
-        queryset = self.annotate(last_like_comment_time=F(
-                                     'like_comment_statistics__last_like_or_comment_change_at'),
-
-                                 user_liked=Exists(Like.objects.filter(
-                                     Q(object_id=OuterRef('pk'),
-                                       like_kind__code='like',
-                                       user_id=user.id,
-                                       is_liked=True))),
-
-                                 user_disliked=Exists(Like.objects.filter(
-                                     Q(object_id=OuterRef('pk'),
-                                       like_kind__code='dislike',
-                                       user_id=user.id,
-                                       is_liked=True)
-                                     )))
-
-        return queryset
-
-    @staticmethod
-    def add_expire_to_cancel_field(queryset):
-        """
-        Возвращает список транзакций, к которому добавлено поле формата даты, где указывается,
-        когда истекает возможность отменить транзакцию со стороны пользователя
-        """
-        return queryset.annotate(expire_to_cancel=ExpressionWrapper(
-            F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
-
-
 class Transaction(models.Model):
     objects = CustomTransactionQueryset.as_manager()
 
@@ -297,7 +211,6 @@ class Transaction(models.Model):
     def get_photo_url(self):
         if self.photo:
             return f"{self.photo.url}"
-        return None
 
     def __str__(self):
         date = self.updated_at.strftime('%d-%m-%Y %H:%M:%S')
@@ -315,8 +228,6 @@ class Transaction(models.Model):
             )
         ]
 
-
-# наверно нужен указатель на запись на итоговый TransactionState. но пока можно считать, что запись в states будет только одна - либо подтв., либо отказ
 
 class TransactionState(models.Model):
     transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='states',
@@ -437,21 +348,6 @@ class UserStat(models.Model):
         db_table = 'user_stats'
 
 
-# /user/<id>/balance :
-# /user/<id>/stat/<period_id> :
-# - account.amount - только для текущего периода, для прошлых - всего получено баллов :
-#       income_at_start + income_exp + income_thanks для левого и distr_initial + distr_redist для правого
-# - стартовое количество - income_at_start + income_exp для левого, distr_initial для правого
-# - количество полученных - income_thanks, distr_redist
-# - количество отправленных - income_used_for_thanks и distr_thanks
-# - количество на согласовании (account.frozen) - для обоих столбцов для текущего периода, для прошлых строки нет !
-# - количество аннулированных - income_declined, distr_declined
-# - только для прошлых периодов : количество сгоревших для правого столбца distr_burnt
-#       и количество использованных для расчета премий для левого income_used_for_bonus
-# - только для прошлых периодов : сумма премии bonus
-# - только для прошлых периодов : остаток баллов на конец периода income_at_end
-
-
 class EventObjectTypes(models.TextChoices):
     TRANSACTION = 'T', 'Транзакция'
     QUEST = 'Q', 'Запрос (челлендж, квест)'
@@ -465,7 +361,6 @@ class EventRecordTypes(models.TextChoices):
 
 
 class EventTypes(models.Model):
-    # id - идентификатор
     name = CITextField()
     object_type = models.CharField(max_length=1, choices=EventObjectTypes.choices, verbose_name='Тип объекта',
                                    null=True, blank=True)
@@ -479,15 +374,6 @@ class EventTypes(models.Model):
 
     class Meta:
         db_table = 'event_types'
-
-
-# 'Входящая транзакция'  Transaction NULL 1 0
-# 'Исходящая транзакция отклонена' Transaction TransactionStatus  1 0
-# 'Исходящая транзакция одобрена' Transaction TransactionStatus 1 0
-# 'Новая публичная транзакция' Transaction NULL 0 1
-# 'Новая транзакция для согласования' Transaction NULL 0 1
-# 'Новый комментарий' Transaction TransComment 1 1
-# 'Новый лайк' Transaction TransLike 1 1
 
 
 class Event(models.Model):
@@ -515,23 +401,9 @@ class Event(models.Model):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
 
 
-class CustomCommentQueryset(models.QuerySet):
-    """
-    Объект, инкапсулирующий в себе логику кастомных запросов к БД
-    в рамках менеджера objects в инстансах модели Comment
-    """
-
-    def filter_by_object(self, content_type, object_id):
-        """
-        Возвращает список комментариев по заданной модели и его айди
-        """
-        return Comment.objects.filter(content_type=content_type, object_id=object_id)
-
-
 class Comment(models.Model):
     objects = CustomCommentQueryset.as_manager()
 
-    # id: идентификатор - создается автоматически
     transaction = models.ForeignKey(Transaction, related_name="comments", on_delete=models.SET_NULL,
                                     null=True, blank=True, verbose_name="Транзакция")
 
@@ -544,14 +416,16 @@ class Comment(models.Model):
     date_created = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Дата создания")
     date_last_modified = models.DateTimeField(auto_now=True, null=True, verbose_name="Дата последнего изменения")
     is_last_comment = models.BooleanField(null=True, verbose_name="Последний комментарий в транзакции")
-    previous_comment = models.ForeignKey("Comment", null=True, blank=True, related_name='next_comment', on_delete=models.SET_NULL,
+    previous_comment = models.ForeignKey("Comment", null=True, blank=True, related_name='next_comment',
+                                         on_delete=models.SET_NULL,
                                          verbose_name='Ссылка на предыдущий комментарий')
     text = models.TextField(default='', blank=True, verbose_name="Текст")
     picture = models.ImageField(blank=True, null=True, upload_to='comments',
                                 verbose_name='Картинка Комментария')
 
     def to_json(self):
-        json_dict = {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_') and field != 'picture'}
+        json_dict = {field: getattr(self, field) for field in self.__dict__ if
+                     not field.startswith('_') and field != 'picture'}
         if getattr(self, "picture"):
             json_dict['picture'] = self.picture.url
         else:
@@ -572,8 +446,6 @@ class Comment(models.Model):
 
 
 class LikeKind(models.Model):
-    # id: идентификатор - создается автоматически
-
     code = models.TextField(verbose_name="Код Типа Лайка", null=True)
     name = models.TextField(verbose_name="Название Типа Лайка")
     icon = models.ImageField(blank=True, null=True, upload_to='icons', verbose_name='Пиктограмма')
@@ -593,39 +465,7 @@ class LikeKind(models.Model):
         db_table = 'like_kind'
 
 
-class CustomLikeQueryset(models.QuerySet):
-    """
-    Объект, инкапсулирующий в себе логику кастомных запросов к БД
-    в рамках менеджера objects в инстансах модели Comment
-    """
-
-    def filter_by_transaction(self, transaction):
-        """
-        Возвращает список комментариев заданной транзакции
-        """
-        return Like.objects.filter(transaction=transaction, is_liked=True)
-
-    def filter_by_transaction_and_like_kind(self, transaction, like_kind):
-        """
-        Возвращает список комментариев заданной транзакции и типа лайка
-        """
-        return Like.objects.filter(transaction=transaction, like_kind=like_kind, is_liked=True)
-
-    def filter_by_user(self, user):
-        """
-        Возвращает список комментариев заданного пользователя
-        """
-        return Like.objects.filter(user=user, is_liked=True)
-
-    def filter_by_user_and_like_kind(self, user, like_kind):
-        """
-        Возвращает список комментариев заданного пользователя и типа лайка
-        """
-        return Like.objects.filter(user=user, like_kind=like_kind, is_liked=True)
-
-
 class Like(models.Model):
-    # id: идентификатор - создается автоматически
     objects = CustomLikeQueryset.as_manager()
     transaction = models.ForeignKey(Transaction, null=True, blank=True, related_name="likes", on_delete=models.CASCADE,
                                     verbose_name="Транзакция")
@@ -641,7 +481,6 @@ class Like(models.Model):
     date_deleted = models.DateTimeField(default=None, null=True, blank=True, verbose_name="Дата отзыва лайка")
     user = models.ForeignKey(User, related_name='like', on_delete=models.CASCADE,
                              verbose_name='Владелец Лайка')
-
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
@@ -683,9 +522,10 @@ class LikeCommentStatistics(models.Model):
     last_event_comment = models.ForeignKey("Comment", related_name='last_event_comment_statistics',
                                            blank=True, on_delete=models.SET_NULL, null=True,
                                            verbose_name='Последний добавленный или измененный комментарий')
-    last_like_or_comment_change_at = models.DateTimeField(auto_now=True,
-                                                          verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
-                                                          null=True, blank=True)
+    last_like_or_comment_change_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Время последнего изменения количества лайков или последнего добавления/изменения комментария',
+        null=True, blank=True)
     comment_counter = models.IntegerField(verbose_name='Количество комментариев', default=0)
 
     class Meta:
@@ -994,6 +834,26 @@ class FCMToken(models.Model):
 
     def __str__(self):
         return self.token
+
+
+class Notification(models.Model):
+    class NotificationType(models.TextChoices):
+        LIKE = 'L', 'Лайк'
+        COMMENT = 'C', 'Комментарий'
+        CHALLENGE = 'H', 'Челлендж'
+        TRANSACTION = 'T', 'Перевод'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='notifications')
+    type = models.CharField(max_length=1, choices=NotificationType.choices, verbose_name='Тип уведомления')
+    object_id = models.PositiveIntegerField(null=True, blank=True, verbose_name='Идентификатор связанного объекта')
+    theme = models.CharField(max_length=255, verbose_name='Тема')
+    text = models.TextField(verbose_name='Текст')
+    read = models.BooleanField(default=False, verbose_name='Прочитано')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создано')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Изменено')
+
+    class Meta:
+        db_table = 'notifications'
 
 
 @receiver(post_save, sender=User)

@@ -1,5 +1,9 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import models
-from django.db.models import Q, F, Exists, OuterRef, Count, Prefetch
+from django.db.models import (Q, F, Exists, OuterRef, Count,
+                              Prefetch, ExpressionWrapper, DateTimeField)
 
 
 class CustomChallengeQueryset(models.QuerySet):
@@ -116,3 +120,127 @@ class CustomChallengeReportQueryset(models.QuerySet):
                       'participant__user_participant__profile__surname',
                       'participant__user_participant__profile__tg_name',
                       'participant__user_participant__profile__photo'))
+
+
+class CustomTransactionQueryset(models.QuerySet):
+    """
+    Объект, инкапсулирующий в себе логику кастомных запросов к БД
+    в рамках менеджера objects в инстансах модели Transaction
+    """
+
+    def filter_by_user(self, current_user):
+        """
+        Возвращает список транзакций пользователя
+        """
+        queryset = (self
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
+                                    'sender_account__owner__profile',
+                                    'recipient_account__owner__profile', 'from_challenge',
+                                    'to_challenge')
+                    .prefetch_related('_objecttags')
+                    .filter((Q(sender=current_user) | (Q(recipient=current_user) & ~(Q(status__in=['G', 'C', 'D']))) |
+                             (Q(transaction_class='H') & Q(sender_account__owner=current_user)) |
+                             (Q(transaction_class__in=['W', 'F']) & Q(recipient_account__owner=current_user)))))
+        return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
+
+    def filter_by_user_limited(self, user, offset, limit):
+        return self.filter_by_user(user)[offset * limit: offset * limit + limit]
+
+    def filter_by_user_sent_only(self, user, offset, limit):
+        return self.filter_by_user(user).filter(sender=user)[offset * limit: offset * limit + limit]
+
+    def filter_by_user_received_only(self, user, offset, limit):
+        return self.filter_by_user(user).filter(recipient=user)[offset * limit: offset * limit + limit]
+
+    def filter_to_use_by_controller(self):
+        """
+        Возвращает список транзакций со статусом 'Ожидает подтверждения'
+        """
+        queryset = (self
+                    .select_related('sender__profile', 'recipient__profile', 'reason_def',
+                                    'sender_account__owner__profile',
+                                    'recipient_account__owner__profile')
+                    .prefetch_related('_objecttags')
+                    .filter(status='W'))
+        return self.add_expire_to_cancel_field(queryset).order_by('-created_at')
+
+    def filter_by_period(self, current_user, period_id):
+        """
+        Возвращает список транзакций пользователя, совершенных в рамках конкретного периода
+        """
+        queryset = self.filter_by_user(current_user).filter(period_id=period_id)
+        return self.add_expire_to_cancel_field(queryset).order_by('-updated_at')
+
+    def feed_version(self, user):
+        from auth_app.models import Like
+
+        queryset = self.annotate(last_like_comment_time=F(
+                                     'like_comment_statistics__last_like_or_comment_change_at'),
+
+                                 user_liked=Exists(Like.objects.filter(
+                                     Q(object_id=OuterRef('pk'),
+                                       like_kind__code='like',
+                                       user_id=user.id,
+                                       is_liked=True))),
+
+                                 user_disliked=Exists(Like.objects.filter(
+                                     Q(object_id=OuterRef('pk'),
+                                       like_kind__code='dislike',
+                                       user_id=user.id,
+                                       is_liked=True)
+                                     )))
+
+        return queryset
+
+    @staticmethod
+    def add_expire_to_cancel_field(queryset):
+        """
+        Возвращает список транзакций, к которому добавлено поле формата даты, где указывается,
+        когда истекает возможность отменить транзакцию со стороны пользователя
+        """
+        return queryset.annotate(expire_to_cancel=ExpressionWrapper(
+            F('created_at') + timedelta(seconds=settings.GRACE_PERIOD), output_field=DateTimeField()))
+
+
+class CustomLikeQueryset(models.QuerySet):
+    """
+    Объект, инкапсулирующий в себе логику кастомных запросов к БД
+    в рамках менеджера objects в инстансах модели Comment
+    """
+
+    def filter_by_transaction(self, transaction):
+        """
+        Возвращает список комментариев заданной транзакции
+        """
+        return self.filter(transaction=transaction, is_liked=True)
+
+    def filter_by_transaction_and_like_kind(self, transaction, like_kind):
+        """
+        Возвращает список комментариев заданной транзакции и типа лайка
+        """
+        return self.filter(transaction=transaction, like_kind=like_kind, is_liked=True)
+
+    def filter_by_user(self, user):
+        """
+        Возвращает список комментариев заданного пользователя
+        """
+        return self.filter(user=user, is_liked=True)
+
+    def filter_by_user_and_like_kind(self, user, like_kind):
+        """
+        Возвращает список комментариев заданного пользователя и типа лайка
+        """
+        return self.filter(user=user, like_kind=like_kind, is_liked=True)
+
+
+class CustomCommentQueryset(models.QuerySet):
+    """
+    Объект, инкапсулирующий в себе логику кастомных запросов к БД
+    в рамках менеджера objects в инстансах модели Comment
+    """
+
+    def filter_by_object(self, content_type, object_id):
+        """
+        Возвращает список комментариев по заданной модели и его айди
+        """
+        return self.filter(content_type=content_type, object_id=object_id)
