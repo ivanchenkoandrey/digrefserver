@@ -1,11 +1,12 @@
+from datetime import timedelta
 from typing import Dict, List
 
 from auth_app.models import Notification
 from utils.notification_services import NOTIFICATION_TYPE_DATA
 
 FIELDS = (
-    'id', 'type', 'object_id', 'theme',
-    'text', 'read', 'created_at', 'updated_at'
+    'id', 'type', 'object_id', 'theme', 'data',
+    'read', 'created_at', 'updated_at'
 )
 
 
@@ -27,8 +28,8 @@ def get_notification_list_by_user(user_id: int, offset: int, limit: int) -> List
             "theme": notification.theme,
             notification_type_data: notification.data,
             "read": True,
-            "created_at": notification.created_at,
-            "updated_at": notification.updated_at
+            "created_at": notification.created_at + timedelta(hours=3),
+            "updated_at": notification.updated_at + timedelta(hours=3)
         }
         notifications_list.append(notification_data)
     return notifications_list
