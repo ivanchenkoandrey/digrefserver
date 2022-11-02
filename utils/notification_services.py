@@ -29,7 +29,7 @@ def create_notification(user_id, object_id, _type, theme, text, read=False, data
 def update_transaction_status_in_sender_notification(sender_id, transaction_id):
     notification = Notification.objects.get(user_id=sender_id, type='T', object_id=transaction_id)
     data = notification.data
-    data['status'] = 'Выполнена'
+    data['status'] = 'R'
     notification.data = data
     notification.save(update_fields=['data'])
     return notification

@@ -88,13 +88,15 @@ def validate_transactions_after_grace_period():
                 )
                 sender_notification = update_transaction_status_in_sender_notification(
                     _transaction.sender_id, _transaction.pk)
+                receiver_notification_data = sender_notification.data
+                receiver_notification_data['income_transaction'] = True
                 create_notification(
                     user_id=_transaction.recipient_id,
                     object_id=_transaction.id,
                     _type='T',
                     theme=notification_theme_receiver,
                     text=notification_text_receiver,
-                    data=sender_notification.data,
+                    data=receiver_notification_data,
                     from_user=_transaction.sender_id
                 )
                 send_multiple_push(

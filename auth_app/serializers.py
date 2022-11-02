@@ -624,20 +624,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             notification_sender_theme, notification_sender_text = get_notification_message_for_thanks_sender(
                 recipient_tg_name, amount, status
             )
-            notification_data = {
-                "sender_id": transaction_instance.sender_id
-                if not transaction_instance.is_anonymous else None,
-                "sender_tg_name": transaction_instance.sender.profile.tg_name
-                if not transaction_instance.is_anonymous else None,
-                "sender_photo": transaction_instance.sender.profile.get_thumbnail_photo_url
-                if not transaction_instance.is_anonymous else None,
-                "recipient_id": transaction_instance.recipient_id,
-                "recipient_tg_name": recipient_tg_name,
-                "recipient_photo": transaction_instance.recipient.profile.get_thumbnail_photo_url,
-                "status": 'Ожидает',
-                "amount": int(amount),
-                "transaction_id": transaction_instance.pk
-            }
+            notification_data = self.get_notification_data(amount, recipient_tg_name, transaction_instance)
             create_notification(
                 user_id=sender.pk,
                 object_id=transaction_instance.pk,
@@ -647,7 +634,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 data=notification_data,
                 from_user=sender.pk
             )
-            receiver_tokens_list = get_fcm_tokens_list(recipient.id)
+            receiver_tokens_list = get_fcm_tokens_list(sender.pk)
             push_data = {key: str(value) for key, value in notification_data.items()}
             send_multiple_push(
                 title=notification_sender_theme,
@@ -656,6 +643,25 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 data_object=push_data
             )
             return transaction_instance
+
+    @classmethod
+    def get_notification_data(cls, amount, recipient_tg_name, transaction_instance):
+        notification_data = {
+            "sender_id": transaction_instance.sender_id
+            if not transaction_instance.is_anonymous else None,
+            "sender_tg_name": transaction_instance.sender.profile.tg_name
+            if not transaction_instance.is_anonymous else None,
+            "sender_photo": transaction_instance.sender.profile.get_thumbnail_photo_url
+            if not transaction_instance.is_anonymous else None,
+            "recipient_id": transaction_instance.recipient_id,
+            "recipient_tg_name": recipient_tg_name,
+            "recipient_photo": transaction_instance.recipient.profile.get_thumbnail_photo_url,
+            "status": transaction_instance.status,
+            "amount": int(amount),
+            "transaction_id": transaction_instance.pk,
+            "income_transaction": False
+        }
+        return notification_data
 
     @classmethod
     def make_validations(cls, amount, current_period, reason, recipient, sender, tags):
