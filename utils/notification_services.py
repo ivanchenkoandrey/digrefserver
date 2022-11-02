@@ -2,6 +2,15 @@ from auth_app.models import Notification
 from utils.words_cases import get_word_in_case
 
 
+NOTIFICATION_TYPE_DATA = {
+    "T": "transaction_data",
+    "R": "winner_data",
+    "L": "like_data",
+    "H": "challenge_data",
+    "C": "comment_data"
+}
+
+
 def get_notification_message_for_thanks_receiver(sender_tg_name, amount):
     amount_word = get_word_in_case(amount, "благодарность", "благодарности", "благодарностей")
     return "Вам пришла благодарность", f"{sender_tg_name} отправил(а) вам {amount} {amount_word}"
