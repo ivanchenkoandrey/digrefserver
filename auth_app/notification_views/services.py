@@ -22,9 +22,8 @@ def get_notification_list_by_user(user_id: int, offset: int, limit: int) -> List
         notification_data = {
             "id": notification.id,
             "type": notification.type,
-            "object_id": notification.object_id,
             "theme": notification.theme,
-            "text": notification.text,
+            "data": notification.data,
             "read": True,
             "created_at": notification.created_at,
             "updated_at": notification.updated_at

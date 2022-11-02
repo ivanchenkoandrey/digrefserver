@@ -7,21 +7,29 @@ def get_notification_message_for_thanks_receiver(sender_tg_name, amount):
     return "Вам пришла благодарность", f"{sender_tg_name} отправил(а) вам {amount} {amount_word}"
 
 
-def get_notification_message_for_thanks_sender(receiver_tg_name, amount, success=True):
+def get_notification_message_for_thanks_sender(receiver_tg_name, amount, status):
     theme = "Статус вашей благодарности изменился"
-    if success:
-        amount_word = get_word_in_case(amount, "благодарность", "благодарности", "благодарностей")
-        return theme, f"{receiver_tg_name} получил от вас {amount} {amount_word}"
-    amount_word = get_word_in_case(amount, "благодарности", "благодарностей", "благодарностей")
-    return theme, f"Отменен перевод {amount} {amount_word} для пользователя {receiver_tg_name}"
+    return theme, f"""Текущий статус вашей благодарности 
+        пользователю {receiver_tg_name} (сумма перевода - {amount}): {status}"""
 
 
-def create_notification(user_id, object_id, _type, theme, text, read=False):
+def create_notification(user_id, object_id, _type, theme, text, read=False, data='', from_user=None):
     return Notification.objects.create(
         user_id=user_id,
+        from_user=from_user,
         object_id=object_id,
         type=_type,
         theme=theme,
         text=text,
-        read=read
+        read=read,
+        data=data
     )
+
+
+def update_transaction_status_in_sender_notification(sender_id, transaction_id):
+    notification = Notification.objects.get(user_id=sender_id, type='T', object_id=transaction_id)
+    data = notification.data
+    data['status'] = 'Выполнена'
+    notification.data = data
+    notification.save(update_fields=['data'])
+    return notification

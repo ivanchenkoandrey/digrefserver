@@ -7,6 +7,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.db.models.constraints import UniqueConstraint
+from utils.thumbnail_link import get_thumbnail_link
 
 from auth_app.managers import *
 
@@ -71,6 +72,11 @@ class Profile(models.Model):
         if self.photo:
             return f"{self.photo.url}"
         return None
+
+    @property
+    def get_thumbnail_photo_url(self):
+        if self.photo:
+            return f"{get_thumbnail_link(self.photo.url)}"
 
     @property
     def get_surname(self):
@@ -211,6 +217,11 @@ class Transaction(models.Model):
     def get_photo_url(self):
         if self.photo:
             return f"{self.photo.url}"
+
+    @property
+    def get_thumbnail_photo_url(self):
+        if self.photo:
+            return f"{get_thumbnail_link(self.photo.url)}"
 
     def __str__(self):
         date = self.updated_at.strftime('%d-%m-%Y %H:%M:%S')
@@ -842,10 +853,13 @@ class Notification(models.Model):
         COMMENT = 'C', 'Комментарий'
         CHALLENGE = 'H', 'Челлендж'
         TRANSACTION = 'T', 'Перевод'
+        CHALLENGE_WIN = 'W', 'Победа в челлендже'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='notifications')
+    from_user = models.PositiveIntegerField(null=True, blank=True, verbose_name='Инициировавший событие пользователь')
     type = models.CharField(max_length=1, choices=NotificationType.choices, verbose_name='Тип уведомления')
     object_id = models.PositiveIntegerField(null=True, blank=True, verbose_name='Идентификатор связанного объекта')
+    data = models.JSONField(null=True, blank=True, verbose_name='Данные, переданные с уведомлением')
     theme = models.CharField(max_length=255, verbose_name='Тема')
     text = models.TextField(verbose_name='Текст')
     read = models.BooleanField(default=False, verbose_name='Прочитано')

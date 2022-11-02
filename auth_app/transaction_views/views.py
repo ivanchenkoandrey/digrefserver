@@ -23,6 +23,7 @@ from auth_app.service import (update_transactions_by_controller,
                               AlreadyUpdatedByControllerError, NotWaitingTransactionError)
 from utils.custom_permissions import IsController
 from utils.paginates import process_offset_and_limit
+from utils.query_debugger import query_debugger
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,10 @@ class SendCoinView(CreateModelMixin, GenericAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
 
-    queryset = Transaction.objects.all()
+    queryset = Transaction.objects.select_related('sender__profile', 'recipient__profile')
     serializer_class = TransactionPartialSerializer
 
+    @query_debugger
     def post(self, request, *args, **kwargs):
         logger.info(f"Пользователь {request.user} отправил "
                     f"следующие данные для совершения транзакции: {request.data}")

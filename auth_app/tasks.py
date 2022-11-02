@@ -34,8 +34,10 @@ def validate_transactions_after_grace_period():
     from django.db import transaction
     from datetime import datetime, timezone
     from utils.current_period import get_current_period
+    from utils.fcm_manager import send_multiple_push
+    from utils.fcm_services import get_fcm_tokens_list
     from utils.notification_services import (create_notification,
-                                             get_notification_message_for_thanks_sender,
+                                             update_transaction_status_in_sender_notification,
                                              get_notification_message_for_thanks_receiver)
 
     grace_period = settings.GRACE_PERIOD
@@ -80,27 +82,25 @@ def validate_transactions_after_grace_period():
                 _transaction.recipient_account = recipient_income_account
                 _transaction.save(update_fields=['status', 'updated_at', 'recipient_account'])
                 state = TransactionState.objects.create(transaction=_transaction, status='R')
-                notification_theme_sender, notification_text_sender = get_notification_message_for_thanks_sender(
-                    receiver_tg_name=_transaction.recipient.profile.tg_name,
-                    amount=amount
-                )
                 notification_theme_receiver, notification_text_receiver = get_notification_message_for_thanks_receiver(
-                    sender_tg_name=_transaction.sender.profile.tg_name,
+                    sender_tg_name=_transaction.sender.profile.tg_name if not _transaction.is_anonymous else 'аноним',
                     amount=amount
                 )
-                create_notification(
-                    user_id=_transaction.sender_id,
-                    object_id=_transaction.id,
-                    _type='T',
-                    theme=notification_theme_sender,
-                    text=notification_text_sender
-                )
+                sender_notification = update_transaction_status_in_sender_notification(
+                    _transaction.sender_id, _transaction.pk)
                 create_notification(
                     user_id=_transaction.recipient_id,
                     object_id=_transaction.id,
                     _type='T',
                     theme=notification_theme_receiver,
-                    text=notification_text_receiver
+                    text=notification_text_receiver,
+                    data=sender_notification.data,
+                    from_user=_transaction.sender_id
+                )
+                send_multiple_push(
+                    notification_theme_receiver,
+                    notification_text_receiver,
+                    get_fcm_tokens_list(_transaction.recipient_id)
                 )
                 Event.objects.create(
                     event_type=EventTypes.objects.get(name='Новая публичная транзакция'),

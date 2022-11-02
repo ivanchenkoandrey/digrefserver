@@ -36,5 +36,5 @@ class RemoveFCMToken(APIView):
             fcm_token = get_fcm_token_by_device_and_user_id(device, user_id)
             if fcm_token is not None:
                 fcm_token.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            return Response(status=status.HTTP_404_NOT_FOUND)
+                return Response(data={"success": True}, status=status.HTTP_204_NO_CONTENT)
+            return Response(data={"success": False}, status=status.HTTP_404_NOT_FOUND)

@@ -19,8 +19,7 @@ def send_push(title, msg, registration_token, data_object=None):
         data=data_object,
         token=registration_token
     )
-    response = messaging.send(message)
-    logger.info(f"Successfully send push: {response}")
+    messaging.send(message)
 
 
 def send_multiple_push(title, msg, tokens, data_object=None):
@@ -29,5 +28,4 @@ def send_multiple_push(title, msg, tokens, data_object=None):
         data=data_object,
         tokens=tokens
     )
-    response = messaging.send_multicast(message)
-    logger.info(f"Successfully send multiple push: {response}")
+    messaging.send_multicast(message)
