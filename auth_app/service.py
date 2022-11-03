@@ -9,9 +9,11 @@ from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Transaction, TransactionState, UserStat, Account
+from auth_app.models import (Transaction, TransactionState, UserStat,
+                             Account, Notification)
 from auth_app.serializers import TransactionCancelSerializer
 from utils.current_period import get_period, get_current_period
+from utils.notification_services import update_transaction_status_in_sender_notification
 from utils.thumbnail_link import get_thumbnail_link
 
 User = get_user_model()
@@ -195,6 +197,7 @@ def cancel_transaction_by_user(instance: Transaction,
             sender_user_stat.save(update_fields=['income_declined', 'income_used_for_thanks'])
         account_to_return.save(update_fields=['amount'])
         sender_frozen_account.save(update_fields=['amount'])
+        update_transaction_status_in_sender_notification(request.user.id, instance.pk, 'C')
         serializer.save()
 
 

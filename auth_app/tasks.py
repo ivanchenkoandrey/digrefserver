@@ -1,7 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 
 from django.core.mail import send_mail
 from django.core.management import call_command
@@ -35,6 +35,29 @@ def send_multiple_notifications(title: str, msg: str, tokens: List[str], data: D
         msg=msg,
         tokens=tokens,
         data_object=data)
+
+
+@app.task
+def bulk_create_notifications(user_id_list: List[int],
+                              object_id: int,
+                              _type: str,
+                              theme: str,
+                              text: Optional[str],
+                              read: bool = False,
+                              data: Dict[str, Any] = '',
+                              from_user: Optional[int] = None):
+    from auth_app.models import Notification
+    Notification.objects.bulk_create([
+        Notification(
+            user_id=user_id,
+            from_user=from_user,
+            object_id=object_id,
+            type=_type,
+            theme=theme,
+            text=text,
+            read=read,
+            data=data
+        ) for user_id in user_id_list])
 
 
 @app.task
