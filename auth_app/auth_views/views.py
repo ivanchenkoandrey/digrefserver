@@ -41,7 +41,7 @@ class AuthView(APIView):
                 code = "4444"
                 tg_id = "012345678"
                 response = Response()
-                response.data = {'status': 'Код 4444'}
+                response.data = {"status": "Код отправлен в телеграм"}
                 response['X-Telegram'] = request.session['x-telegram'] = encrypt_message(tg_id)
                 response['X-Code'] = request.session['x-code'] = encrypt_message(code)
                 return response
