@@ -755,6 +755,10 @@ class TransactionFullSerializer(serializers.ModelSerializer):
             }
             if obj.transaction_class == 'H' and obj.to_challenge is not None:
                 sender_data.update({"challenge_name": obj.to_challenge.name})
+                sender_data.update({"challenge_id": obj.to_challenge.id})
+            elif obj.transaction_class in ['W', 'F'] and obj.from_challenge is not None:
+                sender_data.update({"challenge_name": obj.from_challenge.name})
+                sender_data.update({"challenge_id": obj.from_challenge.id})
             return sender_data
 
     def get_sender_id(self, obj):
