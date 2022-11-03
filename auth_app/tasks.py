@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import logging
+from typing import List, Dict
 
 from django.core.mail import send_mail
 from django.core.management import call_command
@@ -27,6 +28,16 @@ def remove_reports():
 
 
 @app.task
+def send_multiple_notifications(title: str, msg: str, tokens: List[str], data: Dict[str, str]):
+    from utils.fcm_manager import send_multiple_push
+    send_multiple_push(
+        title=title,
+        msg=msg,
+        tokens=tokens,
+        data_object=data)
+
+
+@app.task
 def validate_transactions_after_grace_period():
     from auth_app.models import (Account, Event, Transaction, EventTypes,
                                  TransactionState, UserStat)
@@ -46,14 +57,14 @@ def validate_transactions_after_grace_period():
     if period is None:
         return
     transactions_to_check = [t for t in Transaction.objects
-                             .select_related('sender_account', 'recipient_account',
-                                             'sender__profile', 'recipient__profile')
-                             .filter(status='G')
-                             .only('sender_id', 'recipient_id', 'sender__profile__first_name',
-                                   'sender__profile__surname', 'recipient__profile__surname',
-                                   'sender__profile__tg_name', 'recipient__profile__tg_name',
-                                   'recipient__profile__surname', 'status', 'amount',
-                                   'period', 'created_at', 'sender_account', 'recipient_account')]
+    .select_related('sender_account', 'recipient_account',
+                    'sender__profile', 'recipient__profile')
+    .filter(status='G')
+    .only('sender_id', 'recipient_id', 'sender__profile__first_name',
+          'sender__profile__surname', 'recipient__profile__surname',
+          'sender__profile__tg_name', 'recipient__profile__tg_name',
+          'recipient__profile__surname', 'status', 'amount',
+          'period', 'created_at', 'sender_account', 'recipient_account')]
     with transaction.atomic():
         accounts = (Account.objects.filter(organization_id=None, challenge_id=None)
                     .only('owner_id', 'amount', 'account_type', 'transaction'))

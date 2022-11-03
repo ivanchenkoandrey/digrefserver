@@ -17,7 +17,7 @@ from auth_app.models import (Profile, Account, Transaction,
                              LikeCommentStatistics)
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
-from utils.fcm_manager import send_multiple_push
+from auth_app.tasks import send_multiple_notifications
 from utils.fcm_services import get_fcm_tokens_list
 from utils.handle_image import change_filename
 from utils.notification_services import (create_notification,
@@ -636,11 +636,11 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             )
             receiver_tokens_list = get_fcm_tokens_list(sender.pk)
             push_data = {key: str(value) for key, value in notification_data.items()}
-            send_multiple_push(
+            send_multiple_notifications.delay(
                 title=notification_sender_theme,
                 msg=notification_sender_text,
                 tokens=receiver_tokens_list,
-                data_object=push_data
+                data=push_data
             )
             return transaction_instance
 
