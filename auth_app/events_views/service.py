@@ -310,6 +310,8 @@ def get_transactions_from_events(transaction_id_array: List[int], user_id: int) 
                           'sender_id',
                           'recipient_id',
                           'recipient__profile__tg_name',
+                          'recipient__profile__first_name',
+                          'recipient__profile__surname',
                           'recipient__profile__photo',
                           'amount',
                           'updated_at',
@@ -339,6 +341,8 @@ def get_transactions_list_from_queryset(transactions):
             "is_anonymous": transaction.is_anonymous,
             "sender_tg_name": transaction.sender.profile.tg_name,
             "recipient_tg_name": transaction.recipient.profile.tg_name,
+            "recipient_first_name": transaction.recipient.profile.first_name,
+            "recipient_surname": transaction.recipient.profile.surname,
             "recipient_photo": transaction.recipient.profile.get_photo_url(),
             "tags": transaction._objecttags.values("tag_id", name=F("tag__name"))
         }
