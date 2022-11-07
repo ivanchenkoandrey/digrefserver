@@ -147,10 +147,15 @@ class CustomTransactionQueryset(models.QuerySet):
         return self.filter_by_user(user)[offset * limit: offset * limit + limit]
 
     def filter_by_user_sent_only(self, user, offset, limit):
-        return self.filter_by_user(user).filter(sender=user)[offset * limit: offset * limit + limit]
+        return (self.filter_by_user(user).filter(Q(sender=user) |
+                                                 (Q(transaction_class='H') & Q(sender_account__owner=user)))
+                [offset * limit: offset * limit + limit])
 
     def filter_by_user_received_only(self, user, offset, limit):
-        return self.filter_by_user(user).filter(recipient=user)[offset * limit: offset * limit + limit]
+        return (self.filter_by_user(user).filter(
+            (Q(recipient=user) & ~(Q(status__in=['G', 'C', 'D']))) |
+            (Q(transaction_class__in=['W', 'F']) & Q(recipient_account__owner=user)))
+            [offset * limit: offset * limit + limit])
 
     def filter_to_use_by_controller(self):
         """
@@ -175,20 +180,20 @@ class CustomTransactionQueryset(models.QuerySet):
         from auth_app.models import Like
 
         queryset = self.annotate(last_like_comment_time=F(
-                                     'like_comment_statistics__last_like_or_comment_change_at'),
+            'like_comment_statistics__last_like_or_comment_change_at'),
 
-                                 user_liked=Exists(Like.objects.filter(
-                                     Q(object_id=OuterRef('pk'),
-                                       like_kind__code='like',
-                                       user_id=user.id,
-                                       is_liked=True))),
+            user_liked=Exists(Like.objects.filter(
+                Q(object_id=OuterRef('pk'),
+                  like_kind__code='like',
+                  user_id=user.id,
+                  is_liked=True))),
 
-                                 user_disliked=Exists(Like.objects.filter(
-                                     Q(object_id=OuterRef('pk'),
-                                       like_kind__code='dislike',
-                                       user_id=user.id,
-                                       is_liked=True)
-                                     )))
+            user_disliked=Exists(Like.objects.filter(
+                Q(object_id=OuterRef('pk'),
+                  like_kind__code='dislike',
+                  user_id=user.id,
+                  is_liked=True)
+            )))
 
         return queryset
 
