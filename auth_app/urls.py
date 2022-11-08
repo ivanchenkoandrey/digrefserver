@@ -82,6 +82,8 @@ urlpatterns = [
 
     # notifications
     path('notifications/', notification_views.NotificationList.as_view()),
+    path('notifications/<int:pk>/', notification_views.MarkNotificationAsReadView.as_view()),
+    path('notifications-amount/', notification_views.GetUnreadNotificationsCount.as_view()),
 
     # periods
     path('periods/', periods_views.PeriodListView.as_view()),

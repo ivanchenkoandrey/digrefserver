@@ -1,5 +1,9 @@
 from auth_app.models import Notification, Challenge
 from utils.words_cases import get_word_in_case
+from django.db.models import Count, Q
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 NOTIFICATION_TYPE_DATA = {
     "T": "transaction_data",
@@ -22,6 +26,13 @@ def create_notification(user_id, object_id, _type, theme, text, read=False, data
         read=read,
         data=data
     )
+
+
+def get_amount_of_unread_notifications(user_id: int):
+    notifications_amount = (User.objects.annotate(
+        notifications_amount=Count('notifications', filter=Q(notifications__read=False)))
+                   .filter(id=user_id).only('id').first().notifications_amount)
+    return {"unread_notifications": notifications_amount}
 
 
 def update_transaction_status_in_sender_notification(sender_id, transaction_id, status='R'):

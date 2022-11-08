@@ -874,6 +874,9 @@ class Notification(models.Model):
     class Meta:
         db_table = 'notifications'
 
+    def to_json(self):
+        return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
+
 
 @receiver(post_save, sender=User)
 def create_auth_token(instance: User, created: bool, **kwargs):
