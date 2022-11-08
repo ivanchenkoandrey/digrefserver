@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from auth_app.models import Transaction, User, LikeKind, Challenge, ChallengeReport, Comment
+from auth_app.models import User, LikeKind
 from auth_app.serializers import LikeTransactionSerializer, LikeUserSerializer
 from .service import press_like
 from ..comments_views.service import get_object
@@ -146,7 +146,7 @@ class PressLikeView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        user = request.user
+        user = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         content_type = request.data.get('content_type')
         object_id = request.data.get('object_id')
         like_kind = request.data.get('like_kind')
@@ -159,7 +159,3 @@ class PressLikeView(APIView):
         response = press_like(user, content_type, object_id, like_kind, transaction,
                               transaction_id, challenge_id, challenge_report_id, comment_id)
         return Response(response)
-
-
-
-

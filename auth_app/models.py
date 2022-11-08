@@ -450,7 +450,11 @@ class Comment(models.Model):
     def get_picture_url(self):
         if getattr(self, "picture"):
             return self.picture.url
-        return None
+
+    @property
+    def get_thumbnail_photo_url(self):
+        if self.picture:
+            return f"{get_thumbnail_link(self.picture.url)}"
 
     class Meta:
         db_table = 'comments'
@@ -854,6 +858,7 @@ class Notification(models.Model):
         CHALLENGE = 'H', 'Челлендж'
         TRANSACTION = 'T', 'Перевод'
         CHALLENGE_WIN = 'W', 'Победа в челлендже'
+        REPORT = 'R', 'Отправлен отчёт'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь', related_name='notifications')
     from_user = models.PositiveIntegerField(null=True, blank=True, verbose_name='Инициировавший событие пользователь')

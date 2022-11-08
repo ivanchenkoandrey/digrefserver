@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction as tr
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -8,11 +9,17 @@ from rest_framework.exceptions import ValidationError
 from auth_app.comments_views.service import create_comment
 from auth_app.models import (ChallengeReport, Event, EventTypes,
                              ChallengeParticipant, Account, Transaction, UserStat)
+from auth_app.tasks import send_multiple_notifications
 from utils.challenges_logic import check_if_new_reports_exists
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
+from utils.fcm_services import get_fcm_tokens_list
 from utils.handle_image import change_filename
+from utils.notification_services import get_notification_message_for_challenge_author_get_report, create_notification, \
+    get_notification_message_for_challenge_winner
 from utils.thumbnail_link import get_thumbnail_link
+
+User = get_user_model()
 
 
 class CreateChallengeReportSerializer(serializers.ModelSerializer):
@@ -22,7 +29,7 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get('request')
-        user = request.user
+        user = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         challenge = validated_data['challenge']
         text = validated_data['text']
         photo = request.FILES.get('photo')
@@ -57,7 +64,39 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
                 challenge_report_instance.photo.name = change_filename(challenge_report_instance.photo.name)
                 challenge_report_instance.save(update_fields=['photo'])
                 crop_image(challenge_report_instance.photo.name, f"{settings.BASE_DIR}/media/", to_square=False)
+            self.create_and_send_author_getting_reports_notifications(challenge, challenge_report_instance, user)
             return challenge_report_instance
+
+    @staticmethod
+    def create_and_send_author_getting_reports_notifications(challenge, challenge_report_instance, user):
+        notification_data = {
+            'report_sender_tg_name': user.profile.tg_name,
+            'report_sender_photo': user.profile.get_thumbnail_photo_url,
+            'report_sender_surname': user.profile.surname,
+            'report_sender_first_name': user.profile.first_name,
+            'challenge_id': challenge_report_instance.challenge_id,
+            'challenge_name': challenge.name,
+            'report_id': challenge_report_instance.pk
+        }
+        push_data = {key: str(value) for key, value in notification_data.items()}
+        notification_theme, notification_text = get_notification_message_for_challenge_author_get_report(
+            report_author_name=user.profile.tg_name, challenge_name=challenge.name
+        )
+        create_notification(
+            challenge.creator_id,
+            challenge_report_instance.pk,
+            'R',
+            notification_theme,
+            notification_text,
+            data=notification_data,
+            from_user=challenge.creator_id
+        )
+        send_multiple_notifications.delay(
+            notification_theme,
+            notification_text,
+            tokens=get_fcm_tokens_list(challenge.creator_id),
+            data=push_data
+        )
 
 
 class CheckChallengeReportSerializer(serializers.ModelSerializer):
@@ -128,6 +167,8 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     time=datetime.now()
                 )
 
+                self.create_and_send_winner_report_notifications(challenge, challenge_report, prize, user_participant)
+
                 sender_account.transaction = transaction
                 sender_account.save(update_fields=['amount', 'transaction'])
                 recipient_account.transaction = transaction
@@ -172,6 +213,32 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         new_reports_exists = check_if_new_reports_exists(reviewer)
         validated_data['new_reports_exists'] = new_reports_exists
         return {"state": state, 'new_reports_exists': new_reports_exists}
+
+    @staticmethod
+    def create_and_send_winner_report_notifications(challenge, challenge_report, prize, user_participant):
+        notification_theme, notification_text = get_notification_message_for_challenge_winner(challenge.name)
+        notification_data = {
+            "challenge_id": challenge.pk,
+            "challenge_name": challenge.name,
+            "challenge_report_id": challenge_report.pk,
+            "prize": prize
+        }
+        push_data = {key: str(value) for key, value in notification_data.items()}
+        create_notification(
+            user_participant.id,
+            challenge_report.id,
+            'W',
+            notification_theme,
+            notification_text,
+            data=notification_data,
+            from_user=challenge.creator_id
+        )
+        send_multiple_notifications.delay(
+            notification_theme,
+            notification_text,
+            tokens=get_fcm_tokens_list(user_participant.id),
+            data=push_data
+        )
 
 
 class ChallengeReportSerializer(serializers.ModelSerializer):

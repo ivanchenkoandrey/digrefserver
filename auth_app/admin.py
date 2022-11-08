@@ -117,3 +117,4 @@ class FCMTokenAdmin(admin.ModelAdmin):
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ['user', 'type', 'theme', 'text', 'read', 'updated_at']
     list_select_related = ['user']
+    list_filter = ['user', 'type']

@@ -1,16 +1,20 @@
-from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView, UpdateAPIView, DestroyAPIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from auth_app.models import Comment, Transaction
-from auth_app.serializers import CommentTransactionSerializer
-from rest_framework.response import Response
-from .serializers import UpdateCommentSerializer, DeleteCommentSerializer
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from rest_framework import authentication, status
+from rest_framework.generics import UpdateAPIView, DestroyAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from auth_app.models import Comment
+from auth_app.serializers import CommentTransactionSerializer
 from utils.crop_photos import crop_image
 from utils.handle_image import change_filename
-from django.conf import settings
+from .serializers import UpdateCommentSerializer, DeleteCommentSerializer
 from .service import create_comment, get_object
+
+User = get_user_model()
 
 
 class CommentListAPIView(APIView):
@@ -66,7 +70,7 @@ class CreateCommentView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        user = request.user
+        user = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         content_type = request.data.get('content_type')
         object_id = request.data.get('object_id')
         text = request.data.get('text')

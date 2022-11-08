@@ -1,31 +1,14 @@
-from auth_app.models import Notification
+from auth_app.models import Notification, Challenge
 from utils.words_cases import get_word_in_case
-
 
 NOTIFICATION_TYPE_DATA = {
     "T": "transaction_data",
-    "R": "winner_data",
+    "R": "report_data",
     "L": "like_data",
     "H": "challenge_data",
-    "C": "comment_data"
+    "C": "comment_data",
+    "W": "winner_data"
 }
-
-
-def get_notification_message_for_thanks_receiver(sender_tg_name, amount):
-    amount_word = get_word_in_case(amount, "благодарность", "благодарности", "благодарностей")
-    return "Вам пришла благодарность", f"{sender_tg_name} отправил(а) вам {amount} {amount_word}"
-
-
-def get_notification_message_for_thanks_sender(receiver_tg_name, amount, status):
-    theme = "Статус вашей благодарности изменился"
-    return theme, f"""Текущий статус вашей благодарности 
-        пользователю {receiver_tg_name} (сумма перевода - {amount}): {status}"""
-
-
-def get_notification_message_for_created_challenge(challenge_name, creator_tg_name):
-    theme = "Новый челлендж"
-    text = f"{creator_tg_name} создала(а) новый челлендж под названием \"{challenge_name}\""
-    return theme, text
 
 
 def create_notification(user_id, object_id, _type, theme, text, read=False, data='', from_user=None):
@@ -48,3 +31,66 @@ def update_transaction_status_in_sender_notification(sender_id, transaction_id, 
     notification.data = data
     notification.save(update_fields=['data'])
     return notification
+
+
+def get_notification_message_for_thanks_receiver(sender_tg_name, amount):
+    amount_word = get_word_in_case(amount, "благодарность", "благодарности", "благодарностей")
+    return "Вам пришла благодарность", f"{sender_tg_name} отправил(а) вам {amount} {amount_word}"
+
+
+def get_notification_message_for_thanks_sender(receiver_tg_name, amount, status):
+    theme = "Статус вашей благодарности изменился"
+    return theme, f"""Текущий статус вашей благодарности 
+        пользователю {receiver_tg_name} (сумма перевода - {amount}): {status}"""
+
+
+def get_notification_message_for_created_challenge(challenge_name, creator_tg_name):
+    theme = "Новый челлендж"
+    text = f"{creator_tg_name} создала(а) новый челлендж под названием \"{challenge_name}\""
+    return theme, text
+
+
+def get_notification_message_for_thanks_sender_reaction(reaction_sender):
+    return "Новая реакция", f"{reaction_sender} отреагировал на отправленную вами благодарность"
+
+
+def get_notification_message_for_thanks_recipient_reaction(reaction_sender):
+    return "Новая реакция", f"{reaction_sender} отреагировал на полученную вами благодарность"
+
+
+def get_notification_message_for_challenge_reaction(reaction_sender, challenge_name):
+    return "Новая реакция", f"{reaction_sender} отреагировал на челлендж \"{challenge_name}\""
+
+
+def get_notification_message_for_comment_author_reaction(reaction_sender):
+    return "Новая реакция", f"{reaction_sender} отреагировал на ваш комментарий"
+
+
+def get_notification_message_for_thanks_sender_comment(comment_author):
+    return "Новый комментарий", f"{comment_author} прокомментировал отправленную вами благодарность"
+
+
+def get_notification_message_for_thanks_recipient_comment(comment_author):
+    return "Новый комментарий", f"{comment_author} прокомментировал полученную вами благодарность"
+
+
+def get_notification_message_for_challenge_comment(comment_author, challenge_name):
+    return "Новый комментарий", f"{comment_author} прокомментировал челлендж \"{challenge_name}\""
+
+
+def get_notification_message_for_challenge_author_get_report(report_author_name, challenge_name):
+    return "Новый отчёт к челленджу", f"{report_author_name} отправил отчёт к челленджу \"{challenge_name}\""
+
+
+def get_notification_message_for_challenge_winner(challenge_name):
+    return "Победа в челлендже", f"Вы победили в челлендже \"{challenge_name}\""
+
+
+def get_extended_pk_list_for_challenge_notifications(object_id, user):
+    challenge = Challenge.objects.filter(pk=object_id).only('id', 'name', 'creator_id').first()
+    winners_ids = (list(challenge.reports.select_related('participant')
+                        .values_list('participant__user_participant_id', flat=True)))
+    extended_ids_list = winners_ids + [challenge.creator_id]
+    if user.id in set(extended_ids_list):
+        extended_ids_list.remove(user.id)
+    return challenge, extended_ids_list
