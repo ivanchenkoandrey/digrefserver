@@ -177,10 +177,10 @@ def create_and_send_challenge_reactions_notifications(like, object_id, user):
     notification_data = {
         'challenge_id': challenge.pk,
         'challenge_name': challenge.name,
-        'like_from_tg_name': user.profile.tg_name,
-        'like_from_first_name': user.profile.first_name,
-        'like_from_surname': user.profile.surname,
-        'like_from_photo': user.profile.get_thumbnail_photo_url,
+        'reaction_from_tg_name': user.profile.tg_name,
+        'reaction_from_first_name': user.profile.first_name,
+        'reaction_from_surname': user.profile.surname,
+        'reaction_from_photo': user.profile.get_thumbnail_photo_url,
     }
     push_data = {key: str(value) for key, value in notification_data.items()}
     tokens_list = get_multiple_users_tokens_list(extended_ids_list)
