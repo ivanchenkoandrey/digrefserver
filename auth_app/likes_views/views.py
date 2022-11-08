@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class LikesListAPIView(APIView):
-
     """
     Список всех лайков переданной модели
     """
@@ -34,8 +33,8 @@ class LikesListAPIView(APIView):
         challenge_id = request.data.get('challenge_id')
         challenge_report_id = request.data.get('challenge_report_id')
         comment_id = request.data.get('comment_id')
-        content_type, object_id = get_object(content_type, object_id, None, transaction_id, challenge_id,
-                                             challenge_report_id, comment_id)
+        content_type, object_id, _ = get_object(content_type, object_id, None, transaction_id, challenge_id,
+                                                         challenge_report_id, comment_id)
 
         offset = request.data.get('offset')
         limit = request.data.get('limit')
@@ -72,7 +71,8 @@ class LikesListAPIView(APIView):
             model_class = ContentType.objects.get_for_id(content_type).model_class()
             try:
                 model_object = model_class.objects.get(id=object_id)
-                serializer = LikeTransactionSerializer({"content_type": content_type, "object_id": object_id}, context=context)
+                serializer = LikeTransactionSerializer({"content_type": content_type, "object_id": object_id},
+                                                       context=context)
                 return Response(serializer.data)
 
             except model_class.DoesNotExist:
@@ -84,7 +84,6 @@ class LikesListAPIView(APIView):
 
 
 class LikesUserListAPIView(APIView):
-
     """
     Список всех лайков переданного пользователя
     """

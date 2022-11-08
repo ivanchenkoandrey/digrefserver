@@ -36,8 +36,8 @@ class CommentListAPIView(APIView):
         transaction_id = request.data.get('transaction_id')
         challenge_id = request.data.get('challenge_id')
         challenge_report_id = request.data.get('challenge_report_id')
-        content_type, object_id = get_object(content_type, object_id, None, transaction_id, challenge_id,
-                                             challenge_report_id, None)
+        content_type, object_id, _ = get_object(content_type, object_id, None, transaction_id, challenge_id,
+                                                         challenge_report_id, None)
         content_type = content_type.id
         if type(offset) != int or type(limit) != int:
             return Response("offset и limit должны быть типа Int", status=status.HTTP_400_BAD_REQUEST)
@@ -51,7 +51,8 @@ class CommentListAPIView(APIView):
             try:
                 model_object = model_class.objects.get(id=object_id)
                 # {"model_class": model_class, "model_object": model_object}
-                serializer = CommentTransactionSerializer({"content_type": content_type, "object_id": object_id}, context=context)
+                serializer = CommentTransactionSerializer({"content_type": content_type, "object_id": object_id},
+                                                          context=context)
                 return Response(serializer.data)
 
             except model_class.DoesNotExist:
@@ -63,7 +64,6 @@ class CommentListAPIView(APIView):
 
 
 class CreateCommentView(APIView):
-
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
