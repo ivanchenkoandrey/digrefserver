@@ -186,8 +186,8 @@ class TransactionStatisticsAPIView(APIView):
         transaction_id = request.data.get('transaction_id')
         challenge_id = request.data.get('challenge_id')
         challenge_report_id = request.data.get('challenge_report_id')
-        content_type, object_id = get_object(content_type, object_id, None, transaction_id, challenge_id,
-                                             challenge_report_id, None)
+        content_type, object_id, _ = get_object(content_type, object_id, None, transaction_id, challenge_id,
+                                                challenge_report_id, None)
         content_type = content_type.id
         if type(include_code) != bool or type(include_name) != bool or type(include_first_comment) != bool or type(
                 include_last_comment) \
@@ -205,7 +205,8 @@ class TransactionStatisticsAPIView(APIView):
             model_class = ContentType.objects.get_for_id(content_type).model_class()
             try:
                 model_object = model_class.objects.get(id=object_id)
-                serializer = TransactionStatisticsSerializer({"content_type": content_type, "object_id": object_id}, context=context)
+                serializer = TransactionStatisticsSerializer({"content_type": content_type, "object_id": object_id},
+                                                             context=context)
                 return Response(serializer.data)
             except model_class.DoesNotExist:
                 return Response("Переданный идентификатор не относится "
