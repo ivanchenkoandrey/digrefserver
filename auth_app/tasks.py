@@ -71,8 +71,8 @@ def validate_transactions_after_grace_period():
     from utils.fcm_manager import send_multiple_push
     from utils.fcm_services import get_fcm_tokens_list
     from utils.notification_services import (create_notification,
-                                             update_transaction_status_in_sender_notification,
-                                             get_notification_message_for_thanks_receiver)
+                                             get_notification_message_for_thanks_receiver,
+                                             get_notification_data)
 
     grace_period = settings.GRACE_PERIOD
     now = datetime.now(timezone.utc)
@@ -120,10 +120,7 @@ def validate_transactions_after_grace_period():
                     sender_tg_name=_transaction.sender.profile.tg_name if not _transaction.is_anonymous else 'аноним',
                     amount=amount
                 )
-                sender_notification = update_transaction_status_in_sender_notification(
-                    _transaction.sender_id, _transaction.pk)
-                receiver_notification_data = sender_notification.data
-                receiver_notification_data['income_transaction'] = True
+                receiver_notification_data = get_notification_data(_transaction)
                 create_notification(
                     user_id=_transaction.recipient_id,
                     object_id=_transaction.id,
@@ -136,7 +133,8 @@ def validate_transactions_after_grace_period():
                 send_multiple_push(
                     notification_theme_receiver,
                     notification_text_receiver,
-                    get_fcm_tokens_list(_transaction.recipient_id)
+                    get_fcm_tokens_list(_transaction.recipient_id),
+                    data_object={key: str(value) for key, value in receiver_notification_data}
                 )
                 Event.objects.create(
                     event_type=EventTypes.objects.get(name='Новая публичная транзакция'),

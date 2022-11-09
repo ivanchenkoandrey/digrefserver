@@ -621,49 +621,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
                 transaction_instance.photo.name = change_filename(transaction_instance.photo.name)
                 transaction_instance.save(update_fields=['photo'])
                 crop_image(transaction_instance.photo.name, f"{settings.BASE_DIR}/media/")
-            recipient_tg_name = recipient.profile.tg_name
-            status = 'Ожидает'
-            notification_sender_theme, notification_sender_text = get_notification_message_for_thanks_sender(
-                recipient_tg_name, amount, status
-            )
-            notification_data = self.get_notification_data(amount, recipient_tg_name, transaction_instance)
-            create_notification(
-                user_id=sender.pk,
-                object_id=transaction_instance.pk,
-                _type='T',
-                theme=notification_sender_theme,
-                text='',
-                data=notification_data,
-                from_user=sender.pk
-            )
-            receiver_tokens_list = get_fcm_tokens_list(sender.pk)
-            push_data = {key: str(value) for key, value in notification_data.items()}
-            send_multiple_notifications.delay(
-                title=notification_sender_theme,
-                msg=notification_sender_text,
-                tokens=receiver_tokens_list,
-                data=push_data
-            )
             return transaction_instance
-
-    @classmethod
-    def get_notification_data(cls, amount, recipient_tg_name, transaction_instance):
-        notification_data = {
-            "sender_id": transaction_instance.sender_id
-            if not transaction_instance.is_anonymous else None,
-            "sender_tg_name": transaction_instance.sender.profile.tg_name
-            if not transaction_instance.is_anonymous else None,
-            "sender_photo": transaction_instance.sender.profile.get_thumbnail_photo_url
-            if not transaction_instance.is_anonymous else None,
-            "recipient_id": transaction_instance.recipient_id,
-            "recipient_tg_name": recipient_tg_name,
-            "recipient_photo": transaction_instance.recipient.profile.get_thumbnail_photo_url,
-            "status": transaction_instance.status,
-            "amount": int(amount),
-            "transaction_id": transaction_instance.pk,
-            "income_transaction": False
-        }
-        return notification_data
 
     @classmethod
     def make_validations(cls, amount, current_period, reason, recipient, sender, tags):

@@ -105,3 +105,22 @@ def get_extended_pk_list_for_challenge_notifications(object_id, user):
     if user.id in set(extended_ids_list):
         extended_ids_list.remove(user.id)
     return challenge, extended_ids_list
+
+
+def get_notification_data(transaction_instance):
+    notification_data = {
+        "sender_id": transaction_instance.sender_id
+        if not transaction_instance.is_anonymous else None,
+        "sender_tg_name": transaction_instance.sender.profile.tg_name
+        if not transaction_instance.is_anonymous else None,
+        "sender_photo": transaction_instance.sender.profile.get_thumbnail_photo_url
+        if not transaction_instance.is_anonymous else None,
+        "recipient_id": transaction_instance.recipient_id,
+        "recipient_tg_name": transaction_instance.recipient.profile.tg_name,
+        "recipient_photo": transaction_instance.recipient.profile.get_thumbnail_photo_url,
+        "status": transaction_instance.status,
+        "amount": int(transaction_instance.amount),
+        "transaction_id": transaction_instance.pk,
+        "income_transaction": False
+    }
+    return notification_data
