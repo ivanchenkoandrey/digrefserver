@@ -134,7 +134,7 @@ def validate_transactions_after_grace_period():
                     notification_theme_receiver,
                     notification_text_receiver,
                     get_fcm_tokens_list(_transaction.recipient_id),
-                    data_object={key: str(value) for key, value in receiver_notification_data}
+                    data_object={key: str(value) for key, value in receiver_notification_data.items()}
                 )
                 Event.objects.create(
                     event_type=EventTypes.objects.get(name='Новая публичная транзакция'),
