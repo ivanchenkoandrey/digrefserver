@@ -53,7 +53,9 @@ class ContactSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     contacts = ContactSerializer(many=True, required=False)
     organization = serializers.CharField(source="organization.name")
+    organization_id = serializers.IntegerField()
     department = serializers.CharField(source="department.name")
+    department_id = serializers.IntegerField()
     status = serializers.SerializerMethodField()
     photo = serializers.SerializerMethodField()
 
