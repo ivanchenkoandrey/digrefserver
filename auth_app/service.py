@@ -197,7 +197,6 @@ def cancel_transaction_by_user(instance: Transaction,
             sender_user_stat.save(update_fields=['income_declined', 'income_used_for_thanks'])
         account_to_return.save(update_fields=['amount'])
         sender_frozen_account.save(update_fields=['amount'])
-        update_transaction_status_in_sender_notification(request.user.id, instance.pk, 'C')
         serializer.save()
 
 
