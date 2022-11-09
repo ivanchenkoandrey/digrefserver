@@ -4,18 +4,14 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction as tr
-from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from auth_app.models import (Account, Event, Challenge, UserStat,
                              ChallengeParticipant, Transaction,
-                             EventTypes, Profile, FCMToken)
-from auth_app.tasks import bulk_create_notifications
-from auth_app.tasks import send_multiple_notifications
+                             EventTypes)
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
 from utils.handle_image import change_filename
-from utils.notification_services import get_notification_message_for_created_challenge
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -126,56 +122,4 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
             challenge.photo.name = change_filename(challenge.photo.name)
             challenge.save(update_fields=['photo'])
             crop_image(challenge.photo.name, f"{settings.BASE_DIR}/media/", to_square=False)
-        create_challenge_notifications(challenge, creator, name)
         return {"challenge_created": True}
-
-
-def create_challenge_notifications(challenge, creator, name):
-    creator_item = (Profile.objects.filter(user=creator)
-                    .only('tg_name', 'first_name', 'surname', 'photo', 'organization_id')
-                    .first())
-    creator_data = {
-        "tg_name": creator_item.tg_name,
-        "first_name": creator_item.first_name,
-        "surname": creator_item.surname,
-        "photo": creator_item.get_thumbnail_photo_url,
-        "organization_id": creator_item.organization_id
-    }
-    notification_data = get_creating_challenge_notification_data(challenge, creator_data, name)
-    push_data = {key: str(value) for key, value in notification_data.items()}
-    notification_theme, notification_message = get_notification_message_for_created_challenge(
-        name, creator_data.get('tg_name'))
-    users_id_to_notify_list = [user.id for user in User.objects.filter(
-        Q(profile__organization_id=challenge.to_hold_id) |
-        Q(profile__organization_id=creator_data.get('organization_id'))).only('id')
-                               if user.id != creator.id]
-    tokens = [fcm.token for fcm
-              in FCMToken.objects
-              .filter(user_id__in=users_id_to_notify_list)
-              .only('token')]
-    bulk_create_notifications.delay(
-        user_id_list=users_id_to_notify_list,
-        object_id=challenge.pk,
-        _type='H',
-        theme=notification_theme,
-        text=notification_message,
-        from_user=creator.id,
-        data=notification_data
-    )
-    send_multiple_notifications.delay(
-        title=notification_theme,
-        msg=notification_message,
-        tokens=tokens,
-        data=push_data
-    )
-
-
-def get_creating_challenge_notification_data(challenge, creator_data, name):
-    return {
-        "creator_tg_name": creator_data.get('tg_name'),
-        "creator_first_name": creator_data.get('first_name'),
-        "creator_surname": creator_data.get('surname'),
-        "creator_photo": creator_data.get('photo'),
-        "challenge_name": name,
-        "challenge_id": challenge.pk
-    }
