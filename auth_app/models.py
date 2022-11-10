@@ -6,10 +6,9 @@ from django.contrib.postgres.fields import CITextField, CICharField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
-from django.db.models.constraints import UniqueConstraint
-from utils.thumbnail_link import get_thumbnail_link
 
 from auth_app.managers import *
+from utils.thumbnail_link import get_thumbnail_link
 
 User = get_user_model()
 
@@ -28,6 +27,8 @@ class Organization(models.Model):
     parent_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='children', null=True,
                                   verbose_name='Входит в', blank=True)
     photo = models.ImageField(blank=True, null=True, upload_to='organizations', verbose_name='Фотография')
+    head_of_department = models.ForeignKey(User, related_name='heads', null=True, blank=True, on_delete=models.SET_NULL,
+                                           verbose_name='Руководитель организации(подразделения)')
 
     def to_json(self):
         return {field: getattr(self, field) for field in self.__dict__ if not field.startswith('_')}
