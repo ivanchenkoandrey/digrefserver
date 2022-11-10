@@ -33,6 +33,8 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
         challenge = validated_data['challenge']
         text = validated_data['text']
         photo = request.FILES.get('photo')
+        if not text and photo is None:
+            raise ValidationError("Необходимо передать текст или картинку")
         with tr.atomic():
 
             try:
