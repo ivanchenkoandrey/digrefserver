@@ -97,6 +97,7 @@ urlpatterns = [
     path('create-department/', organization_views.CreateDepartmentView.as_view()),
     path('root-organizations/', organization_views.RootOrganizationListView.as_view()),
     path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
+    path('organizations/<int:pk>/', organization_views.OrganizationDetailView.as_view()),
 
     # tags
     path('send-coins-settings/', tag_views.TagList.as_view()),
