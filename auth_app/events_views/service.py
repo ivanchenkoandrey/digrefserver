@@ -1,9 +1,8 @@
 import logging
+from collections import defaultdict
 from datetime import timedelta
 from typing import List, Dict
-from collections import defaultdict
 
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import F, Exists, OuterRef
 
 from auth_app.models import (EventTypes, Transaction, Profile,

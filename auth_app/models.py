@@ -36,6 +36,16 @@ class Organization(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def get_photo_url(self):
+        if self.photo:
+            return self.photo.url
+
+    @property
+    def get_thumbnail_photo_url(self):
+        if self.photo:
+            return f"{get_thumbnail_link(self.photo.url)}"
+
     class Meta:
         db_table = 'organizations'
 

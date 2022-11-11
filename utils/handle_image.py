@@ -17,11 +17,11 @@ def handle_uploaded_file(f, path, name):
             destination.write(chunk)
 
 
-def process_profile_image(profile, cropped_photo=None):
-    filename = profile.photo.name
-    profile.photo.name = change_profile_filename(f"/media/{filename}").replace('media/', '')
-    new_filename = profile.photo.name
-    profile.save()
+def process_instance_image(instance, cropped_photo=None):
+    filename = instance.photo.name
+    instance.photo.name = change_profile_filename(f"/media/{filename}").replace('media/', '')
+    new_filename = instance.photo.name
+    instance.save()
     if cropped_photo is None:
         crop_image(f"{new_filename}", f"{settings.BASE_DIR}/media")
     else:

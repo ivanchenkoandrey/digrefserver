@@ -9,7 +9,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from auth_app.models import Contact, Profile, Organization, UserRole
-from utils.handle_image import process_profile_image
+from utils.handle_image import process_instance_image
 
 PASSWORD = settings.DEFAULT_USER_PASSWORD
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class ProfileImageSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         cropped_photo = request.FILES.get('cropped_photo')
         profile = super().update(instance, validated_data)
-        process_profile_image(profile, cropped_photo)
+        process_instance_image(profile, cropped_photo)
         return profile
 
 

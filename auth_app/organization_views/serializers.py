@@ -1,9 +1,11 @@
 import logging
 
-from rest_framework.exceptions import ValidationError
+from django.conf import settings
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from auth_app.models import Organization
+from utils.crop_photos import crop_image
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,10 @@ class FullOrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = '__all__'
+
+    def get_photo(self, obj):
+        if obj.photo:
+            return obj.get_thumbnail_photo_url
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -36,6 +42,8 @@ class RootOrganizationSerializer(serializers.ModelSerializer):
         )
         root_organization.top_id = root_organization
         root_organization.save(update_fields=['top_id'])
+        if root_organization.photo is not None:
+            crop_image(root_organization.photo.name, f"{settings.BASE_DIR}/media/")
         return root_organization
 
 
@@ -60,4 +68,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         if parent.pk not in possible_parent_ids:
             raise ValidationError('Укажите в качестве parent_id свою ведущую компанию '
                                   'либо один из её департаментов')
-        return super().create(validated_data)
+        department = super().create(validated_data)
+        if department.photo is not None:
+            crop_image(department.photo.name, f"{settings.BASE_DIR}/media/")
+        return department

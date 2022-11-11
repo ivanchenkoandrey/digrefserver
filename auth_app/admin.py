@@ -118,3 +118,10 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ['user', 'type', 'theme', 'text', 'read', 'updated_at']
     list_select_related = ['user']
     list_filter = ['user', 'type']
+
+
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ['event_type', 'event_object_id', 'object_selector', 'time', 'scope', 'user']
+    list_select_related = ['scope', 'user']
+    list_filter = ['object_selector', 'event_type']
