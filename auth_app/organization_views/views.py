@@ -1,5 +1,5 @@
 from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -7,7 +7,8 @@ from auth_app.models import Organization
 from utils.custom_permissions import IsSystemAdmin, IsDepartmentAdmin, IsOrganizationAdmin
 from .serializers import (RootOrganizationSerializer,
                           DepartmentSerializer,
-                          FullOrganizationSerializer)
+                          FullOrganizationSerializer,
+                          OrganizationImageSerializer)
 
 
 class CreateRootOrganization(CreateAPIView):
@@ -78,3 +79,14 @@ class DepartmentsListView(APIView):
                                 status=status.HTTP_404_NOT_FOUND)
         return Response("Не передан параметр organization_id",
                         status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateOrganizationLogoView(UpdateAPIView):
+    """
+    Обновление логотипа организации
+    """
+    authentication_classes = [authentication.TokenAuthentication,
+                              authentication.SessionAuthentication]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationImageSerializer

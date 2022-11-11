@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 
 from auth_app.models import Organization
 from utils.crop_photos import crop_image
+from utils.handle_image import process_instance_image
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,21 @@ class FullOrganizationSerializer(serializers.ModelSerializer):
     def get_photo(self, obj):
         if obj.photo:
             return obj.get_thumbnail_photo_url
+
+
+class OrganizationImageSerializer(serializers.ModelSerializer):
+    cropped_photo = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Organization
+        fields = ['photo', 'cropped_photo']
+
+    def update(self, instance, validated_data):
+        request = self.context.get('request')
+        cropped_photo = request.FILES.get('cropped_photo')
+        organization = super().update(instance, validated_data)
+        process_instance_image(organization, cropped_photo)
+        return organization
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
