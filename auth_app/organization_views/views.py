@@ -1,5 +1,5 @@
 from rest_framework import authentication, status
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,6 +19,16 @@ class CreateRootOrganization(CreateAPIView):
     permission_classes = [IsSystemAdmin]
     queryset = Organization.objects.all()
     serializer_class = RootOrganizationSerializer
+
+
+class OrganizationDetailView(RetrieveAPIView):
+    """
+    Детальная страница организации
+    """
+    authentication_classes = [authentication.TokenAuthentication,
+                              authentication.SessionAuthentication]
+    queryset = Organization.objects.all()
+    serializer_class = FullOrganizationSerializer
 
 
 class CreateDepartmentView(APIView):
