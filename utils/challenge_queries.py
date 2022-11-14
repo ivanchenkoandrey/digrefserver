@@ -80,7 +80,7 @@ SELECT DISTINCT
 FROM challenges
 JOIN auth_user ON (challenges.creator_id = auth_user.id)
 JOIN profiles ON (auth_user.id = profiles.user_id)
-WHERE "challenges"."organization_id" == %s
+WHERE "challenges"."organization_id" = %s
 ORDER BY 1 DESC
 OFFSET %s LIMIT %s
 """
@@ -168,7 +168,7 @@ FROM challenges
 JOIN auth_user ON (challenges.creator_id = auth_user.id)
 JOIN profiles ON (auth_user.id = profiles.user_id)
 WHERE NOT ('C'=any("challenges"."states"))
-AND "challenges"."organization_id" == %s
+AND "challenges"."organization_id" = %s
 ORDER BY 1 DESC
 OFFSET %s LIMIT %s
 """
