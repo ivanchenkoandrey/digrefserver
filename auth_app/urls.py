@@ -100,8 +100,8 @@ urlpatterns = [
     path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
     path('organizations/<int:pk>/', organization_views.OrganizationDetailView.as_view()),
     path('organizations/<int:pk>/image/', organization_views.UpdateOrganizationLogoView.as_view()),
-    path('send-code-to-change-organization/', organization_views.SendCodeToChangeOrganizationView.as_view()),
-    path('change-organization/', organization_views.ChangeOrganizationView.as_view()),
+    path('user/change-organization/', organization_views.SendCodeToChangeOrganizationView.as_view()),
+    path('user/change-organization/verify/', organization_views.ChangeOrganizationView.as_view()),
     path('user/organizations/', organization_views.GetUserOrganizations.as_view()),
 
     # tags
