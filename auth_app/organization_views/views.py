@@ -2,7 +2,6 @@ from secrets import randbelow
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
-from django.db.models import Exists
 from rest_framework import authentication, status
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
@@ -12,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
+import logging
 
 from auth_app.models import Organization, Profile
 from utils.crypts import encrypt_message, decrypt_message
@@ -24,6 +24,7 @@ from .serializers import (RootOrganizationSerializer,
 User = get_user_model()
 BOT_TOKEN = settings.BOT_TOKEN
 bot = TeleBot(token=BOT_TOKEN)
+logger = logging.getLogger(__name__)
 
 
 class CreateRootOrganization(CreateAPIView):
@@ -194,3 +195,10 @@ class GetUserOrganizations(APIView):
     def get(cls, request, *args, **kwargs):
         current_user = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         tg_id = current_user.profile.tg_id
+        related_organization_ids = set(User.objects.filter(profile__tg_id=tg_id)
+                                       .exclude(pk=current_user.pk)
+                                       .values_list('profile__organization_id', flat=True))
+        organizations_data = Organization.objects.filter(pk__in=related_organization_ids).values(
+            'name', 'id'
+        )
+        return Response(data=organizations_data)

@@ -102,6 +102,7 @@ urlpatterns = [
     path('organizations/<int:pk>/image/', organization_views.UpdateOrganizationLogoView.as_view()),
     path('send-code-to-change-organization/', organization_views.SendCodeToChangeOrganizationView.as_view()),
     path('change-organization/', organization_views.ChangeOrganizationView.as_view()),
+    path('user/organizations/', organization_views.GetUserOrganizations.as_view()),
 
     # tags
     path('send-coins-settings/', tag_views.TagList.as_view()),
