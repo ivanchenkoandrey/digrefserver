@@ -155,8 +155,10 @@ def get_transactions_queryset(request, offset, limit):
 
 
 def get_events_data(offset, limit, user_id):
+    users_scope_id = Profile.objects.filter(user_id=user_id).only('organization_id').first().organization_id
     events = {event.id: event.to_json() for event in
-              Event.objects.order_by('-time')[offset * limit: offset * limit + limit]}
+              Event.objects.filter(scope_id=users_scope_id)
+              .order_by('-time')[offset * limit: offset * limit + limit]}
     events_data = []
     objects_pks = set()
     transaction_event_pairs = get_event_objects_pairs(events, TRANSACTION_TYPE_ID)

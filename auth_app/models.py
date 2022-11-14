@@ -738,6 +738,9 @@ class Challenge(models.Model):
                                            related_name='challengestopublic',
                                            verbose_name='Организация, определяющая уровень публичности'
                                                         ' вызова')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='challengeorganizations',
+                                     verbose_name='Организация, где проходит челлендж')
     name = CICharField(max_length=200, verbose_name='Название вызова')
     description = CITextField(default='', blank=True, verbose_name='Описание вызова')
     photo = models.ImageField(null=True, blank=True, upload_to='challenges', verbose_name='Эмблема')
@@ -925,13 +928,13 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
         )
 
 
-@receiver(post_save, sender=User)
-def create_user_stat(instance: User, created: bool, **kwargs):
+@receiver(post_save, sender=Profile)
+def create_user_stat(instance: Profile, created: bool, **kwargs):
     if created:
         from utils.current_period import get_current_period
-        period = get_current_period()
+        period = get_current_period(instance.organization_id)
         if period:
             UserStat.objects.create(
-                user=instance,
+                user=instance.user,
                 period=period
             )

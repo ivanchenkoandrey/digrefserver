@@ -12,7 +12,7 @@ class IsSystemAdmin(BasePermission):
     message = 'Вы не являетесь администратором системы'
 
     def has_permission(self, request, view):
-        return bool(request.user.is_staff)
+        return bool(request.user.is_superuser)
 
 
 class IsController(BasePermission):

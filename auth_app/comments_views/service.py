@@ -123,7 +123,6 @@ def create_and_send_comment_notifications_for_transactions(comment_instance, obj
         'comment_from_tg_name': user.profile.tg_name,
         'comment_from_first_name': user.profile.first_name,
         'comment_from_surname': user.profile.surname,
-        'comment_from_photo': user.profile.get_thumbnail_photo_url,
         'transaction_id': transaction_instance.id
     }
     push_data = {key: str(value) for key, value in notification_data.items()}
@@ -172,7 +171,6 @@ def create_and_send_comment_notifications_for_challenges(comment, object_id, use
         'comment_from_tg_name': user.profile.tg_name,
         'comment_from_first_name': user.profile.first_name,
         'comment_from_surname': user.profile.surname,
-        'comment_from_photo': user.profile.get_thumbnail_photo_url,
     }
     push_data = {key: str(value) for key, value in notification_data.items()}
     tokens_list = get_multiple_users_tokens_list(extended_ids_list)

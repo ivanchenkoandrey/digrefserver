@@ -80,6 +80,7 @@ SELECT DISTINCT
 FROM challenges
 JOIN auth_user ON (challenges.creator_id = auth_user.id)
 JOIN profiles ON (auth_user.id = profiles.user_id)
+WHERE "challenges"."organization_id" == %s
 ORDER BY 1 DESC
 OFFSET %s LIMIT %s
 """
@@ -167,6 +168,7 @@ FROM challenges
 JOIN auth_user ON (challenges.creator_id = auth_user.id)
 JOIN profiles ON (auth_user.id = profiles.user_id)
 WHERE NOT ('C'=any("challenges"."states"))
+AND "challenges"."organization_id" == %s
 ORDER BY 1 DESC
 OFFSET %s LIMIT %s
 """
@@ -183,9 +185,9 @@ SELECT
   "challenges"."winners_count",
   "challenges"."end_at",
   "challenges"."description",
+  "challenges"."organization_id" AS "organization_pk",
   "p"."first_name" AS "first_name",
   "p"."surname" AS "surname",
-  "p"."organization_id" AS "organization_pk",
   "p"."photo" AS "profile_photo",
   "p"."tg_name" AS "tg_name",
   (select count(*) from challenge_reports 

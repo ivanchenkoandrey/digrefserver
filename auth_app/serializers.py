@@ -17,11 +17,7 @@ from auth_app.models import (Profile, Account, Transaction,
                              LikeCommentStatistics)
 from utils.crop_photos import crop_image
 from utils.current_period import get_current_period
-from auth_app.tasks import send_multiple_notifications
-from utils.fcm_services import get_fcm_tokens_list
 from utils.handle_image import change_filename
-from utils.notification_services import (create_notification,
-                                         get_notification_message_for_thanks_sender)
 from utils.query_debugger import query_debugger
 from utils.thumbnail_link import get_thumbnail_link
 
@@ -547,7 +543,6 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from_income = False
-        current_period = get_current_period()
         request = self.context.get('request')
         tags = request.data.get('tags')
         sender = self.context['request'].user
@@ -556,15 +551,16 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         reason = self.data.get('reason')
         reason_def = self.data.get('reason_def')
         amount = self.validated_data['amount']
+        current_period = get_current_period(sender.profile.organization_id)
         is_anonymous = self.validated_data['is_anonymous']
         tags = self.make_validations(amount, current_period, reason, recipient, sender, tags)
         sender_distr_account = Account.objects.filter(
-            owner=sender, account_type='D', organization_id=None, challenge_id=None).first()
+            owner=sender, account_type='D', challenge_id=None).first()
         account_to_save = sender_distr_account
         current_account_amount = sender_distr_account.amount
         if current_account_amount == 0:
             sender_income_account = Account.objects.filter(
-                owner=sender, account_type='I', organization_id=None, challenge_id=None).first()
+                owner=sender, account_type='I', challenge_id=None).first()
             current_account_amount = sender_income_account.amount
             from_income = True
             account_to_save = sender_income_account
@@ -577,7 +573,7 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
             raise ValidationError("Перевести можно до 50% имеющейся "
                                   "суммы на счету распределения")
         sender_frozen_account = Account.objects.filter(
-            owner=sender, account_type='F', organization_id=None, challenge_id=None).first()
+            owner=sender, account_type='F', challenge_id=None).first()
         sender_user_stat = UserStat.objects.get(user=sender, period=current_period)
         with transaction.atomic():
             transaction_instance = Transaction.objects.create(

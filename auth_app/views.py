@@ -111,17 +111,6 @@ class SearchUserView(APIView):
         return users_data
 
 
-class PeriodListView(ListAPIView):
-    """
-    Возвращает список периодов, в которые осуществлялась раздача спасибок
-    """
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [authentication.SessionAuthentication,
-                              authentication.TokenAuthentication]
-    serializer_class = PeriodSerializer
-    queryset = Period.objects.all()
-
-
 class UsersList(APIView):
     """
     Возвращает список пользователей по умолчанию

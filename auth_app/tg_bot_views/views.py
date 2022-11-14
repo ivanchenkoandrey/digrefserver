@@ -60,7 +60,7 @@ class GetAnalyticsAdmin(APIView):
                                .filter(privileged__role='A')
                                .values_list('profile__tg_id', flat=True))
             if telegram_id in admins_list:
-                filename = create_admin_report()
+                filename = create_admin_report(request.user.profile.organization_id)
                 return FileResponse(open(filename, 'rb'))
             return Response({"status": "Вы не являетесь администратором"},
                             status=status.HTTP_403_FORBIDDEN)
@@ -79,7 +79,7 @@ class ExportUserTransactions(APIView):
         if telegram_id:
             is_user_exists = User.objects.filter(profile__tg_id=telegram_id).exists()
             if is_user_exists:
-                filename = export_user_transactions(telegram_id)
+                filename = export_user_transactions(telegram_id, request.user.profile.organization_id)
                 return FileResponse(open(filename, 'rb'))
             return Response({"status": f"Пользователь с {telegram_id=} не найден"},
                             status=status.HTTP_404_NOT_FOUND)

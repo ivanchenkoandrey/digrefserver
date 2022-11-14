@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -50,16 +51,17 @@ class RootOrganizationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         name = validated_data['name']
         photo = validated_data['photo']
-        root_organization = Organization.objects.create(
-            name=name,
-            photo=photo,
-            organization_type='R',
-            top_id_id=1
-        )
-        root_organization.top_id = root_organization
-        root_organization.save(update_fields=['top_id'])
-        if root_organization.photo is not None:
-            crop_image(root_organization.photo.name, f"{settings.BASE_DIR}/media/")
+        with transaction.atomic():
+            root_organization = Organization.objects.create(
+                name=name,
+                photo=photo,
+                organization_type='R',
+                top_id_id=1
+            )
+            root_organization.top_id = root_organization
+            root_organization.save(update_fields=['top_id'])
+            if root_organization.photo.name is not None:
+                crop_image(root_organization.photo.name, f"{settings.BASE_DIR}/media/")
         return root_organization
 
 

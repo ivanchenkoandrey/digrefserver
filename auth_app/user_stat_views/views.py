@@ -19,7 +19,7 @@ class CreateUserStats(APIView):
 
     @classmethod
     def get(cls, request, *args, **kwargs):
-        period = get_current_period()
+        period = get_current_period(request.user.profile.organization_id)
         user_stats = UserStat.objects.filter(period=period).exists()
         if not user_stats:
             users = User.objects.filter(~Q(username__in=['system', 'admin', 'digrefbot']))

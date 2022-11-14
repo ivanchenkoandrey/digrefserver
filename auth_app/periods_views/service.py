@@ -18,12 +18,17 @@ class PeriodDoesntExistError(Exception):
     pass
 
 
-def get_period() -> Dict:
+def get_period(organization_id) -> Dict:
     today = datetime.date.today()
     current_period = Period.objects.filter(
-        Q(start_date__lte=today) & Q(end_date__gte=today)).first()
+        Q(start_date__lte=today) &
+        Q(end_date__gte=today) &
+        Q(organization_id=organization_id)).first()
     if current_period is None:
-        previous_period = Period.objects.filter(end_date__lt=today).order_by('-end_date').first()
+        previous_period = (Period.objects.filter(
+            Q(end_date__lt=today) & Q(organization_id))
+                           .order_by('-end_date')
+                           .first())
         return previous_period.to_json()
     return current_period.to_json()
 
@@ -36,12 +41,14 @@ def is_date(string: str, fuzzy=False) -> bool:
         return False
 
 
-def _get_period_by_date(date: str) -> Dict:
+def _get_period_by_date(date: str, organization_id) -> Dict:
     if is_date(date):
         try:
             date_object = datetime.datetime.strptime(date, '%Y-%m-%d')
             period = Period.objects.filter(
-                Q(start_date__lte=date) & Q(end_date__gte=date)).first()
+                Q(start_date__lte=date) &
+                Q(end_date__gte=date) &
+                Q(organization_id=organization_id)).first()
             if period is not None:
                 return period.to_json()
             else:
@@ -52,13 +59,15 @@ def _get_period_by_date(date: str) -> Dict:
         raise NotADateError
 
 
-def get_periods_list(from_date: Optional[str], limit: int):
+def get_periods_list(from_date: Optional[str], limit: int, organization_id: int):
     if is_date(from_date):
         try:
             today = datetime.date.today()
             date_object = datetime.datetime.strptime(from_date, '%Y-%m-%d')
             period_list = (Period.objects
-                           .filter(Q(start_date__gte=date_object) & Q(start_date__lte=today))
+                           .filter(Q(start_date__gte=date_object) &
+                                   Q(start_date__lte=today) &
+                                   Q(organization_id=organization_id))
                            .order_by('-end_date')[:limit]
                            .annotate(time_from=F('start_date'),
                                      time_to=F('end_date'))

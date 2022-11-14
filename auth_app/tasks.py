@@ -67,7 +67,7 @@ def validate_transactions_after_grace_period():
     from django.conf import settings
     from django.db import transaction
     from datetime import datetime, timezone
-    from utils.current_period import get_current_period
+    from utils.current_period import get_current_periods_for_all_organizations
     from utils.fcm_manager import send_multiple_push
     from utils.fcm_services import get_fcm_tokens_list
     from utils.notification_services import (create_notification,
@@ -76,23 +76,22 @@ def validate_transactions_after_grace_period():
 
     grace_period = settings.GRACE_PERIOD
     now = datetime.now(timezone.utc)
-    period = get_current_period()
-    if period is None:
-        return
+    periods = get_current_periods_for_all_organizations()
     transactions_to_check = [t for t in Transaction.objects
     .select_related('sender_account', 'recipient_account',
                     'sender__profile', 'recipient__profile')
     .filter(status='G')
     .only('sender_id', 'recipient_id', 'sender__profile__first_name',
           'sender__profile__surname', 'recipient__profile__surname',
+          'sender__profile__organization__id',
           'sender__profile__tg_name', 'recipient__profile__tg_name',
           'recipient__profile__surname', 'status', 'amount',
           'period', 'created_at', 'sender_account', 'recipient_account')]
     with transaction.atomic():
-        accounts = (Account.objects.filter(organization_id=None, challenge_id=None)
+        accounts = (Account.objects.filter(challenge_id=None)
                     .only('owner_id', 'amount', 'account_type', 'transaction'))
         user_stats = (UserStat.objects
-                      .filter(period=period)
+                      .filter(period_id__in=periods)
                       .only('user_id', 'period', 'income_thanks'))
         for _transaction in transactions_to_check:
             amount = _transaction.amount
@@ -141,7 +140,8 @@ def validate_transactions_after_grace_period():
                     event_record_id=state.pk,
                     event_object_id=_transaction.pk,
                     object_selector='T',
-                    time=now
+                    time=now,
+                    scope_id=_transaction.sender.profile.organization_id
                 )
                 sender_frozen_account.save(update_fields=['amount', 'transaction'])
                 recipient_income_account.save(update_fields=['amount', 'transaction'])

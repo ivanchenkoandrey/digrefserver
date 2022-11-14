@@ -30,10 +30,12 @@ USER_REPORT_DATA_HEADERS = (
 )
 
 
-def get_period() -> Period:
+def get_period(organization_id) -> Period:
     today = datetime.date.today()
     current_period = Period.objects.filter(
-        Q(start_date__lte=today) & Q(end_date__gte=today)).first()
+        Q(start_date__lte=today) &
+        Q(end_date__gte=today) &
+        Q(organization_id=organization_id)).first()
     if current_period is None:
         previous_period = (Period.objects.filter(end_date__lt=today)
                            .order_by('-end_date').first())
@@ -41,10 +43,10 @@ def get_period() -> Period:
     return current_period
 
 
-def export_user_transactions(telegram_id: str) -> str:
+def export_user_transactions(telegram_id: str, organization_id: int) -> str:
     wb = Workbook()
     ws = wb.active
-    period = get_period()
+    period = get_period(organization_id)
     transactions = get_user_transactions(period, telegram_id)
     make_table_structure_for_user_report(ws)
     for index, transaction in enumerate(transactions, 3):
@@ -101,10 +103,10 @@ def make_table_structure_for_user_report(ws: Workbook.active) -> None:
             horizontal='center', vertical='center', wrap_text=True)
 
 
-def create_admin_report() -> str:
+def create_admin_report(organization_id) -> str:
     wb = Workbook()
     ws = wb.active
-    period = get_period()
+    period = get_period(organization_id)
     (recipient_counter_data, recipient_waiting_data,
      sender_counter_data, sender_waiting_data, stats) = get_transactions_data(period)
     make_table_structure_for_admin_report(ws)

@@ -17,8 +17,10 @@ from utils.challenges_logic import (get_challenge_state_values, add_annotated_fi
 from utils.paginates import process_offset_and_limit
 from utils.query_debugger import query_debugger
 from .service import create_challenge
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class CreateChallengeView(APIView):
@@ -31,7 +33,7 @@ class CreateChallengeView(APIView):
 
     @classmethod
     def post(cls, request, *args, **kwargs):
-        creator = request.user
+        creator = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         name = request.data.get('name')
         description = request.data.get('description', '')
         end_at = request.data.get('end_at')
@@ -40,7 +42,7 @@ class CreateChallengeView(APIView):
         parameter_value = request.data.get('parameter_value')
         photo = request.FILES.get('photo')
 
-        response = create_challenge(creator, name, end_at, description, start_balance,  photo,
+        response = create_challenge(creator, name, end_at, description, start_balance, photo,
                                     parameter_id, parameter_value)
 
         return Response(response)
@@ -54,17 +56,18 @@ class ChallengeListView(APIView):
     @classmethod
     @query_debugger
     def get(cls, request, *args, **kwargs):
+        organization_id = request.user.profile.organization_id
         offset = request.GET.get('offset')
         limit = request.GET.get('limit')
         offset, limit = process_offset_and_limit(offset, limit)
         active_only = request.GET.get('active_only')
         if cls.get_boolean_parameter(active_only):
             challenges = Challenge.objects.raw(
-                CHALLENGE_ACTIVE_LIST_QUERY, [request.user.id] * 9 + [offset * limit] + [limit]
+                CHALLENGE_ACTIVE_LIST_QUERY, [request.user.id] * 9 + [organization_id] + [offset * limit] + [limit]
             )
         else:
             challenges = Challenge.objects.raw(
-                CHALLENGE_LIST_QUERY, [request.user.id] * 9 + [offset * limit] + [limit]
+                CHALLENGE_LIST_QUERY, [request.user.id] * 9 + [organization_id] + [offset * limit] + [limit]
             )
         challenges = reconfigure_challenges_queryset_into_dictionary(challenges)
         update_time(challenges, 'updated_at')

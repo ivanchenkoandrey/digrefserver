@@ -73,7 +73,6 @@ class CreateChallengeReportSerializer(serializers.ModelSerializer):
     def create_and_send_author_getting_reports_notifications(challenge, challenge_report_instance, user):
         notification_data = {
             'report_sender_tg_name': user.profile.tg_name,
-            'report_sender_photo': user.profile.get_thumbnail_photo_url,
             'report_sender_surname': user.profile.surname,
             'report_sender_first_name': user.profile.first_name,
             'challenge_id': challenge_report_instance.challenge_id,
@@ -130,6 +129,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
         if state == 'W':
             with tr.atomic():
                 challenge = challenge_report.challenge
+                organization_id = challenge.creator.profile.organization_id
                 winners_count = challenge.winners_count
                 challenge.winners_count = winners_count + 1
                 challenge.save(update_fields=["winners_count"])
@@ -150,7 +150,7 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                 recipient_account = Account.objects.get(owner=user_participant, account_type='I')
                 recipient_account.amount += prize
 
-                current_period = get_current_period()
+                current_period = get_current_period(organization_id)
                 transaction = Transaction.objects.create(
                     is_anonymous=False,
                     sender_account=sender_account,
@@ -166,7 +166,8 @@ class CheckChallengeReportSerializer(serializers.ModelSerializer):
                     event_type=EventTypes.objects.get(name='Новый победитель челленджа'),
                     event_object_id=self.instance.pk,
                     object_selector='R',
-                    time=datetime.now()
+                    time=datetime.now(),
+                    scope_id=organization_id
                 )
 
                 self.create_and_send_winner_report_notifications(challenge, challenge_report, prize, user_participant)

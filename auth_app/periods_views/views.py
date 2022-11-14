@@ -1,5 +1,7 @@
+import datetime
 import logging
 
+from django.db.models import Q
 from rest_framework import authentication
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
@@ -27,7 +29,13 @@ class PeriodListView(ListAPIView):
     authentication_classes = [authentication.SessionAuthentication,
                               authentication.TokenAuthentication]
     serializer_class = PeriodSerializer
-    queryset = Period.objects.all()
+
+    def get_queryset(self):
+        organization_id = self.request.user.profile.organization_id
+        now = datetime.datetime.now()
+        return Period.objects.filter(
+            Q(organization_id=organization_id) &
+            Q(end_date__lte=now))
 
 
 class CreatePeriodView(APIView):
@@ -43,6 +51,7 @@ class CreatePeriodView(APIView):
     def post(cls, request, *args, **kwargs):
         serializer = PeriodSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
+            serializer.validated_data['organization_id'] = request.user.profile.organization_id
             serializer.save()
             return Response(serializer.data)
 
@@ -56,7 +65,7 @@ def get_current_period(request):
     Возвращает текущий периода либо, если текущий период не задан,
     то предыдущий
     """
-    period = get_period()
+    period = get_period(request.user.profile.organization_id)
     response = Response(period)
     if 'period_id' not in request.COOKIES:
         set_period_cookies(period, response)
@@ -88,7 +97,7 @@ def get_period_by_date(request):
     Возвращает период, в котором была искомая дата
     """
     try:
-        period = _get_period_by_date(request.data.get('date', ''))
+        period = _get_period_by_date(request.data.get('date', ''), request.user.profile.organization_id)
         return Response(period)
     except NotADateError:
         return Response('Дата не была передана', status=status.HTTP_400_BAD_REQUEST)
@@ -111,7 +120,7 @@ def get_periods(request):
     try:
         if date_from is not None:
             if isinstance(limit, int) and 0 < int(limit) < 11:
-                periods_list = get_periods_list(date_from, limit)
+                periods_list = get_periods_list(date_from, limit, request.user.profile.organization_id)
             else:
                 return Response('Лимит должен быть числом от 1 до 10',
                                 status=status.HTTP_400_BAD_REQUEST)

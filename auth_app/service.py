@@ -70,7 +70,7 @@ def is_controller_data_is_valid(data) -> bool:
 def update_transactions_by_controller(data: Dict,
                                       request: HttpRequest) -> List[Dict]:
     """Обновление контроллером статусов транзакций, счетов пользователей и их статистики"""
-    period = get_period()
+    period = get_period(request.user.profile.organization_id)
     waiting_transactions = {_transaction.id: _transaction
                             for _transaction in Transaction.objects.only(
                                     'id', 'status', 'reason', 'updated_at',
@@ -86,7 +86,7 @@ def update_transactions_by_controller(data: Dict,
         sender_recipient_ids.add(waiting_transactions.get(current_id).recipient_id)
 
     accounts = {(account.owner_id, account.account_type): account
-                for account in Account.objects.filter(organization_id=None, challenge_id=None,
+                for account in Account.objects.filter(challenge_id=None,
                                                       owner_id__in=sender_recipient_ids).only(
                         'account_type', 'amount', 'owner_id', 'transaction')}
     user_stats = {stat.user_id: stat
@@ -145,12 +145,14 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
                            Q(profile__contacts__contact_id__istartswith=data))
     not_show_myself_filter = ~Q(profile__tg_name=request.user.profile.tg_name)
     not_show_system_filter = ~Q(username='system')
+    organization_filter = Q(profile__organization_id=request.user.profile.organization_id)
     if request.data.get('show_myself') is True:
         users_data = User.objects.filter(
             main_search_filters & not_show_system_filter).distinct()
     else:
         users_data = User.objects.filter(
-            main_search_filters & not_show_myself_filter & not_show_system_filter).distinct()
+            main_search_filters & not_show_myself_filter &
+            not_show_system_filter & organization_filter).distinct()
     users_list = annotate_search_users_queryset(users_data)
     for user in users_list:
         photo = user.get('photo')
@@ -179,11 +181,11 @@ def cancel_transaction_by_user(instance: Transaction,
     обновление данных счёта и статистики в рамках одной транзакции в БД
     """
     with transaction.atomic():
-        period = get_current_period()
+        period = get_current_period(request.user.profile.organization_id)
         amount = instance.amount
         account_to_return = instance.sender_account
         sender_user_stat = UserStat.objects.get(user=request.user, period=period)
-        sender_frozen_account = instance.sender.accounts.filter(organization_id=None, challenge_id=None,
+        sender_frozen_account = instance.sender.accounts.filter(challenge_id=None,
                                                                 account_type='F').only('amount').first()
         account_to_return.amount += amount
         sender_frozen_account.amount -= amount

@@ -18,7 +18,7 @@ User = get_user_model()
 
 
 def create_challenge(creator, name, end_at, description, start_balance, photo, parameter_id, parameter_value):
-    period = get_current_period()
+    period = get_current_period(creator.profile.organization_id)
 
     if end_at == "":
         end_at = None
@@ -44,13 +44,13 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
                       {"id": 2 / parameter_id, "value": start_balance // parameter_value, "is_calc": True}]
 
     sender_distr_account = Account.objects.filter(
-        owner=creator, account_type='D', organization_id=None, challenge_id=None).first()
+        owner=creator, account_type='D', challenge_id=None).first()
     current_account_amount = sender_distr_account.amount
     from_income = False
     account_to_save = sender_distr_account
     if current_account_amount - start_balance < 0:
         sender_income_account = Account.objects.filter(
-            owner=creator, account_type='I', organization_id=None, challenge_id=None).first()
+            owner=creator, account_type='I', challenge_id=None).first()
         current_account_amount = sender_income_account.amount
         account_to_save = sender_income_account
         from_income = True
@@ -81,7 +81,8 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
             challenge_mode=challenge_modes,
             start_balance=start_balance,
             parameters=parameters,
-            photo=photo
+            photo=photo,
+            organization_id=creator.profile.organization_id
         )
 
         if 'P' in challenge.states:
@@ -89,7 +90,8 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
                 event_type=EventTypes.objects.get(name='Создан челлендж'),
                 event_object_id=challenge.pk,
                 object_selector='Q',
-                time=datetime.now()
+                time=datetime.now(),
+                scope_id=creator.profile.organization_id
             )
 
         participant = ChallengeParticipant.objects.create(
@@ -114,7 +116,7 @@ def create_challenge(creator, name, end_at, description, start_balance, photo, p
             amount=start_balance,
             transaction_class='H',
             status='R',
-            period=period,
+            period=period
         )
         recipient_account.transaction = transaction
         recipient_account.save(update_fields=['transaction'])

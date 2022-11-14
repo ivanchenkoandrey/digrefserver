@@ -23,6 +23,7 @@ from . import views
 urlpatterns = [
     # authentication
     path('auth/', auth_views.AuthView.as_view()),
+    path('choose-organization/', auth_views.ChooseOrganizationViaAuthenticationView.as_view()),
     path('verify/', auth_views.VerifyCodeView.as_view()),
 
     # accounts
@@ -98,6 +99,9 @@ urlpatterns = [
     path('root-organizations/', organization_views.RootOrganizationListView.as_view()),
     path('get-organization-departments/', organization_views.DepartmentsListView.as_view()),
     path('organizations/<int:pk>/', organization_views.OrganizationDetailView.as_view()),
+    path('organizations/<int:pk>/image/', organization_views.UpdateOrganizationLogoView.as_view()),
+    path('send-code-to-change-organization/', organization_views.SendCodeToChangeOrganizationView.as_view()),
+    path('change-organization/', organization_views.ChangeOrganizationView.as_view()),
 
     # tags
     path('send-coins-settings/', tag_views.TagList.as_view()),

@@ -113,11 +113,8 @@ def get_notification_data(transaction_instance):
         if not transaction_instance.is_anonymous else None,
         "sender_tg_name": transaction_instance.sender.profile.tg_name
         if not transaction_instance.is_anonymous else None,
-        "sender_photo": transaction_instance.sender.profile.get_thumbnail_photo_url
-        if not transaction_instance.is_anonymous else None,
         "recipient_id": transaction_instance.recipient_id,
         "recipient_tg_name": transaction_instance.recipient.profile.tg_name,
-        "recipient_photo": transaction_instance.recipient.profile.get_thumbnail_photo_url,
         "status": transaction_instance.status,
         "amount": int(transaction_instance.amount),
         "transaction_id": transaction_instance.pk,
