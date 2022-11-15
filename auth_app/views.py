@@ -133,7 +133,7 @@ class UsersList(APIView):
                 photo=F('profile__photo')).values('user_id', 'tg_name', 'name', 'surname', 'photo')[:100])
             for user in users_list:
                 photo = user.get('photo')
-                if photo is not None:
+                if photo:
                     user['photo'] = get_thumbnail_link(photo)
             return Response(users_list)
         logger.info(f'Неправильный запрос на показ пользователей по умолчанию от {request.user}: {request.data}')
