@@ -93,8 +93,8 @@ class AuthView(APIView):
             }
             organizations_list.append(organization_data)
         response = Response(data={"status": "Необходимо выбрать организацию",
-                                  "organizations": organizations_list})
-        response['login'] = request.session['login'] = _login
+                                  "organizations": organizations_list}, headers={'login': _login})
+        request.session['login'] = _login
         return response
 
 
