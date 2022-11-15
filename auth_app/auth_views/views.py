@@ -92,7 +92,7 @@ class AuthView(APIView):
                 "organization_photo": profile.organization.get_thumbnail_photo_url
             }
             organizations_list.append(organization_data)
-        response = Response(data={"status": "Need to choose organization",
+        response = Response(data={"status": "Необходимо выбрать организацию",
                                   "organizations": organizations_list})
         response['login'] = request.session['login'] = _login
         return response
