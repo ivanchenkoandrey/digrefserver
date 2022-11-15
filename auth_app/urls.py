@@ -35,6 +35,7 @@ urlpatterns = [
     path('user/stat/<int:period_id>/', views.get_user_stat_by_period),
     path('search-user/', views.SearchUserView.as_view()),
     path('users-list/', views.UsersList.as_view()),
+    path('employees/', views.GetUsersView.as_view()),
     path('update-profile-image/<int:pk>/', profile_views.UpdateProfileImageView.as_view()),
     path('create-employee/', profile_views.CreateEmployeeView.as_view()),
     path('create-user-role/', profile_views.CreateUserRoleView.as_view()),

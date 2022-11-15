@@ -3,21 +3,21 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F
 from rest_framework import status, authentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin, IsDepartmentAdmin)
-from .models import Period, UserStat, Account, Transaction
-from .serializers import (UserSerializer, SearchUserSerializer,
-                          PeriodSerializer)
-from .service import (get_search_user_data)
+from utils.query_debugger import query_debugger
 from utils.thumbnail_link import get_thumbnail_link
+from .models import Period, UserStat, Account, Transaction
+from .serializers import (UserSerializer, SearchUserSerializer)
+from .service import (get_search_user_data)
 
 User = get_user_model()
 
@@ -84,15 +84,56 @@ def get_user_stat_by_period(request, period_id):
     return Response(data)
 
 
-# class GetUsersView(APIView):
-#     permission_classes = [IsAuthenticated]
-#     authentication_classes = [authentication.SessionAuthentication,
-#                               authentication.TokenAuthentication]
-#
-#     @classmethod
-#     def get(cls, request, *args, **kwargs):
-#         department_id = request.GET.get('department_id')
+class GetUsersView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    ONLY_FIELDS = (
+        'id', 'profile__id', 'profile__first_name', 'profile__surname', 'profile__middle_name',
+        'profile__job_title', 'profile__department_id', 'profile__organization_id',
+        'profile__organization__name', 'profile__department__name', 'profile__photo'
+    )
 
+    @classmethod
+    @query_debugger
+    def get(cls, request, *args, **kwargs):
+        department_id = request.GET.get('department_id')
+        organization_id = request.user.profile.organization_id
+        if department_id is not None:
+            users_list = (User.objects.select_related('profile__organization', 'profile__department')
+                          .prefetch_related('profile__contacts')
+                          .exclude(username__in=['digrefbot', 'system'])
+                          .filter(profile__organization_id=organization_id,
+                                  profile__department_id=department_id)
+                          .only(*cls.ONLY_FIELDS))
+        else:
+            users_list = (User.objects.select_related('profile__organization', 'profile__department')
+                          .prefetch_related('profile__contacts')
+                          .exclude(username__in=['digrefbot', 'system'])
+                          .filter(profile__organization_id=organization_id)
+                          .only(*cls.ONLY_FIELDS))
+        data = cls.get_data_from_queryset(users_list)
+        return Response(data=data)
+
+    @classmethod
+    def get_data_from_queryset(cls, qs):
+        users = []
+        for user in qs:
+            users.append({
+                "id": user.pk,
+                "profile_id": user.profile.pk,
+                "contacts": user.profile.contacts.values(type=F('contact_type'), value=F('contact_id')),
+                "first_name": user.profile.first_name,
+                "surname": user.profile.surname,
+                "middle_name": user.profile.middle_name,
+                "job_title": user.profile.job_title,
+                "photo": user.profile.get_thumbnail_photo_url,
+                "organization_id": user.profile.organization_id,
+                "organization_name": user.profile.organization.name,
+                "department_id": user.profile.department_id,
+                "department_name": user.profile.department.name
+            })
+        return users
 
 
 class SearchUserView(APIView):
@@ -135,7 +176,7 @@ class UsersList(APIView):
         if request.data.get('get_users') is not None:
             logger.info(f'Запрос на показ пользователей по умолчанию от {request.user}')
             users_list = (User.objects.exclude(username__in=[request.user.username, 'system', 'digrefbot'])
-            .filter(profile__organization_id=request.user.profile.organization_id)
+                          .filter(profile__organization_id=request.user.profile.organization_id)
                           .order_by('profile__surname').annotate(
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),
@@ -205,11 +246,11 @@ class BurnIncomeThanksView(APIView):
         system = User.objects.get(username='system')
         previous_period = Period.objects.filter(end_date__lt=today).order_by('-end_date').first()
         stats = {stat.user_id: stat for stat in UserStat.objects.select_related('user')
-                                                                .filter(period=previous_period)
-                                                                .only('user_id', 'period_id', 'income_at_end')}
+        .filter(period=previous_period)
+        .only('user_id', 'period_id', 'income_at_end')}
         accounts = {account.owner_id: account for account in Account.objects.select_related('owner')
-                                                                .filter(account_type='I', owner_id__in=stats.keys())
-                                                                .only('owner_id', 'amount', 'account_type')}
+        .filter(account_type='I', owner_id__in=stats.keys())
+        .only('owner_id', 'amount', 'account_type')}
         with transaction.atomic():
             overall_burnt = 0
             for stat_user_id in stats:
