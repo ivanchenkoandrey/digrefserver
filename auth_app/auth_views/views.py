@@ -62,7 +62,7 @@ class AuthView(APIView):
                     profile = profiles[0]
                     tg_id = profile.tg_id
                     try:
-                        bot.send_message(tg_id, f'Код подтверждения в системе Цифровое Спасибо: {code}')
+                        bot.send_message(tg_id, f'{code} - код подтверждения в системе ТИМФОРС360.Цифровое Спасибо')
                     except ApiTelegramException:
                         logger.error(f"Передан неизвестный боту telegram_id: {tg_id}, "
                                      f"IP: {request.META.get('REMOTE_ADDR')}")

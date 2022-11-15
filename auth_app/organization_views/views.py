@@ -138,7 +138,7 @@ class SendCodeToChangeOrganizationView(APIView):
             code = ''.join([str(randbelow(10)) for _ in range(4)])
             response = Response()
             try:
-                bot.send_message(tg_id, f'Код подтверждения для смены текущей организации: {code}')
+                bot.send_message(tg_id, f'{code} - код подтверждения для смены текущей организации')
             except ApiTelegramException:
                 raise ValidationError('Неизвестный боту пользователь')
             response.data = {'status': 'Код для подтверждения смены организации отправлен в телеграм'}
