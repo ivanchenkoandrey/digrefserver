@@ -228,9 +228,10 @@ def get_comments_statistics_for_events(pk_list, events):
 
 
 def get_transactions_events_data(offset, limit, user_id):
+    users_scope_id = Profile.objects.filter(user_id=user_id).only('organization_id').first().organization_id
     events = {event.id: event.to_json() for event in
               (Event.objects
-               .filter(object_selector='T')
+               .filter(object_selector='T', scope_id=users_scope_id)
                .order_by('-time')
               [offset * limit: offset * limit + limit])}
     events_data = []
@@ -249,9 +250,10 @@ def get_transactions_events_data(offset, limit, user_id):
 
 
 def get_reports_events_data(offset, limit, user_id):
+    users_scope_id = Profile.objects.filter(user_id=user_id).only('organization_id').first().organization_id
     events = {event.id: event.to_json() for event in
               (Event.objects
-               .filter(object_selector='R')
+               .filter(object_selector='R', scope_id=users_scope_id)
                .order_by('-time')
               [offset * limit: offset * limit + limit])}
     events_data = []
@@ -270,9 +272,10 @@ def get_reports_events_data(offset, limit, user_id):
 
 
 def get_challenges_events_data(offset, limit, user_id):
+    users_scope_id = Profile.objects.filter(user_id=user_id).only('organization_id').first().organization_id
     events = {event.id: event.to_json() for event in
               (Event.objects
-               .filter(object_selector='Q')
+               .filter(object_selector='Q', scope_id=users_scope_id)
                .order_by('-time')
               [offset * limit: offset * limit + limit])}
     events_data = []

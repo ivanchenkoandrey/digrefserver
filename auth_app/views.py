@@ -84,6 +84,17 @@ def get_user_stat_by_period(request, period_id):
     return Response(data)
 
 
+# class GetUsersView(APIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = [authentication.SessionAuthentication,
+#                               authentication.TokenAuthentication]
+#
+#     @classmethod
+#     def get(cls, request, *args, **kwargs):
+#         department_id = request.GET.get('department_id')
+
+
+
 class SearchUserView(APIView):
     """
     Поиск пользователя по вхождению искомой строки
