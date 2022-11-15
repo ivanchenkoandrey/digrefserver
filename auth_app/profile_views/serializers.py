@@ -8,7 +8,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Contact, Profile, Organization, UserRole
+from auth_app.models import Contact, Profile, Organization, UserRole, Account, Transaction
 from utils.handle_image import process_instance_image
 
 PASSWORD = settings.DEFAULT_USER_PASSWORD
@@ -115,6 +115,8 @@ class EmployeeSerializer(serializers.Serializer):
         if department_id not in possible_departments:
             raise ValidationError("Укажите существующий департамент "
                                   "в составе указанной вами организации")
+        if User.objects.filter(profile__organization_id=organization_id, profile__tg_id=tg_id).exists():
+            raise ValidationError("Пользователь с таким id телеграм и id организации уже зарегистрирован")
         username = self.get_username(tg_name, tg_id)
         password = PASSWORD
         with transaction.atomic():
@@ -150,6 +152,27 @@ class EmployeeSerializer(serializers.Serializer):
                     contact_id=email,
                     confirmed=True
                 )
+            if organization.name == 'ruDemo':
+                distr_account = Account.objects.get(owner=user, account_type='D', challenge_id=None)
+                system_account = Account.objects.get(owner__username='system', account_type='T')
+                amount = 300
+                _transaction = Transaction.objects.create(
+                    sender_id=system_account.owner_id,
+                    sender_account=system_account,
+                    amount=amount,
+                    recipient=user,
+                    recipient_account=distr_account,
+                    transaction_class='E',
+                    status='R',
+                    organization=organization,
+                    is_public=False,
+                    is_anonymous=False,
+                    is_commentable=False
+                )
+                distr_account.amount += amount
+                system_account.amount -= amount
+                distr_account.save(update_fields=['amount'])
+                system_account.save(update_fields=['amount'])
         return user
 
 
