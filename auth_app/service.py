@@ -160,7 +160,7 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
     users_list = annotate_search_users_queryset(users_data)
     for user in users_list:
         photo = user.get('photo')
-        if photo is not None:
+        if photo:
             user['photo'] = get_thumbnail_link(photo)
     return users_list
 
