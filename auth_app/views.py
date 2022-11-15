@@ -124,6 +124,7 @@ class UsersList(APIView):
         if request.data.get('get_users') is not None:
             logger.info(f'Запрос на показ пользователей по умолчанию от {request.user}')
             users_list = (User.objects.exclude(username__in=[request.user.username, 'system', 'digrefbot'])
+            .filter(profile__organization_id=request.user.profile.organization_id)
                           .order_by('profile__surname').annotate(
                 user_id=F('id'),
                 tg_name=F('profile__tg_name'),

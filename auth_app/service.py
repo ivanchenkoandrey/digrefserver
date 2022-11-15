@@ -148,11 +148,15 @@ def get_search_user_data(data: Dict, request: HttpRequest) -> Dict:
     organization_filter = Q(profile__organization_id=request.user.profile.organization_id)
     if request.data.get('show_myself') is True:
         users_data = User.objects.filter(
-            main_search_filters & not_show_system_filter).distinct()
+            main_search_filters &
+            not_show_system_filter &
+            organization_filter).distinct()
     else:
         users_data = User.objects.filter(
-            main_search_filters & not_show_myself_filter &
-            not_show_system_filter & organization_filter).distinct()
+            main_search_filters &
+            not_show_myself_filter &
+            not_show_system_filter &
+            organization_filter).distinct()
     users_list = annotate_search_users_queryset(users_data)
     for user in users_list:
         photo = user.get('photo')
