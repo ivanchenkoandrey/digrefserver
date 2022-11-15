@@ -634,6 +634,8 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             logger.info(f"Попытка отправить спасибки на системный аккаунт")
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
+        if recipient.profile.organization_id != sender.profile.organization_id:
+            raise ValidationError("Нельзя отправлять спасибки между организациями")
         if tags is not None:
             if not isinstance(tags, str):
                 logger.info(f"Попытка передать ценности не строкой")

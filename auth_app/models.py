@@ -904,7 +904,8 @@ def create_income_account(instance: Profile, created: bool, **kwargs):
         Account.objects.create(
             owner=instance.user,
             account_type='I',
-            amount=0
+            amount=0,
+            organization_id=instance.organization_id
         )
 
 
@@ -914,7 +915,8 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
         Account.objects.create(
             owner=instance.user,
             account_type='F',
-            amount=0
+            amount=0,
+            organization_id=instance.organization_id
         )
 
 
@@ -924,7 +926,8 @@ def create_frozen_account(instance: Profile, created: bool, **kwargs):
         Account.objects.create(
             owner=instance.user,
             account_type='D',
-            amount=0
+            amount=0,
+            organization_id=instance.organization_id
         )
 
 
