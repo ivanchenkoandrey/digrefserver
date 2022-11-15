@@ -102,14 +102,14 @@ class GetUsersView(APIView):
         if department_id is not None:
             users_list = (User.objects.select_related('profile__organization', 'profile__department')
                           .prefetch_related('profile__contacts')
-                          .exclude(username__in=['digrefbot', 'system'])
+                          .exclude(username__in=['digrefbot', 'system', 'admin'])
                           .filter(profile__organization_id=organization_id,
                                   profile__department_id=department_id)
                           .only(*cls.ONLY_FIELDS))
         else:
             users_list = (User.objects.select_related('profile__organization', 'profile__department')
                           .prefetch_related('profile__contacts')
-                          .exclude(username__in=['digrefbot', 'system'])
+                          .exclude(username__in=['digrefbot', 'system', 'admin'])
                           .filter(profile__organization_id=organization_id)
                           .only(*cls.ONLY_FIELDS))
         data = cls.get_data_from_queryset(users_list)
