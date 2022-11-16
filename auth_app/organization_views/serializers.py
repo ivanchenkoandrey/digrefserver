@@ -60,7 +60,7 @@ class RootOrganizationSerializer(serializers.ModelSerializer):
             )
             root_organization.top_id = root_organization
             root_organization.save(update_fields=['top_id'])
-            if root_organization.photo.name is not None:
+            if root_organization.photo:
                 crop_image(root_organization.photo.name, f"{settings.BASE_DIR}/media/")
         return root_organization
 
@@ -76,17 +76,18 @@ class DepartmentSerializer(serializers.ModelSerializer):
         top_ids = list(Organization.objects.filter(parent_id=None)
                        .values_list('pk', flat=True)
                        .distinct().order_by())
-        if top_organization.pk not in top_ids:
+        top_id = top_organization.pk
+        if top_id not in top_ids:
             raise ValidationError('Укажите в качестве top_id id какой-нибудь '
                                   'существующей ведущей компании')
         parent = validated_data['parent_id']
-        possible_parent_ids = list(Organization.objects.get(pk=top_organization.pk).children
+        possible_parent_ids = list(Organization.objects.filter(top_id=top_id)
                                    .values_list('pk', flat=True)
-                                   .distinct().order_by()) + [top_organization.pk]
+                                   .distinct().order_by())
         if parent.pk not in possible_parent_ids:
             raise ValidationError('Укажите в качестве parent_id свою ведущую компанию '
                                   'либо один из её департаментов')
         department = super().create(validated_data)
-        if department.photo is not None:
+        if department.photo:
             crop_image(department.photo.name, f"{settings.BASE_DIR}/media/")
         return department

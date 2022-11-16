@@ -1,7 +1,9 @@
+import logging
 from secrets import randbelow
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
+from django.db.models import Q
 from rest_framework import authentication, status
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
@@ -11,7 +13,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
-import logging
 
 from auth_app.models import Organization, Profile
 from utils.crypts import encrypt_message, decrypt_message
@@ -95,8 +96,8 @@ class DepartmentsListView(APIView):
         if organization_id is not None:
             try:
                 root_organization = Organization.objects.get(pk=organization_id)
-                departments = root_organization.children.all()
-
+                root_id = root_organization.pk
+                departments = Organization.objects.filter(Q(top_id=root_id) & ~Q(pk=root_id))
                 serializer = FullOrganizationSerializer(departments, many=True)
                 return Response(serializer.data)
             except Organization.DoesNotExist:
