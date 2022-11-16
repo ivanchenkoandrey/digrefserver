@@ -198,7 +198,6 @@ class GetUserOrganizations(APIView):
         current_user = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         tg_id = current_user.profile.tg_id
         related_organization_ids = set(User.objects.filter(profile__tg_id=tg_id)
-                                       .exclude(pk=current_user.pk)
                                        .values_list('profile__organization_id', flat=True))
         organizations_data = Organization.objects.filter(pk__in=related_organization_ids).values(
             'name', 'id'
