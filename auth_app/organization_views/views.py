@@ -96,8 +96,8 @@ class DepartmentsListView(APIView):
         if organization_id is not None:
             try:
                 root_organization = Organization.objects.get(pk=organization_id)
-                root_id = root_organization.pk
-                departments = Organization.objects.filter(Q(top_id=root_id) & ~Q(pk=root_id))
+                parent_id = root_organization.pk
+                departments = Organization.objects.filter(Q(parent_id=parent_id) & ~Q(pk=parent_id))
                 serializer = FullOrganizationSerializer(departments, many=True)
                 return Response(serializer.data)
             except Organization.DoesNotExist:
