@@ -621,6 +621,10 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
 
     @classmethod
     def make_validations(cls, amount, current_period, reason, recipient, sender, tags):
+        if not recipient.is_active:
+            raise ValidationError("Нельзя отправить спасибки пользователю, чье участие в программе приостановлено")
+        if recipient.profile.organization_id != sender.profile.organization_id:
+            raise ValidationError("Нельзя отправлять спасибки между организациями")
         if amount <= 0:
             logger.info(f"Попытка {sender} перевести сумму меньше либо равную нулю")
             raise ValidationError("Нельзя перевести сумму меньше либо равную нулю")
@@ -634,8 +638,6 @@ class TransactionPartialSerializer(serializers.ModelSerializer):
         if recipient.accounts.filter(account_type__in=['S', 'T']).exists():
             logger.info(f"Попытка отправить спасибки на системный аккаунт")
             raise ValidationError('Нельзя отправлять спасибки на системный аккаунт')
-        if recipient.profile.organization_id != sender.profile.organization_id:
-            raise ValidationError("Нельзя отправлять спасибки между организациями")
         if tags is not None:
             if not isinstance(tags, str):
                 logger.info(f"Попытка передать ценности не строкой")

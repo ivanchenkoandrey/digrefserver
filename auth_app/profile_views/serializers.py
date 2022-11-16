@@ -73,8 +73,8 @@ class AdminProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 class EmployeeSerializer(serializers.Serializer):
-    tg_name = serializers.CharField()
-    tg_id = serializers.CharField()
+    tg_name = serializers.CharField(allow_null=True, required=False)
+    tg_id = serializers.CharField(allow_null=True, required=False)
     organization_id = serializers.IntegerField()
     department_id = serializers.IntegerField()
     photo = serializers.ImageField(allow_null=True, required=False)
@@ -91,14 +91,32 @@ class EmployeeSerializer(serializers.Serializer):
         return "".join([str(randint(0, 9)) for _ in range(4)])
 
     @classmethod
-    def get_username(cls, tg_name, tg_id):
-        return f"{tg_name}{tg_id}{cls.get_username_suffix()}"
+    def get_username(cls, tg_name, tg_id, email):
+        if tg_name is not None:
+            return f"{tg_name}{tg_id}{cls.get_username_suffix()}"
+        if email is not None:
+            return f"{email}{cls.get_username_suffix()}"
 
     def create(self, validated_data):
-        tg_name = validated_data['tg_name']
-        tg_id = validated_data['tg_id']
         organization_id = validated_data['organization_id']
         department_id = validated_data['department_id']
+        tg_name = self.data.get('tg_name')
+        tg_id = self.data.get('tg_id')
+        email = self.data.get('email')
+        if (tg_name is None and email is None) or (tg_id is None and email is None):
+            raise ValidationError('Укажите либо никнейм и id в Telegram, '
+                                  'либо адрес электронной почты')
+        if (tg_name is not None and tg_id is None) or (tg_id is not None and tg_name is None):
+            raise ValidationError('Необходимо указать и никнейм и id в Telegram')
+        if email is not None and User.objects.filter(
+                profile__contacts__contact_id=email,
+                profile__organization_id=organization_id).exists():
+            raise ValidationError('Пользователь с такой электронной почтой уже зарегистрирован в этой организации')
+        if tg_id is not None and User.objects.filter(
+                profile__tg_id=tg_id,
+                profile__organization_id=organization_id
+        ).exists():
+            raise ValidationError('Пользователь с таким id Telegram уже зарегистрирован в этой организации')
         photo = self.context.get('request').FILES.get('photo')
         surname = self.data.get('surname')
         first_name = self.data.get('first_name')
@@ -107,7 +125,6 @@ class EmployeeSerializer(serializers.Serializer):
         hired_at = self.data.get('hired_at')
         fired_at = self.data.get('fired_at')
         phone_number = self.data.get('phone_number')
-        email = self.data.get('email')
         organization = Organization.objects.get(id=organization_id)
         possible_departments = (list(Organization.objects.filter(top_id=organization_id)
                                      .values_list('id', flat=True)
@@ -117,7 +134,7 @@ class EmployeeSerializer(serializers.Serializer):
                                   "в составе указанной вами организации")
         if User.objects.filter(profile__organization_id=organization_id, profile__tg_id=tg_id).exists():
             raise ValidationError("Пользователь с таким id телеграм и id организации уже зарегистрирован")
-        username = self.get_username(tg_name, tg_id)
+        username = self.get_username(tg_name, tg_id, email)
         password = PASSWORD
         with transaction.atomic():
             user = User.objects.create_user(

@@ -60,6 +60,9 @@ class AuthView(APIView):
                 profiles = [profile for profile in Profile.objects.filter(Q(tg_name=_login) | Q(tg_id=_login))]
                 if len(profiles) == 1:
                     profile = profiles[0]
+                    if not profile.user.is_active:
+                        return Response({'status': 'Ваше участие в проекте приостановлено.'},
+                                        status=status.HTTP_401_UNAUTHORIZED)
                     tg_id = profile.tg_id
                     try:
                         bot.send_message(tg_id, f'{code} - код подтверждения в системе ТИМФОРС360.Цифровое Спасибо')
@@ -126,6 +129,8 @@ class ChooseOrganizationViaAuthenticationView(APIView):
             raise ValidationError('Не указан organization_id')
         code = ''.join([str(randint(1, 9)) for _ in range(4)])
         profile = Profile.objects.filter(user_id=user_id, organization_id=organization_id).first()
+        if not profile.user.is_active:
+            return Response({'status': 'Ваше участие в проекте приостановлено.'}, status=status.HTTP_401_UNAUTHORIZED)
         if profile is not None:
             if '@' in _login:
                 response = send_email_with_code(code, profile, request)
@@ -133,7 +138,7 @@ class ChooseOrganizationViaAuthenticationView(APIView):
             else:
                 tg_id = profile.tg_id
                 try:
-                    bot.send_message(tg_id, f'Код подтверждения в системе Цифровое Спасибо: {code}')
+                    bot.send_message(tg_id, f'{code} - код подтверждения в системе ТИМФОРС360.Цифровое Спасибо')
                 except ApiTelegramException:
                     logger.error(f"Передан неизвестный боту telegram_id: {tg_id}, "
                                  f"IP: {request.META.get('REMOTE_ADDR')}")
@@ -181,11 +186,11 @@ class VerifyCodeView(APIView):
                     user = User.objects.filter(Q(profile__tg_id=tg_id)
                                                | Q(profile__contacts__contact_id=email)).first()
                 if user is not None:
-                    token = Token.objects.get(user=user).key
+                    token_object, _ = Token.objects.get_or_create(user=user)
                     login(request, user)
                     data = {'type': 'authresult',
                             "is_success": True,
-                            "token": token,
+                            "token": token_object.key,
                             "sessionid": request.session.session_key}
                     logger.info(f"Пользователь {user} успешно аутентифицирован.")
                     user_fcm_tokens = [fcm_data.token for fcm_data in

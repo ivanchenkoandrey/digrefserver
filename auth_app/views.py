@@ -13,7 +13,6 @@ from rest_framework.views import APIView
 
 from utils.accounts_data import processing_accounts_data
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin, IsDepartmentAdmin)
-from utils.query_debugger import query_debugger
 from utils.thumbnail_link import get_thumbnail_link
 from .models import Period, UserStat, Account, Transaction
 from .serializers import (UserSerializer, SearchUserSerializer)
@@ -95,7 +94,6 @@ class GetUsersView(APIView):
     )
 
     @classmethod
-    @query_debugger
     def get(cls, request, *args, **kwargs):
         department_id = request.GET.get('department_id')
         organization_id = request.user.profile.organization_id

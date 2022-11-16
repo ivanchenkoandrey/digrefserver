@@ -1,12 +1,14 @@
 import logging
 
 from django.contrib.auth import get_user_model
+from django.contrib.sessions.models import Session
 from rest_framework import authentication, status
+from rest_framework.authtoken.models import Token
 from rest_framework.generics import UpdateAPIView, CreateAPIView, DestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from auth_app.models import Organization, Contact
+from auth_app.models import Organization, Contact, FCMToken
 from auth_app.models import Profile, UserRole
 from auth_app.serializers import ContactUpdateSerializer
 from utils.custom_permissions import (IsSystemAdmin, IsOrganizationAdmin,
@@ -57,6 +59,27 @@ class CreateEmployeeView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Organization.DoesNotExist:
             return Response("Укажите существующую организацию", status=status.HTTP_400_BAD_REQUEST)
+
+
+class BlockEmployee(APIView):
+    authentication_classes = [authentication.SessionAuthentication,
+                              authentication.TokenAuthentication]
+    permission_classes = [IsSystemAdmin | IsOrganizationAdmin | IsDepartmentAdmin]
+
+    @classmethod
+    def post(cls, request, *args, **kwargs):
+        user_id = request.data.get('user_id')
+        if user_id is not None:
+            user = User.objects.filter(id=user_id).first()
+            if user is not None:
+                [s.delete() for s in Session.objects.all() if s.get_decoded().get('_auth_user_id') == user.id]
+                Token.objects.filter(user=user).delete()
+                FCMToken.objects.filter(user=user).delete()
+                user.is_active = False
+                user.save(update_fields=['is_active'])
+                return Response({'status': 'Пользователь заблокирован'})
+            return Response({'error': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Передайте параметр user_id'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CreateUserRoleView(CreateAPIView):

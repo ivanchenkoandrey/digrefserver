@@ -64,7 +64,7 @@ class Profile(models.Model):
                                      verbose_name='Юр.лицо', blank=True)
     department = models.ForeignKey(Organization, on_delete=models.SET_NULL, related_name='profiledepartment', null=True,
                                    verbose_name='Подразделение', blank=True)
-    tg_id = CICharField(max_length=20, verbose_name='Идентификатор пользователя Telegram')
+    tg_id = CICharField(max_length=20, verbose_name='Идентификатор пользователя Telegram', null=True, blank=True)
     tg_name = CICharField(max_length=40, blank=True, null=True, verbose_name='Имя пользователя Telegram')
     photo = models.ImageField(blank=True, null=True, upload_to='users_photo/', verbose_name='Фотография')
     hired_at = models.DateField(null=True, blank=True, verbose_name='Работает с')
