@@ -3,7 +3,7 @@ from secrets import randbelow
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
-from django.db.models import Q
+from django.db.models import Q, Case, When, Value, F, BooleanField
 from rest_framework import authentication, status
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
@@ -197,9 +197,13 @@ class GetUserOrganizations(APIView):
     def get(cls, request, *args, **kwargs):
         current_user = User.objects.select_related('profile').filter(pk=request.user.pk).first()
         tg_id = current_user.profile.tg_id
+        user_organization_id = current_user.profile.organization_id
         related_organization_ids = set(User.objects.filter(profile__tg_id=tg_id)
                                        .values_list('profile__organization_id', flat=True))
-        organizations_data = Organization.objects.filter(pk__in=related_organization_ids).values(
-            'name', 'id'
-        )
+        organizations_data = (Organization.objects
+                              .filter(pk__in=related_organization_ids)
+                              .annotate(is_current=Case(When(pk=user_organization_id, then=Value(True)),
+                                                        default=Value(False),
+                                                        output_field=BooleanField()))
+                              .values('id', 'name', 'is_current'))
         return Response(data=organizations_data)
