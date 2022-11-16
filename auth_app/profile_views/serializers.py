@@ -8,7 +8,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from auth_app.models import Contact, Profile, Organization, UserRole, Account, Transaction
+from auth_app.models import Contact, Profile, Organization, UserRole, Account, Transaction, UserStat
 from utils.handle_image import process_instance_image
 
 PASSWORD = settings.DEFAULT_USER_PASSWORD
@@ -172,6 +172,7 @@ class EmployeeSerializer(serializers.Serializer):
             if organization.name == 'ruDemo':
                 distr_account = Account.objects.get(owner=user, account_type='D', challenge_id=None)
                 system_account = Account.objects.get(owner__username='system', account_type='T')
+                user_stat = UserStat.objects.get(user=user)
                 amount = 300
                 _transaction = Transaction.objects.create(
                     sender_id=system_account.owner_id,
@@ -188,8 +189,10 @@ class EmployeeSerializer(serializers.Serializer):
                 )
                 distr_account.amount += amount
                 system_account.amount -= amount
+                user_stat.distr_initial += amount
                 distr_account.save(update_fields=['amount'])
                 system_account.save(update_fields=['amount'])
+                user_stat.save(update_fields=['amount'])
         return user
 
 
