@@ -172,6 +172,7 @@ class EmployeeSerializer(serializers.Serializer):
                 profile.main_email = email
                 profile.save(update_fields=['main_email'])
             if organization.name == 'ruDemo':
+                user.refresh_from_db()
                 distr_account = Account.objects.get(owner=user, account_type='D', challenge_id=None)
                 system_account = Account.objects.get(owner__username='system', account_type='T')
                 user_stat = UserStat.objects.get(user=user)
@@ -194,7 +195,7 @@ class EmployeeSerializer(serializers.Serializer):
                 user_stat.distr_initial += amount
                 distr_account.save(update_fields=['amount'])
                 system_account.save(update_fields=['amount'])
-                user_stat.save(update_fields=['amount'])
+                user_stat.save(update_fields=['distr_initial'])
         return user
 
 
