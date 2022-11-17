@@ -78,6 +78,7 @@ class Profile(models.Model):
     timezone = models.PositiveSmallIntegerField(verbose_name='Разница во времени с МСК', null=True, blank=True)
     date_of_birth = models.DateField(verbose_name='Дата рождения', null=True, blank=True)
     job_title = CICharField(max_length=100, verbose_name='Должность', null=True, blank=True)
+    main_email = CICharField(max_length=255, default='', blank=True, verbose_name='Основной адрес электронной почты')
 
     def get_photo_url(self):
         if self.photo:

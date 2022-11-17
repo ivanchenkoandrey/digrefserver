@@ -169,6 +169,8 @@ class EmployeeSerializer(serializers.Serializer):
                     contact_id=email,
                     confirmed=True
                 )
+                profile.main_email = email
+                profile.save(update_fields=['main_email'])
             if organization.name == 'ruDemo':
                 distr_account = Account.objects.get(owner=user, account_type='D', challenge_id=None)
                 system_account = Account.objects.get(owner__username='system', account_type='T')
